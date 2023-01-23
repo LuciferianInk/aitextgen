@@ -523,7 +523,7 @@ class aitextgen:
             # Use a 8-digit number as the seed, which is the last
             # numeric part of the file name.
             if seed is None:
-                seed = randint(10 ** 7, 10 ** 8 - 1)
+                seed = randint(10**7, 10**8 - 1)
 
             destination_path = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}_{seed}.txt"
 
@@ -646,9 +646,16 @@ class aitextgen:
             logger.info("Layer freezing enabled for model training.")
             freeze_layers = True
             if num_layers_freeze:
-                assert (
-                    num_layers_freeze < self.model.config.n_layer
-                ), "You are freezing more Transformer layers than in the model."
+                # For GPT-2
+                if hasattr(self.model.config, "n_layer"):
+                    assert (
+                        num_layers_freeze < self.model.config.n_layer
+                    ), "You are freezing more Transformer layers than in the model."
+                # For GPT-Neo
+                elif hasattr(self.model.config, "num_layers"):
+                    assert (
+                        num_layers_freeze < self.model.config.num_layers
+                    ), "You are freezing more Transformer layers than in the model."
 
         if num_workers is None:
             # Use all CPU cores as workers if not training on CPU
@@ -709,9 +716,9 @@ class aitextgen:
             gpus=n_gpu,
             max_steps=num_steps,
             gradient_clip_val=max_grad_norm,
-            enable_checkpointing=False, #checkpoint_callback deprecated in pytorch_lighning v1.7
+            enable_checkpointing=False,  # checkpoint_callback deprecated in pytorch_lighning v1.7
             logger=loggers if loggers else False,
-            enable_model_summary=None, #weights_summary and progress_bar_refresh_rate are removed in pytorch_lighning v1.7
+            enable_model_summary=None,  # weights_summary and progress_bar_refresh_rate are removed in pytorch_lighning v1.7
             callbacks=[
                 ATGProgressBar(
                     save_every,
@@ -792,10 +799,10 @@ class aitextgen:
         ]
 
         if not isinstance(learning_rate, list):
-            learning_rate = [learning_rate / (2 ** x) for x in range(len(datasets))]
+            learning_rate = [learning_rate / (2**x) for x in range(len(datasets))]
 
         if not isinstance(num_steps, list):
-            num_steps = [int(num_steps / (2 ** x)) for x in range(len(datasets))]
+            num_steps = [int(num_steps / (2**x)) for x in range(len(datasets))]
 
         assert len(datasets) == len(learning_rate) == len(num_steps), (
             "The provided learning_rates or num_steps"
@@ -860,6 +867,6 @@ class aitextgen:
 
     def __repr__(self) -> str:
         # https://discuss.pytorch.org/t/how-do-i-check-the-number-of-parameters-of-a-model/4325/24
-        num_params_m = int(sum(p.numel() for p in self.model.parameters()) / 10 ** 6)
+        num_params_m = int(sum(p.numel() for p in self.model.parameters()) / 10**6)
         model_name = type(self.model.config).__name__.replace("Config", "")
         return f"{model_name} loaded with {num_params_m}M parameters."
