@@ -184,8 +184,8 @@ class ATGProgressBar(ProgressBarBase):
                     stderr=subprocess.PIPE,
                     check=True,
                 )
-                gpu_memory = result.stdout.strip().split(os.linesep)[1]
-                desc += f" — GPU Mem: {gpu_memory} MB"
+                gpu_memory = result.stdout.strip().split(os.linesep)
+                desc += f" — GPU Mem: {' MB | '.join(gpu_memory)} MB"
             self.main_progress_bar.update(self.progress_bar_refresh_rate)
             self.main_progress_bar.set_description(desc)
 
