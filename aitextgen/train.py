@@ -249,12 +249,12 @@ class ATGProgressBar(ProgressBarBase):
             self.main_progress_bar.write(
                 f"\033[1m{self.steps:,} steps reached: saving model to /{self.output_dir}\033[0m"
             )
-        if tpu:
-            import torch_xla.core.xla_model as xm
+        # if tpu:
+        #     import torch_xla.core.xla_model as xm
 
-            pl_module.model.save_pretrained(self.output_dir, save_function=xm.save)
-        else:
-            pl_module.model.save_pretrained(self.output_dir)
+        #     pl_module.model.save_pretrained(self.output_dir, save_function=xm.save)
+        # else:
+        pl_module.model.save_pretrained(self.output_dir)
 
         if self.enabled and self.save_gdrive:
             for pt_file in ["pytorch_model.bin", "config.json"]:
