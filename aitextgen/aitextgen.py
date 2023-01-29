@@ -198,8 +198,7 @@ class aitextgen:
             if model and "gpt2" not in model:
                 logger.info(f"Using the tokenizer for {model}.")
                 self.tokenizer = AutoTokenizer.from_pretrained(
-                    model,
-                    cache_dir=cache_dir,
+                    model, cache_dir=cache_dir, padding_side="left"
                 )
 
         logger.info(self)
@@ -245,6 +244,7 @@ class aitextgen:
                     eos_token=self.eos_token,
                     unk_token=self.unk_token,
                     pad_token=self.pad_token,
+                    padding_side="left",
                 )
             else:
                 self.tokenizer = GPT2TokenizerFast(
@@ -255,6 +255,7 @@ class aitextgen:
                     unk_token=self.unk_token,
                     pad_token=self.pad_token,
                     verbose=False,
+                    padding_side="left",
                 )
                 if not custom_tokenizer:
                     # https://github.com/huggingface/transformers/issues/10202

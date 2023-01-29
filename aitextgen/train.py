@@ -167,7 +167,7 @@ class ATGProgressBar(ProgressBarBase):
             )
             self.prev_avg_loss = avg_loss
 
-        desc = f"Loss: {current_loss:.3f} — Avg: {avg_loss:.3f}"
+        desc = bc.ROOT + f"Loss: {current_loss:.3f} — Avg: {avg_loss:.3f}" + bc.ENDC
 
         if self.steps % self.progress_bar_refresh_rate == 0:
             if self.gpu:
@@ -285,3 +285,10 @@ class ATGProgressBar(ProgressBarBase):
 
     def unfreeze_layers(self, pl_module):
         self.modify_layers(pl_module, True)
+
+
+class bc:
+    FOLD = "\033[94m"
+    ROOT = "\033[92m"
+    CORE = "\033[91m"
+    ENDC = "\033[0m"
