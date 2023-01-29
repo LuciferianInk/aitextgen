@@ -194,9 +194,9 @@ class ATGProgressBar(ProgressBarBase):
 
         color = bc.ROOT
         if current_loss < avg_loss:
-            color = bc.CORE
-        elif current_loss > avg_loss:
             color = bc.FOLD
+        elif current_loss > avg_loss:
+            color = bc.CORE
 
         bearing = "{:.8f}".format(round(current_loss / avg_loss, 8))
 
@@ -248,7 +248,7 @@ class ATGProgressBar(ProgressBarBase):
 
         pl_module.tokenizer.padding_side = "left"
 
-        logger = logging.getLogger("transformers").setLevel(logging.ERROR)
+        logging.getLogger("transformers").setLevel(logging.ERROR)
 
         outputs = pl_module.model.generate(
             input_ids=None,
@@ -261,7 +261,7 @@ class ATGProgressBar(ProgressBarBase):
 
         gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
-        logger.setLevel(logging.WARNING)
+        logging.getLogger("transformers").setLevel(logging.WARNING)
 
         for text in gen_texts:
             self.main_progress_bar.write("<==")
