@@ -8,7 +8,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import get_linear_schedule_with_warmup
-
+import logging
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress import ProgressBarBase
 from pytorch_lightning.utilities import _HIVEMIND_AVAILABLE
@@ -246,6 +246,10 @@ class ATGProgressBar(ProgressBarBase):
             pl_module.tokenizer, "eos_token_id", None
         )
 
+        pl_module.tokenizer.padding_side = "left"
+
+        logger = logging.getLogger("transformers").setLevel(logging.ERROR)
+
         outputs = pl_module.model.generate(
             input_ids=None,
             max_length=gen_length,
@@ -256,6 +260,8 @@ class ATGProgressBar(ProgressBarBase):
         )
 
         gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
+        logger.setLevel(logging.WARNING)
 
         for text in gen_texts:
             self.main_progress_bar.write("<==")
