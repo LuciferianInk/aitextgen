@@ -174,7 +174,7 @@ class ATGProgressBar(ProgressBarBase):
         elif current_loss > avg_loss:
             color = bc.FOLD
 
-        bearing = current_loss / avg_loss
+        bearing = "{:.8f}".format(round(current_loss / avg_loss, 8))
 
         mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
             "SC_PHYS_PAGES"
@@ -184,9 +184,8 @@ class ATGProgressBar(ProgressBarBase):
         memory = psutil.virtual_memory()
 
         desc = (
-            color
-            + f"{current_loss:.3f}{bc.ENDC} => Loss => {bc.ROOT}{avg_loss:.3f}{bc.ENDC} => Average => {bc.FOLD}{bearing}{bc.ENDC} => System => {bc.FOLD}{memory.percent}%"
-            + bc.ENDC
+            bc.ROOT
+            + f"{current_loss:.3f}{bc.ENDC} => Loss => {color}{avg_loss:.3f}{bc.ENDC} => Average => {bc.FOLD}{bearing}000{bc.ENDC} => System => {bc.FOLD}{memory.percent}{bc.ENDC} => %"
         )
 
         if self.steps % self.progress_bar_refresh_rate == 0:
@@ -204,7 +203,7 @@ class ATGProgressBar(ProgressBarBase):
                     check=True,
                 )
                 gpu_memory = result.stdout.strip().split(os.linesep)
-                desc += f" => GPU => {'MB => '.join(gpu_memory)}MB"
+                desc += f" => GPU => {' => MB => '.join(gpu_memory)} => MB"
             self.main_progress_bar.update(self.progress_bar_refresh_rate)
             self.main_progress_bar.set_description(desc)
 
