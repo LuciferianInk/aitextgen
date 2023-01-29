@@ -168,6 +168,30 @@ class ATGProgressBar(ProgressBarBase):
             )
             self.prev_avg_loss = avg_loss
 
+        if _HIVEMIND_AVAILABLE and self.save_every_check:
+            did_unfreeze = False
+            if self.enabled:
+                self.unfreeze_layers(pl_module)
+                did_unfreeze = True
+            self.save_pytorch_model(trainer, pl_module, tpu=True)
+            if did_unfreeze:
+                self.freeze_layers(pl_module)
+
+        if self.enabled:
+            did_unfreeze = False
+            if not _HIVEMIND_AVAILABLE and self.save_every_check:
+                self.unfreeze_layers(pl_module)
+                self.save_pytorch_model(trainer, pl_module)
+                did_unfreeze = True
+
+            if self.generate_every > 0 and self.steps % self.generate_every == 0:
+                self.unfreeze_layers(pl_module)
+                self.generate_sample_text(trainer, pl_module)
+                did_unfreeze = True
+
+            if did_unfreeze:
+                self.freeze_layers(pl_module)
+
         color = bc.ROOT
         if current_loss < avg_loss:
             color = bc.CORE
@@ -207,30 +231,6 @@ class ATGProgressBar(ProgressBarBase):
             self.main_progress_bar.update(self.progress_bar_refresh_rate)
             self.main_progress_bar.set_description(desc)
 
-        if _HIVEMIND_AVAILABLE and self.save_every_check:
-            did_unfreeze = False
-            if self.enabled:
-                self.unfreeze_layers(pl_module)
-                did_unfreeze = True
-            self.save_pytorch_model(trainer, pl_module, tpu=True)
-            if did_unfreeze:
-                self.freeze_layers(pl_module)
-
-        if self.enabled:
-            did_unfreeze = False
-            if not _HIVEMIND_AVAILABLE and self.save_every_check:
-                self.unfreeze_layers(pl_module)
-                self.save_pytorch_model(trainer, pl_module)
-                did_unfreeze = True
-
-            if self.generate_every > 0 and self.steps % self.generate_every == 0:
-                self.unfreeze_layers(pl_module)
-                self.generate_sample_text(trainer, pl_module)
-                did_unfreeze = True
-
-            if did_unfreeze:
-                self.freeze_layers(pl_module)
-
     def generate_sample_text(self, trainer, pl_module):
         self.main_progress_bar.write(
             f"\033[1m{self.steps:,} steps reached: generating sample texts.\033[0m"
@@ -257,10 +257,10 @@ class ATGProgressBar(ProgressBarBase):
         gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         for text in gen_texts:
-            self.main_progress_bar.write("=" * 10)
+            self.main_progress_bar.write("<==")
             self.main_progress_bar.write(text)
 
-        self.main_progress_bar.write("=" * 10)
+        self.main_progress_bar.write("==>")
 
     def save_pytorch_model(self, trainer, pl_module, tpu=False):
 
