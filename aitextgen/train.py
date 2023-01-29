@@ -207,9 +207,9 @@ class ATGProgressBar(ProgressBarBase):
 
         memory = psutil.virtual_memory()
 
-        desc = (
+        echo = (
             bc.ROOT
-            + f"{current_loss:.3f}{bc.ENDC} => Loss => {color}{avg_loss:.3f}{bc.ENDC} => Average => {bc.FOLD}{bearing}000{bc.ENDC} => System => {bc.FOLD}{memory.percent}{bc.ENDC} => %"
+            + f"{current_loss:.3f}{bc.ENDC} => Loss => {color}{avg_loss:.3f}{bc.ENDC} => Average => {bc.FOLD}{bearing}000{bc.ENDC} => System => {bc.FOLD}{memory.percent}{bc.ENDC} => {bc.FOLD}%{bc.ENDC}"
         )
 
         if self.steps % self.progress_bar_refresh_rate == 0:
@@ -227,9 +227,10 @@ class ATGProgressBar(ProgressBarBase):
                     check=True,
                 )
                 gpu_memory = result.stdout.strip().split(os.linesep)
-                desc += f" => GPU => {' => MB => '.join(gpu_memory)} => MB"
+                cat = f"{bc.ENDC} => {bc.FOLD}MB{bc.ENDC} => {bc.FOLD}".join(gpu_memory)
+                echo += f" => GPU => {bc.FOLD}{cat}{bc.ENDC} => {bc.FOLD}MB{bc.ENDC}"
             self.main_progress_bar.update(self.progress_bar_refresh_rate)
-            self.main_progress_bar.set_description(desc)
+            self.main_progress_bar.set_description(echo)
 
     def generate_sample_text(self, trainer, pl_module):
         self.main_progress_bar.write(
