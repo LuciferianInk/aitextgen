@@ -280,7 +280,9 @@ class aitextgen:
         prompt: str = "",
         prepend_bos: bool = None,
         min_length: int = None,
-        max_length: int = 256,
+        # max_length: int = 256,
+        max_new_tokens: int = None,
+        max_length: int = None,
         temperature: float = 0.7,
         do_sample: bool = True,
         return_as_list: bool = False,
@@ -346,13 +348,14 @@ class aitextgen:
 
         # prevent an error from using a length greater than the model
         gen_max_length = model_max_length(self.model.config)
-        max_length = min(gen_max_length, max_length)
+        # max_length = min(gen_max_length, max_length)
 
         while True:
             outputs = self.model.generate(
                 input_ids=input_ids,
                 min_length=min_length,
-                max_length=max_length,
+                # max_length=max_length,
+                max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 do_sample=do_sample,
                 num_return_sequences=n,
