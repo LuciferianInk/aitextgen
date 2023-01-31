@@ -12,6 +12,7 @@ import logging
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress import ProgressBarBase
 from pytorch_lightning.utilities import _HIVEMIND_AVAILABLE
+import random
 
 
 class ATGTransformer(pl.LightningModule):
@@ -207,10 +208,7 @@ class ATGProgressBar(ProgressBarBase):
 
         memory = psutil.virtual_memory()
 
-        echo = (
-            bc.ROOT
-            + f"{current_loss:.3f}{bc.ENDC} => Loss => {color}{avg_loss:.3f}{bc.ENDC} => Average => {bc.FOLD}{bearing}000{bc.ENDC} => System => {bc.FOLD}{memory.percent}{bc.ENDC} => {bc.FOLD}%{bc.ENDC}"
-        )
+        echo = f"{bc.ROOT}{current_loss:.3f}{bc.ENDC} => Loss => {color}{avg_loss:.3f}{bc.ENDC} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{bc.ENDC} => System => {bc.FOLD}{memory.percent}%{bc.ENDC}"
 
         if self.steps % self.progress_bar_refresh_rate == 0:
             if self.gpu:
@@ -227,8 +225,8 @@ class ATGProgressBar(ProgressBarBase):
                     check=True,
                 )
                 gpu_memory = result.stdout.strip().split(os.linesep)
-                cat = f"{bc.ENDC} => {bc.FOLD}MB{bc.ENDC} => {bc.FOLD}".join(gpu_memory)
-                echo += f" => GPU => {bc.FOLD}{cat}{bc.ENDC} => {bc.FOLD}MB{bc.ENDC}"
+                cat = f"MB{bc.ENDC} => {bc.FOLD}".join(gpu_memory)
+                echo += f" => GPU => {bc.FOLD}{cat}MB{bc.ENDC}"
             self.main_progress_bar.update(self.progress_bar_refresh_rate)
             self.main_progress_bar.set_description(echo)
 
