@@ -11,7 +11,7 @@ from transformers import get_linear_schedule_with_warmup
 import logging
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress import ProgressBarBase
-from pytorch_lightning.utilities import _HIVEMIND_AVAILABLE
+from pytorch_lightning.accelerators import TPUAccelerator
 import random
 
 
@@ -169,7 +169,7 @@ class ATGProgressBar(ProgressBarBase):
             )
             self.prev_avg_loss = avg_loss
 
-        if _HIVEMIND_AVAILABLE and self.save_every_check:
+        if TPUAccelerator.is_available() and self.save_every_check:
             did_unfreeze = False
             if self.enabled:
                 self.unfreeze_layers(pl_module)
@@ -180,7 +180,7 @@ class ATGProgressBar(ProgressBarBase):
 
         if self.enabled:
             did_unfreeze = False
-            if not _HIVEMIND_AVAILABLE and self.save_every_check:
+            if not TPUAccelerator.is_available() and self.save_every_check:
                 self.unfreeze_layers(pl_module)
                 self.save_pytorch_model(trainer, pl_module)
                 did_unfreeze = True
