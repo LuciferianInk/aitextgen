@@ -270,7 +270,7 @@ def encode_tokens_from_file(
     newline: str,
     header: bool = True,
     progress_bar_refresh_rate: int = 20,
-    batch_size: int = 1024,
+    batch_size: int = 256,
 ) -> List[int]:
     """
     Retrieves texts from a newline-delimited file/CSV and returns texts.
@@ -362,7 +362,7 @@ def encode_tokens_from_list(
     eos_token: str,
     tokenizer: GPT2TokenizerFast,
     progress_bar_refresh_rate: int = 20,
-    batch_size: int = 1024,
+    batch_size: int = 256,
 ) -> List[int]:
     """
     Retrieves texts from a newline-delimited file/CSV and returns texts.

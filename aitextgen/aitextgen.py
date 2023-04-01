@@ -781,6 +781,11 @@ class aitextgen:
         inputs: List[TokenDataset],
         learning_rate: Union[float, List[float]] = 1e-4,
         num_steps: Union[int, List[int]] = 4000,
+        num_layers_freeze: Union[int, List[int]] = None,
+        weight_decay: Union[float, List[float]] = 0.05,
+        max_grad_norm: Union[float, List[float]] = 0.05,
+        batch_size: Union[int, List[int]] = 1,
+        gradient_accumulation_steps: Union[int, List[int]] = 1,
         run_id: str = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}",
         **kwargs,
     ) -> None:
@@ -819,6 +824,11 @@ class aitextgen:
                 dataset,
                 learning_rate=learning_rate[i],
                 num_steps=num_steps[i],
+                num_layers_freeze=num_layers_freeze[i],
+                weight_decay=weight_decay[i],
+                max_grad_norm=max_grad_norm[i],
+                batch_size=batch_size[i],
+                gradient_accumulation_steps=gradient_accumulation_steps[i],
                 run_id=run_id,
                 **kwargs,
             )
