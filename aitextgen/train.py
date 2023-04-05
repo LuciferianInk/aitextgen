@@ -36,7 +36,9 @@ class ATGTransformer(pl.LightningModule):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
 
-        self.logger.experiment.add_scalars("loss", {"train": loss}, self.global_step)
+        self.logger.experiment.add_scalars(
+            "loss/" + str(self.hparams["stage"]), {"train": loss}, self.global_step
+        )
 
         return {"loss": loss}
 
@@ -231,10 +233,6 @@ class ATGProgressBar(ProgressBarBase):
             self.main_progress_bar.set_description(echo)
 
     def generate_sample_text(self, trainer, pl_module):
-        # self.main_progress_bar.write(
-        #     f"\033[1m{self.steps:,} steps reached: generating sample texts.\033[0m"
-        # )
-
         gen_length_max = getattr(
             pl_module.model.config, "n_positions", None
         ) or getattr(pl_module.model.config, "max_position_embeddings", None)
@@ -269,16 +267,12 @@ class ATGProgressBar(ProgressBarBase):
 
     def save_pytorch_model(self, trainer, pl_module, tpu=False):
 
-        # if self.enabled:
-        #     self.main_progress_bar.write(
-        #         f"\033[1m{self.steps:,} steps reached: saving model to /{self.output_dir}\033[0m"
-        #     )
-        # if tpu:
-        #     import torch_xla.core.xla_model as xm
+        if tpu:
+            import torch_xla.core.xla_model as xm
 
-        #     pl_module.model.save_pretrained(self.output_dir, save_function=xm.save)
-        # else:
-        pl_module.model.save_pretrained(self.output_dir)
+            pl_module.model.save_pretrained(self.output_dir, save_function=xm.save)
+        else:
+            pl_module.model.save_pretrained(self.output_dir)
 
         if self.enabled and self.save_gdrive:
             for pt_file in ["pytorch_model.bin", "config.json"]:

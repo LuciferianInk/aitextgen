@@ -87,8 +87,8 @@ def reset_seed():
     """
     random.seed()
     np.random.seed()
-    # torch.seed()
-    # torch.cuda.seed_all()
+    torch.seed()
+    torch.cuda.seed_all()
 
 
 def build_gpt2_config(

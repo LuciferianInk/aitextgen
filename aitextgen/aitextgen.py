@@ -582,6 +582,7 @@ class aitextgen:
         freeze_layers: bool = False,
         num_layers_freeze: int = None,
         use_deepspeed: bool = False,
+        stage: int = 0,
         **kwargs,
     ) -> None:
         """
@@ -681,6 +682,7 @@ class aitextgen:
             save_every=save_every,
             generate_every=generate_every,
             use_tpu=tpu_cores > 0,
+            stage=stage,
         )
 
         # Wrap the model in a pytorch-lightning module
@@ -781,11 +783,13 @@ class aitextgen:
         inputs: List[TokenDataset],
         learning_rate: Union[float, List[float]] = 1e-4,
         num_steps: Union[int, List[int]] = 4000,
+        freeze_layers: Union[bool, List[bool]] = False,
         num_layers_freeze: Union[int, List[int]] = None,
         weight_decay: Union[float, List[float]] = 0.05,
         max_grad_norm: Union[float, List[float]] = 0.05,
         batch_size: Union[int, List[int]] = 1,
         gradient_accumulation_steps: Union[int, List[int]] = 1,
+        train_transformers_only: Union[bool, List[bool]] = False,
         run_id: str = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}",
         **kwargs,
     ) -> None:
@@ -824,12 +828,15 @@ class aitextgen:
                 dataset,
                 learning_rate=learning_rate[i],
                 num_steps=num_steps[i],
+                freeze_layers=freeze_layers[i],
                 num_layers_freeze=num_layers_freeze[i],
                 weight_decay=weight_decay[i],
                 max_grad_norm=max_grad_norm[i],
                 batch_size=batch_size[i],
                 gradient_accumulation_steps=gradient_accumulation_steps[i],
+                train_transformers_only=train_transformers_only[i],
                 run_id=run_id,
+                stage=i,
                 **kwargs,
             )
 
