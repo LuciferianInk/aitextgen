@@ -583,6 +583,8 @@ class aitextgen:
         num_layers_freeze: int = None,
         use_deepspeed: bool = False,
         stage: int = 0,
+        scheduler: str = "get_linear_schedule_with_warmup",
+        num_cycles: float = 0.5,
         **kwargs,
     ) -> None:
         """
@@ -683,6 +685,8 @@ class aitextgen:
             generate_every=generate_every,
             use_tpu=tpu_cores > 0,
             stage=stage,
+            scheduler=scheduler,
+            num_cycles=num_cycles,
         )
 
         # Wrap the model in a pytorch-lightning module
@@ -790,6 +794,8 @@ class aitextgen:
         batch_size: Union[int, List[int]] = 1,
         gradient_accumulation_steps: Union[int, List[int]] = 1,
         train_transformers_only: Union[bool, List[bool]] = False,
+        scheduler: Union[str, List[str]] = "get_linear_schedule_with_warmup",
+        num_cycles: Union[float, List[float]] = 0.5,
         run_id: str = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}",
         **kwargs,
     ) -> None:
@@ -837,6 +843,8 @@ class aitextgen:
                 train_transformers_only=train_transformers_only[i],
                 run_id=run_id,
                 stage=i,
+                scheduler=scheduler[i],
+                num_cycles=num_cycles[i],
                 **kwargs,
             )
 

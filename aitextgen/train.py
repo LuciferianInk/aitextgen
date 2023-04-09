@@ -7,7 +7,12 @@ import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from transformers import get_linear_schedule_with_warmup
+from transformers import (
+    get_linear_schedule_with_warmup,
+    get_constant_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+)
 import logging
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress import ProgressBarBase
@@ -37,7 +42,9 @@ class ATGTransformer(pl.LightningModule):
         loss = outputs[0]
 
         self.logger.experiment.add_scalars(
-            "loss/" + str(self.hparams["stage"]), {"train": loss}, self.global_step
+            "loss/stage-" + str(self.hparams["stage"]),
+            {"train": loss},
+            self.global_step,
         )
 
         return {"loss": loss}
@@ -79,11 +86,35 @@ class ATGTransformer(pl.LightningModule):
             eps=self.hparams["adam_epsilon"],
         )
 
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=self.hparams["warmup_steps"],
-            num_training_steps=self.hparams["num_steps"],
-        )
+        if self.hparams["scheduler"] == "get_constant_schedule_with_warmup":
+            scheduler = get_constant_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=self.hparams["warmup_steps"],
+                num_training_steps=self.hparams["num_steps"],
+            )
+        elif self.hparams["scheduler"] == "get_linear_schedule_with_warmup":
+            scheduler = get_linear_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=self.hparams["warmup_steps"],
+                num_training_steps=self.hparams["num_steps"],
+            )
+        elif self.hparams["scheduler"] == "get_cosine_schedule_with_warmup":
+            scheduler = get_cosine_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=self.hparams["warmup_steps"],
+                num_training_steps=self.hparams["num_steps"],
+                num_cycles=self.hparams["num_cycles"],
+            )
+        elif (
+            self.hparams["scheduler"]
+            == "get_cosine_with_hard_restarts_schedule_with_warmup"
+        ):
+            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=self.hparams["warmup_steps"],
+                num_training_steps=self.hparams["num_steps"],
+                num_cycles=self.hparams["num_cycles"],
+            )
 
         return [optimizer], [scheduler]
 
