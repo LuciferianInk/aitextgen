@@ -205,7 +205,7 @@ class aitextgen:
 
         if gradient_checkpointing or tf_gpt2 in ["355M", "774M", "1558M"]:
             logger.info("Gradient checkpointing enabled for model training.")
-            setattr(self.model.config, "gradient_checkpointing", True)
+            self.model.gradient_checkpointing_enable()
             setattr(self.model.config, "use_cache", False)
 
         if schema_tokens:
@@ -280,7 +280,6 @@ class aitextgen:
         prompt: str = "",
         prepend_bos: bool = None,
         min_length: int = None,
-        # max_length: int = 256,
         max_new_tokens: int = None,
         max_length: int = None,
         temperature: float = 0.7,
@@ -601,7 +600,7 @@ class aitextgen:
         :param max_grad_norm: Maximum gradient normalization
         :param gradient_accumulation_steps: Number of gradient acc steps
         :param seed: Interger representing the training seed.
-        :param learning_rate: Training learnign rate for the default AdamW optimizer.
+        :param learning_rate: Training learning rate for the default AdamW optimizer.
         :param weight_decay: Weight decay for the default AdamW optimizer.
         :param warmup_steps: Warmrup steps for the default AdamW optimizer.
         :param num_steps: Number of samples through the dataset.
