@@ -18,6 +18,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress import ProgressBarBase
 from pytorch_lightning.accelerators import TPUAccelerator
 import random
+from .utils import bc, ad
 
 
 class ATGTransformer(pl.LightningModule):
@@ -241,7 +242,7 @@ class ATGProgressBar(ProgressBarBase):
 
         memory = psutil.virtual_memory()
 
-        echo = f"{bc.ROOT}{current_loss:.3f}{bc.ENDC} => Loss => {color}{avg_loss:.3f}{bc.ENDC} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{bc.ENDC} => System => {bc.FOLD}{memory.percent}%{bc.ENDC}"
+        echo = f"{bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
 
         if self.steps % self.progress_bar_refresh_rate == 0:
             if self.gpu:
@@ -258,8 +259,8 @@ class ATGProgressBar(ProgressBarBase):
                     check=True,
                 )
                 gpu_memory = result.stdout.strip().split(os.linesep)
-                cat = f"MB{bc.ENDC} => {bc.FOLD}".join(gpu_memory)
-                echo += f" => GPU => {bc.FOLD}{cat}MB{bc.ENDC}"
+                cat = f"MB{ad.TEXT} => {bc.FOLD}".join(gpu_memory)
+                echo += f" => GPU => {bc.FOLD}{cat}MB{ad.TEXT}"
             self.main_progress_bar.update(self.progress_bar_refresh_rate)
             self.main_progress_bar.set_description(echo)
 
@@ -334,10 +335,3 @@ class ATGProgressBar(ProgressBarBase):
 
     def unfreeze_layers(self, pl_module):
         self.modify_layers(pl_module, True)
-
-
-class bc:
-    FOLD = "\033[94m"
-    ROOT = "\033[92m"
-    CORE = "\033[91m"
-    ENDC = "\033[0m"

@@ -200,3 +200,13 @@ def model_max_length(config):
     return getattr(config, "n_positions", None) or getattr(
         config, "max_position_embeddings", None
     )
+
+
+class bc:
+    FOLD = "\033[94m"
+    ROOT = "\033[92m"
+    CORE = "\033[91m"
+
+
+class ad:
+    TEXT = "\033[0m"
