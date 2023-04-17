@@ -263,8 +263,6 @@ class aitextgen:
                         {"additional_special_tokens": ["<|endoftext|>"]}
                     )
 
-        self.tokenizer.padding_side = "left"
-
         if to_gpu:
             if to_fp16:
                 logger.warn(
@@ -345,15 +343,10 @@ class aitextgen:
                 self.tokenizer, "eos_token_id", None
             )
 
-        # prevent an error from using a length greater than the model
-        gen_max_length = model_max_length(self.model.config)
-        # max_length = min(gen_max_length, max_length)
-
         while True:
             outputs = self.model.generate(
                 input_ids=input_ids,
                 min_length=min_length,
-                # max_length=max_length,
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 do_sample=do_sample,
