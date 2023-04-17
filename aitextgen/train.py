@@ -274,8 +274,6 @@ class ATGProgressBar(ProgressBarBase):
             pl_module.tokenizer, "eos_token_id", None
         )
 
-        pl_module.tokenizer.padding_side = "left"
-
         logging.getLogger("transformers").setLevel(logging.ERROR)
 
         outputs = pl_module.model.generate(
