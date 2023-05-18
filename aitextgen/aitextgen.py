@@ -98,7 +98,6 @@ class aitextgen:
         unk_token: str = None,
         **kwargs,
     ) -> None:
-
         if model:
             assert not os.path.isfile(model), (
                 "As of aitextgen 0.5.0, you must "
@@ -279,7 +278,6 @@ class aitextgen:
         prepend_bos: bool = None,
         min_length: int = None,
         max_new_tokens: int = None,
-        max_length: int = None,
         temperature: float = 0.7,
         do_sample: bool = True,
         return_as_list: bool = False,
@@ -299,7 +297,6 @@ class aitextgen:
 
         :param n: Numbers of texts to generate.
         :param prompt: Text to force the generated text to start with
-        :param max_length: Maximum length for the generated text
         :param temperature: Determines the "creativity" of the generated text.
         The value range is different for each type of Transformer.
         :param do_sample: Samples the text, which is what we want. If False,
