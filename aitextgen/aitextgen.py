@@ -569,6 +569,7 @@ class aitextgen:
         save_gdrive: bool = False,
         run_id: str = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}",
         progress_bar_refresh_rate: int = 20,
+        freeze_layers: bool = False,
         num_layers_freeze: int = None,
         use_deepspeed: bool = False,
         stage: int = 0,
@@ -638,8 +639,9 @@ class aitextgen:
 
         setattr(self.model.config, "line_by_line", train_data.line_by_line)
 
-        if num_layers_freeze or self.openai_tf_gpt2 == "1558M":
+        if freeze_layers or self.openai_tf_gpt2 == "1558M":
             logger.info("Layer freezing enabled for model training.")
+            freeze_layers = True
             if num_layers_freeze:
                 # For GPT-2
                 if hasattr(self.model.config, "n_layer"):
@@ -734,6 +736,7 @@ class aitextgen:
                     run_id,
                     save_gdrive,
                     progress_bar_refresh_rate,
+                    freeze_layers,
                     num_layers_freeze,
                 )
             ],
