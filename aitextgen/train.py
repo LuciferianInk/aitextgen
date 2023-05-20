@@ -294,7 +294,6 @@ class ATGProgressBar(ProgressBarBase):
         self.main_progress_bar.write("==>")
 
     def save_pytorch_model(self, trainer, pl_module, tpu=False):
-
         if tpu:
             import torch_xla.core.xla_model as xm
 

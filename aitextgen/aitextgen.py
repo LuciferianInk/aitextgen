@@ -569,7 +569,6 @@ class aitextgen:
         save_gdrive: bool = False,
         run_id: str = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}",
         progress_bar_refresh_rate: int = 20,
-        freeze_layers: bool = False,
         num_layers_freeze: int = None,
         use_deepspeed: bool = False,
         stage: int = 0,
@@ -639,9 +638,8 @@ class aitextgen:
 
         setattr(self.model.config, "line_by_line", train_data.line_by_line)
 
-        if freeze_layers or self.openai_tf_gpt2 == "1558M":
+        if num_layers_freeze or self.openai_tf_gpt2 == "1558M":
             logger.info("Layer freezing enabled for model training.")
-            freeze_layers = True
             if num_layers_freeze:
                 # For GPT-2
                 if hasattr(self.model.config, "n_layer"):
@@ -652,6 +650,11 @@ class aitextgen:
                 elif hasattr(self.model.config, "num_layers"):
                     assert (
                         num_layers_freeze < self.model.config.num_layers
+                    ), "You are freezing more Transformer layers than in the model."
+                # For RWKV
+                elif hasattr(self.model.config, "num_hidden_layers"):
+                    assert (
+                        num_layers_freeze < self.model.config.num_hidden_layers
                     ), "You are freezing more Transformer layers than in the model."
 
         if num_workers is None:
@@ -731,7 +734,6 @@ class aitextgen:
                     run_id,
                     save_gdrive,
                     progress_bar_refresh_rate,
-                    freeze_layers,
                     num_layers_freeze,
                 )
             ],
@@ -772,72 +774,6 @@ class aitextgen:
 
         if seed:
             reset_seed()
-
-    def cross_train(
-        self,
-        inputs: List[TokenDataset],
-        learning_rate: Union[float, List[float]] = 1e-4,
-        num_steps: Union[int, List[int]] = 4000,
-        freeze_layers: Union[bool, List[bool]] = False,
-        num_layers_freeze: Union[int, List[int]] = None,
-        weight_decay: Union[float, List[float]] = 0.05,
-        max_grad_norm: Union[float, List[float]] = 0.05,
-        batch_size: Union[int, List[int]] = 1,
-        gradient_accumulation_steps: Union[int, List[int]] = 1,
-        train_transformers_only: Union[bool, List[bool]] = False,
-        scheduler: Union[str, List[str]] = "get_linear_schedule_with_warmup",
-        num_cycles: Union[float, List[float]] = 0.5,
-        run_id: str = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}",
-        **kwargs,
-    ) -> None:
-        """Trains a model across multiple input datasets, with automatic
-        decay after each run."""
-
-        datasets = [
-            TokenDataset(
-                vocab_file=self.vocab_file,
-                merges_file=self.merges_file,
-                bos_token=self.bos_token,
-                eos_token=self.eos_token,
-                unk_token=self.unk_token,
-                file_path=x,
-                **kwargs,
-            )
-            if isinstance(x, str)
-            else x
-            for x in inputs
-        ]
-
-        if not isinstance(learning_rate, list):
-            learning_rate = [learning_rate / (2**x) for x in range(len(datasets))]
-
-        if not isinstance(num_steps, list):
-            num_steps = [int(num_steps / (2**x)) for x in range(len(datasets))]
-
-        assert len(datasets) == len(learning_rate) == len(num_steps), (
-            "The provided learning_rates or num_steps"
-            + " is not equal to the number of inputs."
-        )
-
-        for i, dataset in enumerate(datasets):
-            logger.info(f"Now training on {dataset} for {num_steps[i]:,} steps.")
-            self.train(
-                dataset,
-                learning_rate=learning_rate[i],
-                num_steps=num_steps[i],
-                freeze_layers=freeze_layers[i],
-                num_layers_freeze=num_layers_freeze[i],
-                weight_decay=weight_decay[i],
-                max_grad_norm=max_grad_norm[i],
-                batch_size=batch_size[i],
-                gradient_accumulation_steps=gradient_accumulation_steps[i],
-                train_transformers_only=train_transformers_only[i],
-                run_id=run_id,
-                stage=i,
-                scheduler=scheduler[i],
-                num_cycles=num_cycles[i],
-                **kwargs,
-            )
 
     def save(self, target_folder: str = os.getcwd()):
         """Saves the model into the specified directory."""
