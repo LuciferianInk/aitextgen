@@ -271,6 +271,8 @@ class aitextgen:
                 self.to_fp16()
             self.to_gpu()
 
+        self.model = self.model.eval()
+
     def generate(
         self,
         n: int = 1,
