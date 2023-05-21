@@ -200,6 +200,7 @@ class aitextgen:
                     model, cache_dir=cache_dir, padding_side="left"
                 )
 
+        self.model = self.model.eval()
         logger.info(self)
 
         if gradient_checkpointing or tf_gpt2 in ["355M", "774M", "1558M"]:
@@ -270,8 +271,6 @@ class aitextgen:
                 )
                 self.to_fp16()
             self.to_gpu()
-
-        self.model = self.model.eval()
 
     def generate(
         self,
