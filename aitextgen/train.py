@@ -288,10 +288,14 @@ class ATGProgressBar(ProgressBarBase):
         logging.getLogger("transformers").setLevel(logging.WARNING)
 
         for text in gen_texts:
-            self.main_progress_bar.write("<==")
+            self.main_progress_bar.write(f"{bc.FOLD}<=={ad.TEXT}")
             self.main_progress_bar.write(text)
 
-        self.main_progress_bar.write("==>")
+        color = bc.CORE
+        if random.choice(["red", "green"]) == "green":
+            color = bc.ROOT
+
+        self.main_progress_bar.write(f"{color}==>{ad.TEXT}")
 
     def save_pytorch_model(self, trainer, pl_module, tpu=False):
         if tpu:
