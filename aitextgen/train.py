@@ -266,7 +266,7 @@ class ATGProgressBar(ProgressBarBase):
         gen_length_max = getattr(
             pl_module.model.config, "n_positions", None
         ) or getattr(pl_module.model.config, "max_position_embeddings", None)
-        gen_length = min(gen_length_max, 256)
+        gen_length = min(gen_length_max, 333)
 
         pad_token_id = getattr(pl_module.tokenizer, "pad_token_id", None) or getattr(
             pl_module.tokenizer, "eos_token_id", None
@@ -288,14 +288,14 @@ class ATGProgressBar(ProgressBarBase):
         logging.getLogger("transformers").setLevel(logging.WARNING)
 
         for text in gen_texts:
-            self.main_progress_bar.write(f"{bc.FOLD}<=={ad.TEXT}")
+            self.main_progress_bar.write(f"{bc.FOLD}<={ad.TEXT}=")
             self.main_progress_bar.write(text)
 
         color = bc.CORE
         if random.choice(["red", "green"]) == "green":
             color = bc.ROOT
 
-        self.main_progress_bar.write(f"{color}==>{ad.TEXT}")
+        self.main_progress_bar.write(f"={color}=>{ad.TEXT}")
 
     def save_pytorch_model(self, trainer, pl_module, tpu=False):
         if tpu:
