@@ -288,11 +288,11 @@ class ATGProgressBar(ProgressBarBase):
         logging.getLogger("transformers").setLevel(logging.WARNING)
 
         for text in gen_texts:
-            self.main_progress_bar.write(f"{bc.FOLD}<={ad.TEXT}=")
+            self.main_progress_bar.write(f"{bc.CORE}<={ad.TEXT}=")
             self.main_progress_bar.write(text)
 
-        color = bc.CORE
-        if random.choice(["red", "green"]) == "green":
+        color = bc.FOLD
+        if random.choice(["blue", "green"]) == "green":
             color = bc.ROOT
 
         self.main_progress_bar.write(f"={color}=>{ad.TEXT}")
