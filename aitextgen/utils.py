@@ -128,9 +128,12 @@ def skip_special_tokens(tensor, device, special_token_ids):
 
 def model_max_length(config):
     """Returns the maximum generation length for the given model."""
-    return getattr(config, "n_positions", None) or getattr(
+    length = getattr(config, "n_positions", None) or getattr(
         config, "max_position_embeddings", None
     )
+    if length == None:
+        length = 2048  # BLOOM
+    return length
 
 
 class bc:
