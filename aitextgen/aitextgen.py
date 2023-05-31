@@ -9,6 +9,7 @@ from random import randint
 from typing import List, Optional, Union
 
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelPruning
 import torch
 from pkg_resources import resource_filename
 from pytorch_lightning.plugins import DeepSpeedPlugin
@@ -576,6 +577,7 @@ class aitextgen:
         stage: int = 0,
         scheduler: str = "get_linear_schedule_with_warmup",
         num_cycles: float = 0.5,
+        prune: float = None,
         **kwargs,
     ) -> None:
         """
@@ -761,6 +763,19 @@ class aitextgen:
 
         if n_gpu > 1:
             train_params["distributed_backend"] = "ddp"
+
+        if prune:
+            train_params["callbacks"].append(
+                ModelPruning(
+                    pruning_fn="l1_unstructured",
+                    amount=prune,
+                    parameter_names=["weight", "bias"],
+                    use_global_unstructured=True,
+                    apply_pruning=True,
+                    make_pruning_permanent=True,
+                    use_lottery_ticket_hypothesis=False,
+                )
+            )
 
         trainer = pl.Trainer(**train_params)
         trainer.fit(train_model)
