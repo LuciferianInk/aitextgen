@@ -74,7 +74,6 @@ class TokenDataset(Dataset):
         progress_bar_refresh_rate: int = 20,
         **kwargs,
     ) -> None:
-
         self.line_by_line = False
 
         # Special case; load tokenized texts immediately
@@ -167,6 +166,12 @@ class TokenDataset(Dataset):
             self.tokens = encode_tokens_from_list(
                 texts, eos_token, tokenizer, progress_bar_refresh_rate
             )
+            self.tokens.shape[0]
+            if self.tokens.shape[0] < block_size:
+                diff_renk = block_size * eos_token
+                self.tokens = encode_tokens_from_list(
+                    texts, diff_renk, tokenizer, progress_bar_refresh_rate
+                )
         else:
             self.tokens = encode_tokens_from_file(
                 file_path,
@@ -176,6 +181,22 @@ class TokenDataset(Dataset):
                 header,
                 progress_bar_refresh_rate,
             )
+            self.tokens.shape[0]
+            if self.tokens.shape[0] <= block_size:
+                diff_renk = block_size * eos_token
+                if self.tokens.shape[0] == 0:
+                    self.tokens = encode_tokens_from_list(
+                        str(file_path), diff_renk, tokenizer, progress_bar_refresh_rate
+                    )
+                else:
+                    self.tokens = encode_tokens_from_file(
+                        file_path,
+                        diff_renk,
+                        tokenizer,
+                        text_delim,
+                        header,
+                        progress_bar_refresh_rate,
+                    )
 
         assert (
             self.tokens.shape[0] >= block_size
@@ -294,7 +315,6 @@ def encode_tokens_from_file(
     num_batches = 0
 
     with open(file_path, "r", encoding="utf-8", newline=newline) as f_load:
-
         if header:
             f_load.readline()
         if is_csv:
