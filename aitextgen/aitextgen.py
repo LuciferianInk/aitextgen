@@ -577,7 +577,7 @@ class aitextgen:
         stage: int = 0,
         scheduler: str = "get_linear_schedule_with_warmup",
         num_cycles: float = 0.5,
-        prune: float = None,
+        prune: float = 0.0,
         **kwargs,
     ) -> None:
         """
@@ -764,7 +764,7 @@ class aitextgen:
         if n_gpu > 1:
             train_params["distributed_backend"] = "ddp"
 
-        if prune:
+        if prune > 0:
             train_params["callbacks"].append(
                 ModelPruning(
                     pruning_fn="l1_unstructured",
