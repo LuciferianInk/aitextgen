@@ -166,11 +166,12 @@ class TokenDataset(Dataset):
             self.tokens = encode_tokens_from_list(
                 texts, eos_token, tokenizer, progress_bar_refresh_rate
             )
-            self.tokens.shape[0]
             if self.tokens.shape[0] < block_size:
-                diff_renk = block_size * eos_token
                 self.tokens = encode_tokens_from_list(
-                    texts, diff_renk, tokenizer, progress_bar_refresh_rate
+                    texts,
+                    block_size * eos_token,
+                    tokenizer,
+                    progress_bar_refresh_rate,
                 )
         else:
             self.tokens = encode_tokens_from_file(
@@ -181,17 +182,18 @@ class TokenDataset(Dataset):
                 header,
                 progress_bar_refresh_rate,
             )
-            self.tokens.shape[0]
-            if self.tokens.shape[0] <= block_size:
-                diff_renk = block_size * eos_token
+            if self.tokens.shape[0] < block_size:
                 if self.tokens.shape[0] == 0:
                     self.tokens = encode_tokens_from_list(
-                        str(file_path), diff_renk, tokenizer, progress_bar_refresh_rate
+                        [str(file_path)],
+                        block_size * eos_token,
+                        tokenizer,
+                        progress_bar_refresh_rate,
                     )
                 else:
                     self.tokens = encode_tokens_from_file(
                         file_path,
-                        diff_renk,
+                        block_size * eos_token,
                         tokenizer,
                         text_delim,
                         header,
