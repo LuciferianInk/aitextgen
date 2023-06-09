@@ -720,6 +720,7 @@ class aitextgen:
                 fp16 = True
 
         train_params = dict(
+            max_epochs=1000,
             accumulate_grad_batches=gradient_accumulation_steps,
             accelerator=accelerator,
             devices=n_gpu,
@@ -764,12 +765,11 @@ class aitextgen:
         if n_gpu > 1:
             train_params["distributed_backend"] = "ddp"
 
-        if prune > 0:
+        if prune > 0.0:
             train_params["callbacks"].append(
                 ModelPruning(
                     pruning_fn="l1_unstructured",
                     amount=prune,
-                    parameter_names=["weight", "bias"],
                     use_global_unstructured=True,
                     apply_pruning=True,
                     make_pruning_permanent=True,
