@@ -578,7 +578,8 @@ class aitextgen:
         scheduler: str = "get_linear_schedule_with_warmup",
         num_cycles: float = 0.5,
         prune: float = 0.0,
-        prompt: str = None**kwargs,
+        prompt: str = None,
+        **kwargs,
     ) -> None:
         """
         Trains/finetunes the model on the provided file/dataset using pytorch-lightning.
