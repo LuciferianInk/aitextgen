@@ -578,7 +578,7 @@ class aitextgen:
         scheduler: str = "get_linear_schedule_with_warmup",
         num_cycles: float = 0.5,
         prune: float = 0.0,
-        **kwargs,
+        prompt: str = None**kwargs,
     ) -> None:
         """
         Trains/finetunes the model on the provided file/dataset using pytorch-lightning.
@@ -612,6 +612,8 @@ class aitextgen:
         :param progress_bar_refresh_rate: How often to update
         the progress bar while training.
         """
+
+        self.prompt = prompt
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
