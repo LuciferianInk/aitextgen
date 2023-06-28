@@ -272,10 +272,18 @@ class ATGProgressBar(ProgressBarBase):
             pl_module.tokenizer, "eos_token_id", None
         )
 
+        prompt = "¶"
+        prompt_tensors = pl_module.tokenizer(text=prompt, return_tensors="pt")
+        input_ids = (
+            prompt_tensors["input_ids"].to(pl_module.model.device.type)
+            if prompt
+            else None
+        )
+
         logging.getLogger("transformers").setLevel(logging.ERROR)
 
         outputs = pl_module.model.generate(
-            input_ids=None,
+            input_ids=input_ids,
             max_length=gen_length,
             do_sample=True,
             num_return_sequences=self.n_generate,
