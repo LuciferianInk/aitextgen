@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelPruning
 import torch
 from pkg_resources import resource_filename
-from pytorch_lightning.plugins import DeepSpeedPlugin
+from pytorch_lightning.plugins import DeepSpeedPrecisionPlugin
 from tqdm.auto import trange
 from transformers import (
     AutoConfig,
@@ -716,7 +716,9 @@ class aitextgen:
         # use the DeepSpeed plugin if installed and specified
         deepspeed_plugin = None
         if is_gpu_used and use_deepspeed:
-            deepspeed_plugin = DeepSpeedPlugin()
+            deepspeed_plugin = DeepSpeedPrecisionPlugin(
+                "16-mixed" if fp16 else "32-true"
+            )
             logger.info("Using DeepSpeed training.")
             if not fp16:
                 logger.info("Setting FP16 to True for DeepSpeed ZeRO Training.")

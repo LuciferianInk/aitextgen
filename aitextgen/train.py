@@ -15,7 +15,7 @@ from transformers import (
 )
 import logging
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks.progress import ProgressBarBase
+from pytorch_lightning.callbacks import ProgressBar
 from pytorch_lightning.accelerators import TPUAccelerator
 import random
 from .utils import bc, ad
@@ -118,7 +118,7 @@ class ATGTransformer(pl.LightningModule):
         return [optimizer], [scheduler]
 
 
-class ATGProgressBar(ProgressBarBase):
+class ATGProgressBar(ProgressBar):
     """A variant progress bar that works off of steps and prints periodically."""
 
     def __init__(
@@ -177,12 +177,6 @@ class ATGProgressBar(ProgressBarBase):
         self.main_progress_bar.close()
         self.unfreeze_layers(pl_module)
 
-    def get_metrics(self, trainer, pl_module):
-        # don't show the version number
-        items = super().get_metrics(trainer, pl_module)
-        items.pop("v_num", None)
-        return items
-
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
 
@@ -191,8 +185,7 @@ class ATGProgressBar(ProgressBarBase):
         if self.steps == 0 and self.gpu:
             torch.cuda.empty_cache()
 
-        metrics = self.get_metrics(trainer, pl_module)
-        current_loss = float(metrics["loss"])
+        current_loss = float(outputs["loss"])
         self.steps += 1
         avg_loss = 0
         if current_loss == current_loss:  # don't add if current_loss is NaN
