@@ -42,12 +42,6 @@ class ATGTransformer(pl.LightningModule):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
 
-        self.logger.experiment.add_scalars(
-            "loss/stage-" + str(self.hparams["stage"]),
-            {"train": loss},
-            self.global_step,
-        )
-
         return {"loss": loss}
 
     def train_dataloader(self):
@@ -217,6 +211,12 @@ class ATGProgressBar(ProgressBar):
 
             if did_unfreeze:
                 self.freeze_layers(pl_module)
+
+        pl_module.logger.experiment.add_scalars(
+            "loss/stage-" + str(pl_module.hparams["stage"]),
+            {"train": current_loss},
+            pl_module.global_step,
+        )
 
         color = bc.ROOT
         if current_loss < avg_loss:
