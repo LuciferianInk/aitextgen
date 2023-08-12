@@ -7,12 +7,7 @@ import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from transformers import (
-    get_linear_schedule_with_warmup,
-    get_constant_schedule_with_warmup,
-    get_cosine_schedule_with_warmup,
-    get_cosine_with_hard_restarts_schedule_with_warmup,
-)
+from transformers import get_scheduler
 import logging
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ProgressBar
@@ -81,33 +76,12 @@ class ATGTransformer(pl.LightningModule):
             eps=self.hparams["adam_epsilon"],
         )
 
-        if self.hparams["scheduler"] == "get_constant_schedule_with_warmup":
-            scheduler = get_constant_schedule_with_warmup(
-                optimizer, num_warmup_steps=self.hparams["warmup_steps"]
-            )
-        elif self.hparams["scheduler"] == "get_linear_schedule_with_warmup":
-            scheduler = get_linear_schedule_with_warmup(
-                optimizer,
-                num_warmup_steps=self.hparams["warmup_steps"],
-                num_training_steps=self.hparams["num_steps"],
-            )
-        elif self.hparams["scheduler"] == "get_cosine_schedule_with_warmup":
-            scheduler = get_cosine_schedule_with_warmup(
-                optimizer,
-                num_warmup_steps=self.hparams["warmup_steps"],
-                num_training_steps=self.hparams["num_steps"],
-                num_cycles=self.hparams["num_cycles"],
-            )
-        elif (
-            self.hparams["scheduler"]
-            == "get_cosine_with_hard_restarts_schedule_with_warmup"
-        ):
-            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
-                optimizer,
-                num_warmup_steps=self.hparams["warmup_steps"],
-                num_training_steps=self.hparams["num_steps"],
-                num_cycles=self.hparams["num_cycles"],
-            )
+        scheduler = get_scheduler(
+            self.hparams.get("scheduler", "linear"),
+            optimizer,
+            num_warmup_steps=self.hparams.get("warmup_steps", 0),
+            num_training_steps=self.hparams["num_steps"],
+        )
 
         return [optimizer], [scheduler]
 
@@ -213,7 +187,7 @@ class ATGProgressBar(ProgressBar):
                 self.freeze_layers(pl_module)
 
         pl_module.logger.experiment.add_scalars(
-            "loss/stage-" + str(pl_module.hparams["stage"]),
+            "loss/" + str(pl_module.hparams["stage"]),
             {"train": current_loss},
             pl_module.global_step,
         )
