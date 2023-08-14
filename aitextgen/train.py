@@ -29,6 +29,7 @@ class ATGTransformer(pl.LightningModule):
             tokenizer,
         )
         self.save_hyperparameters(hparams)
+        self.automatic_optimization = True
 
     def forward(self, inputs):
         return self.model(**inputs, return_dict=False)
@@ -36,6 +37,9 @@ class ATGTransformer(pl.LightningModule):
     def training_step(self, batch, batch_num):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
+
+        schedule = self.lr_schedulers()
+        schedule.step()
 
         return {"loss": loss}
 
