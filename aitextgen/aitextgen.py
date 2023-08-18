@@ -571,7 +571,6 @@ class aitextgen:
         save_gdrive: bool = False,
         run_id: str = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}",
         progress_bar_refresh_rate: int = 20,
-        freeze_layers: bool = False,
         num_layers_freeze: int = None,
         use_deepspeed: bool = False,
         stage: int = 0,
@@ -615,6 +614,8 @@ class aitextgen:
         """
 
         self.prompt = prompt
+        if num_layers_freeze is not None:
+            freeze_layers = True
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
