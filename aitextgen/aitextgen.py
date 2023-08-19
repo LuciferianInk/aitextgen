@@ -23,6 +23,7 @@ from transformers import (
     GPT2TokenizerFast,
     PreTrainedTokenizerFast,
 )
+from petals import AutoDistributedModelForCausalLM
 from transformers.models.gpt2.convert_gpt2_original_tf_checkpoint_to_pytorch import (
     convert_gpt2_checkpoint_to_pytorch,
 )
@@ -94,6 +95,7 @@ class aitextgen:
         to_fp16: bool = False,
         verbose: bool = False,
         gradient_checkpointing: bool = False,
+        petals: bool = False,
         bos_token: str = None,
         eos_token: str = None,
         unk_token: str = None,
@@ -116,7 +118,11 @@ class aitextgen:
                 logging.getLogger(module).setLevel(logging.WARN)
             logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
 
-        if tf_gpt2:
+        if petals:
+            print('loading distributed model')
+            model = AutoDistributedModelForCausalLM.from_pretrained(model)
+
+        elif tf_gpt2:
             self.openai_tf_gpt2 = tf_gpt2
 
             # Download + convert the TF weights if a PyTorch model has not been created
