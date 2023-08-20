@@ -118,9 +118,10 @@ class aitextgen:
                 logging.getLogger(module).setLevel(logging.WARN)
             logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
 
+        self.petals = petals
         if petals:
             print('loading distributed model')
-            model = AutoDistributedModelForCausalLM.from_pretrained(model)
+            self.model = AutoDistributedModelForCausalLM.from_pretrained(model, cache_dir=cache_dir, torch_dtype=torch.float32)
 
         elif tf_gpt2:
             self.openai_tf_gpt2 = tf_gpt2
@@ -349,17 +350,27 @@ class aitextgen:
             )
 
         while True:
-            outputs = self.model.generate(
-                input_ids=input_ids,
-                min_length=min_length,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                do_sample=do_sample,
-                num_return_sequences=n,
-                pad_token_id=pad_token_id,
-                use_cache=use_cache,
-                **kwargs,
-            )
+            if self.petals:
+                outputs = self.model.generate(
+                    input_ids,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    do_sample=do_sample,
+                    num_return_sequences=n,
+                    pad_token_id=pad_token_id,
+                    **kwargs,
+                )
+            else:
+                outputs = self.model.generate(
+                    input_ids=input_ids,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    do_sample=do_sample,
+                    num_return_sequences=n,
+                    pad_token_id=pad_token_id,
+                    use_cache=use_cache,
+                    **kwargs,
+                )
 
             # Schema token handling
             if schema:
