@@ -356,7 +356,6 @@ class aitextgen:
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     do_sample=do_sample,
-                    num_return_sequences=n,
                     pad_token_id=pad_token_id,
                     **kwargs,
                 )
