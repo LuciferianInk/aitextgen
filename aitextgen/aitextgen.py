@@ -130,6 +130,7 @@ class aitextgen:
         if petals:
             print('loading model from Petals')
             self.model = AutoDistributedModelForCausalLM.from_pretrained(model, cache_dir=cache_dir, torch_dtype=torch.float32)
+            self.tokenizer = AutoTokenizer.from_pretrained(model, cache_dir=cache_dir, padding_side="left")
 
         elif tf_gpt2:
             self.openai_tf_gpt2 = tf_gpt2
