@@ -10,6 +10,8 @@ from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelPruning
+# from pytorch_lightning.strategies import HivemindStrategy
+# from pytorch_lightning.utilities.imports import _HIVEMIND_AVAILABLE
 import torch
 from pkg_resources import resource_filename
 from pytorch_lightning.plugins import DeepSpeedPrecisionPlugin
@@ -38,6 +40,12 @@ from .utils import (
     reset_seed,
     set_seed,
 )
+
+# if _HIVEMIND_AVAILABLE:
+#     import hivemind
+#     # from lightning_hivemind.strategy import HivemindStrategy
+# else:
+#     hivemind = None
 
 logger = logging.getLogger("aitextgen")
 logger.setLevel(logging.INFO)
@@ -120,7 +128,7 @@ class aitextgen:
 
         self.petals = petals
         if petals:
-            print('loading distributed model')
+            print('loading model from Petals')
             self.model = AutoDistributedModelForCausalLM.from_pretrained(model, cache_dir=cache_dir, torch_dtype=torch.float32)
 
         elif tf_gpt2:
@@ -438,6 +446,7 @@ class aitextgen:
 
             # Typical use case
             else:
+
                 gen_texts = self.tokenizer.batch_decode(
                     outputs, skip_special_tokens=skip_special_tokens
                 )
@@ -594,6 +603,7 @@ class aitextgen:
         num_cycles: float = 0.5,
         prune: float = 0.0,
         prompt: str = None,
+        hivemind: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -742,7 +752,7 @@ class aitextgen:
                 fp16 = True
 
         train_params = dict(
-            max_epochs=1000,
+            max_epochs=1000000,
             accumulate_grad_batches=gradient_accumulation_steps,
             accelerator=accelerator,
             devices=n_gpu,
@@ -798,6 +808,12 @@ class aitextgen:
                     use_lottery_ticket_hypothesis=False,
                 )
             )
+
+        if hivemind:
+            # train_params["strategy"] = HivemindStrategy(target_batch_size=8192)
+            train_params["accelerator"] ="gpu"
+            train_params["devices"] = 1
+            train_params["accumulate_grad_batches"] = None
 
         trainer = pl.Trainer(**train_params)
         trainer.fit(train_model)
