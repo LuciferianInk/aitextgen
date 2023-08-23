@@ -361,7 +361,6 @@ class aitextgen:
         while True:
             if self.petals:
                 outputs = self.model.generate(
-                    input_ids,
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     do_sample=do_sample,
@@ -604,6 +603,7 @@ class aitextgen:
         num_cycles: float = 0.5,
         prune: float = 0.0,
         prompt: str = None,
+        petals: bool = False,
         hivemind: bool = False,
         **kwargs,
     ) -> None:
@@ -640,7 +640,9 @@ class aitextgen:
         the progress bar while training.
         """
 
+        self.petals = petals
         self.prompt = prompt
+
         if num_layers_freeze is not None:
             freeze_layers = True
 
@@ -716,6 +718,7 @@ class aitextgen:
             stage=stage,
             scheduler=scheduler,
             num_cycles=num_cycles,
+            petals=petals
         )
 
         # Wrap the model in a pytorch-lightning module
@@ -775,6 +778,8 @@ class aitextgen:
                     progress_bar_refresh_rate,
                     freeze_layers,
                     num_layers_freeze,
+                    petals,
+                    prompt
                 )
             ],
             plugins=deepspeed_plugin,

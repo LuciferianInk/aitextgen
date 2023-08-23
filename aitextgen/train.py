@@ -106,6 +106,8 @@ class ATGProgressBar(ProgressBar):
         progress_bar_refresh_rate,
         train_transformers_only,
         num_layers_freeze,
+        petals,
+        prompt
     ):
         super().__init__()
         self.enabled = True
@@ -122,6 +124,8 @@ class ATGProgressBar(ProgressBar):
         self.progress_bar_refresh_rate = progress_bar_refresh_rate
         self.train_transformers_only = train_transformers_only
         self.num_layers_freeze = num_layers_freeze
+        self.petals = petals
+        self.prompt = prompt
 
     @property
     def save_every_check(self):
@@ -237,33 +241,37 @@ class ATGProgressBar(ProgressBar):
 
         pl_module.model.eval()
 
-        gen_length_max = getattr(
-            pl_module.model.config, "n_positions", None
-        ) or getattr(pl_module.model.config, "max_position_embeddings", None)
-        gen_length = min(gen_length_max, 333)
-
         pad_token_id = getattr(pl_module.tokenizer, "pad_token_id", None) or getattr(
             pl_module.tokenizer, "eos_token_id", None
         )
 
-        prompt = "¶"
-        prompt_tensors = pl_module.tokenizer(text=prompt, return_tensors="pt")
-        input_ids = (
-            prompt_tensors["input_ids"].to(pl_module.model.device.type)
-            if prompt
-            else None
-        )
+        prompt = self.prompt
+        if prompt:
+            prompt_tensors = pl_module.tokenizer(text=prompt, return_tensors="pt")
+            input_ids = prompt_tensors["input_ids"].to(pl_module.model.device.type)
+        else:
+            input_ids = None
 
         logging.getLogger("transformers").setLevel(logging.ERROR)
 
-        outputs = pl_module.model.generate(
-            input_ids=input_ids,
-            max_length=gen_length,
-            do_sample=True,
-            num_return_sequences=self.n_generate,
-            temperature=0.7,
-            pad_token_id=pad_token_id,
-        )
+        if self.petals:
+            outputs = pl_module.model.generate(
+                input_ids,
+                max_length=333,
+                do_sample=True,
+                num_return_sequences=self.n_generate,
+                temperature=0.7,
+                pad_token_id=pad_token_id
+            )
+        else:
+            outputs = pl_module.model.generate(
+                input_ids=input_ids,
+                max_length=333,
+                do_sample=True,
+                num_return_sequences=self.n_generate,
+                temperature=0.7,
+                pad_token_id=pad_token_id,
+            )
 
         gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
