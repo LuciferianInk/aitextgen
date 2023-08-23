@@ -164,25 +164,29 @@ class TokenDataset(Dataset):
         # Encode tokens in a batched manner to ensure constant memory usage
         if texts:
             self.tokens = encode_tokens_from_list(
-                texts, eos_token, tokenizer, progress_bar_refresh_rate
+                texts, "", tokenizer, progress_bar_refresh_rate
             )
             if self.tokens.shape[0] < block_size:
+                diff = block_size - self.tokens.shape[0]
+                console.log('diff is ' + str(diff))
                 self.tokens = encode_tokens_from_list(
                     texts,
-                    block_size * eos_token,
+                    diff * eos_token,
                     tokenizer,
                     progress_bar_refresh_rate,
                 )
         else:
             self.tokens = encode_tokens_from_file(
                 file_path,
-                eos_token,
+                "",
                 tokenizer,
                 text_delim,
                 header,
                 progress_bar_refresh_rate,
             )
             if self.tokens.shape[0] < block_size:
+                diff = block_size - self.tokens.shape[0]
+                console.log('diff is ' + str(diff))
                 if self.tokens.shape[0] == 0:
                     self.tokens = encode_tokens_from_list(
                         [str(file_path)],
@@ -193,7 +197,7 @@ class TokenDataset(Dataset):
                 else:
                     self.tokens = encode_tokens_from_file(
                         file_path,
-                        block_size * eos_token,
+                        diff * eos_token,
                         tokenizer,
                         text_delim,
                         header,
@@ -330,12 +334,12 @@ def encode_tokens_from_file(
         while True:
             if is_csv:
                 batch = [
-                    text[0] + eos_token
+                    eos_token + text[0] if tokenizer.padding_side == "left" else text[0] + eos_token
                     for text in list(itertools.islice(f_read, batch_size))
                 ]
             else:
                 batch = [
-                    text + eos_token
+                    eos_token + text if tokenizer.padding_side == "left" else text + eos_token
                     for text in list(itertools.islice(f_read, batch_size))
                 ]
 
@@ -404,7 +408,7 @@ def encode_tokens_from_list(
 
     for i_start in range(num_texts // batch_size + 1):
         batch = [
-            text + eos_token
+            eos_token + text if tokenizer.padding_side == "left" else text + eos_token
             for text in texts[
                 (i_start * batch_size) : ((i_start * batch_size) + batch_size)
             ]
