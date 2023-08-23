@@ -1,8 +1,8 @@
-transformers>=4.31.0
-fire>=0.3.0
+transformers>=4.32.0
+fire>=0.5.0
 pytorch-lightning>=git+https://github.com/Lightning-AI/lightning.git
 hivemind>=1.1.9
-torch>=1.6.0
+torch>=2.0.1
 petals>=2.0.1.post2
 peft>=0.4.0
 accelerate>=0.20.3,<0.21.0
