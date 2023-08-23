@@ -256,7 +256,6 @@ class ATGProgressBar(ProgressBar):
 
         if self.petals:
             outputs = pl_module.model.generate(
-                input_ids,
                 max_length=333,
                 do_sample=True,
                 num_return_sequences=self.n_generate,
