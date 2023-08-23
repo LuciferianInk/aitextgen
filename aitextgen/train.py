@@ -234,6 +234,9 @@ class ATGProgressBar(ProgressBar):
             self.main_progress_bar.set_description(echo)
 
     def generate_sample_text(self, trainer, pl_module):
+
+        pl_module.model.eval()
+
         gen_length_max = getattr(
             pl_module.model.config, "n_positions", None
         ) or getattr(pl_module.model.config, "max_position_embeddings", None)
@@ -265,6 +268,8 @@ class ATGProgressBar(ProgressBar):
         gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         logging.getLogger("transformers").setLevel(logging.WARNING)
+
+        pl_module.model.train()
 
         for text in gen_texts:
             self.main_progress_bar.write(f"{bc.CORE}<={ad.TEXT}=")
