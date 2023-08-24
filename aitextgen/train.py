@@ -252,6 +252,13 @@ class ATGProgressBar(ProgressBar):
         else:
             input_ids = None
 
+        config = GenerationConfig(
+            n=self.n_generate,
+            do_sample=True,
+            temperature=0.7,
+            pad_token_id=pad_token_id
+        )
+
         logging.getLogger("transformers").setLevel(logging.ERROR)
 
         if self.petals:
@@ -265,11 +272,9 @@ class ATGProgressBar(ProgressBar):
         else:
             outputs = pl_module.model.generate(
                 input_ids=input_ids,
-                max_length=333,
-                do_sample=True,
-                num_return_sequences=self.n_generate,
-                temperature=0.7,
-                pad_token_id=pad_token_id,
+                max_new_tokens=111,
+                generation_config=config,
+                return_as_list=True,
             )
 
         gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)

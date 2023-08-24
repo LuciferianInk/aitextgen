@@ -166,15 +166,7 @@ class TokenDataset(Dataset):
             self.tokens = encode_tokens_from_list(
                 texts, eos_token, tokenizer, progress_bar_refresh_rate
             )
-            if self.tokens.shape[0] < block_size:
-                self.tokens = encode_tokens_from_list(
-                    texts,
-                    block_size * eos_token,
-                    tokenizer,
-                    progress_bar_refresh_rate,
-                )
         else:
-            print('encoding tokens from file')
             self.tokens = encode_tokens_from_file(
                 file_path,
                 eos_token,
@@ -183,23 +175,6 @@ class TokenDataset(Dataset):
                 header,
                 progress_bar_refresh_rate,
             )
-            if self.tokens.shape[0] < block_size:
-                if self.tokens.shape[0] == 0:
-                    self.tokens = encode_tokens_from_list(
-                        [str(file_path)],
-                        block_size * eos_token,
-                        tokenizer,
-                        progress_bar_refresh_rate,
-                    )
-                else:
-                    self.tokens = encode_tokens_from_file(
-                        file_path,
-                        block_size * eos_token,
-                        tokenizer,
-                        text_delim,
-                        header,
-                        progress_bar_refresh_rate,
-                    )
 
         assert (
             self.tokens.shape[0] >= block_size
