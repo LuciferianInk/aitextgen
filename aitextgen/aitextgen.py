@@ -27,6 +27,7 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 from petals import AutoDistributedModelForCausalLM
+from peft import PeftConfig, PeftModel
 from transformers.models.gpt2.convert_gpt2_original_tf_checkpoint_to_pytorch import (
     convert_gpt2_checkpoint_to_pytorch,
 )
@@ -41,12 +42,6 @@ from .utils import (
     reset_seed,
     set_seed,
 )
-
-# if _HIVEMIND_AVAILABLE:
-#     import hivemind
-#     # from lightning_hivemind.strategy import HivemindStrategy
-# else:
-#     hivemind = None
 
 logger = logging.getLogger("aitextgen")
 logger.setLevel(logging.INFO)
@@ -108,6 +103,7 @@ class aitextgen:
         bos_token: str = None,
         eos_token: str = None,
         unk_token: str = None,
+        adapter = None,
         **kwargs,
     ) -> None:
         if model:
@@ -130,7 +126,7 @@ class aitextgen:
         self.petals = petals
         if petals:
             print('loading model from Petals')
-            self.model = AutoDistributedModelForCausalLM.from_pretrained(model, cache_dir=cache_dir, torch_dtype=torch.float32)
+            self.model = AutoDistributedModelForCausalLM.from_pretrained(model, active_adapter=adapter, cache_dir=cache_dir, torch_dtype=torch.float32)
             self.tokenizer = AutoTokenizer.from_pretrained(model, cache_dir=cache_dir, padding_side="left")
 
         elif tf_gpt2:
@@ -217,6 +213,9 @@ class aitextgen:
                 self.tokenizer = AutoTokenizer.from_pretrained(
                     model, cache_dir=cache_dir, padding_side="left"
                 )
+
+        if adapter and not petals:
+            self.model = PeftModel.from_pretrained(self.model, adapter)
 
         self.model = self.model.eval()
         logger.info(self)
