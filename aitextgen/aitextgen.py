@@ -598,7 +598,6 @@ class aitextgen:
         use_deepspeed: bool = False,
         stage: int = 0,
         scheduler: str = "get_linear_schedule_with_warmup",
-        num_cycles: float = 0.5,
         prune: float = 0.0,
         prompt: str = None,
         petals: bool = False,
@@ -715,7 +714,6 @@ class aitextgen:
             use_tpu=tpu_cores > 0,
             stage=stage,
             scheduler=scheduler,
-            num_cycles=num_cycles,
             petals=petals
         )
 
