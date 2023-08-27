@@ -217,6 +217,8 @@ class aitextgen:
         if adapter and not petals:
             self.model = PeftModel.from_pretrained(self.model, adapter)
 
+        self.model_max_length = model_max_length(self.model.config)
+
         self.model = self.model.eval()
         logger.info(self)
 
@@ -373,7 +375,7 @@ class aitextgen:
                 generation_config=generation_config,
                 pad_token_id=pad_token_id,
                 use_cache=use_cache,
-                max_length=model_max_length(self.model.config),
+                max_length=self.model_max_length,
                 **kwargs,
             )
 
