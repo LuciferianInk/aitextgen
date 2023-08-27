@@ -369,10 +369,11 @@ class aitextgen:
                     )
 
             outputs = self.model.generate(
-                input_ids=input_ids,
+                inputs=input_ids,
                 generation_config=generation_config,
                 pad_token_id=pad_token_id,
                 use_cache=use_cache,
+                max_length=model_max_length(self.model.config),
                 **kwargs,
             )
 
