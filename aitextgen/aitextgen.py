@@ -8,13 +8,12 @@ from datetime import datetime
 from random import randint
 from typing import List, Optional, Union
 
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelPruning
-# from pytorch_lightning.strategies import HivemindStrategy
-# from pytorch_lightning.utilities.imports import _HIVEMIND_AVAILABLE
+from lightning.pytorch.trainer import Trainer
+from lightning.pytorch.callbacks import ModelPruning
+from lightning.pytorch.strategies import StrategyRegistry
+from lightning.pytorch.plugins import DeepSpeedPrecisionPlugin
 import torch
 from pkg_resources import resource_filename
-from pytorch_lightning.plugins import DeepSpeedPrecisionPlugin
 from tqdm.auto import trange
 from transformers import (
     AutoConfig,
@@ -41,6 +40,11 @@ from .utils import (
     reset_seed,
     set_seed,
 )
+try:
+    from lightning_hivemind.strategy import HivemindStrategy
+    print('Successfully imported HivemindStrategy.')
+except ImportError:
+    print('Failed to import HivemindStrategy. Did you install it into a venv?')
 
 logger = logging.getLogger("aitextgen")
 logger.setLevel(logging.INFO)
@@ -93,6 +97,7 @@ class aitextgen:
         schema_tokens: List[str] = None,
         schema_return: List[str] = None,
         cache_dir: str = "aitextgen",
+        embeddings_dir: str = "",
         tf_gpt2: str = None,
         to_gpu: bool = False,
         to_fp16: bool = False,
@@ -103,6 +108,7 @@ class aitextgen:
         eos_token: str = None,
         unk_token: str = None,
         adapter = None,
+        pre_seq_len = 24,
         **kwargs,
     ) -> None:
         if model:
@@ -125,8 +131,16 @@ class aitextgen:
         self.petals = petals
         if petals:
             print('loading model from Petals')
-            self.model = AutoDistributedModelForCausalLM.from_pretrained(model, active_adapter=adapter, cache_dir=cache_dir, torch_dtype=torch.float32)
+            # self.model = AutoDistributedModelForCausalLM.from_pretrained(model, active_adapter=adapter, cache_dir=cache_dir, torch_dtype=torch.float32)
+            self.model = AutoDistributedModelForCausalLM.from_pretrained(model, pre_seq_len=pre_seq_len, tuning_mode='deep_ptune', cache_dir=cache_dir, torch_dtype=torch.float32)
             self.tokenizer = AutoTokenizer.from_pretrained(model, cache_dir=cache_dir, padding_side="left")
+            embeddings_path = embeddings_dir + '/prompts.pt'
+            if os.path.exists(embeddings_path):
+                with open(embeddings_path, 'rb') as f:
+                    if to_gpu:
+                        self.model.transformer.prompt_embeddings, self.model.transformer.intermediate_prompt_embeddings = torch.load(f)
+                    else:
+                        self.model.transformer.prompt_embeddings, self.model.transformer.intermediate_prompt_embeddings = torch.load(f, map_location=torch.device('cpu'))
 
         elif tf_gpt2:
             self.openai_tf_gpt2 = tf_gpt2
@@ -225,6 +239,8 @@ class aitextgen:
             logger.info("Gradient checkpointing enabled for model training.")
             self.model.gradient_checkpointing_enable()
             setattr(self.model.config, "use_cache", False)
+            if petals:
+                setattr(self.model.config, "use_cache", None)
 
         if schema_tokens:
             setattr(self.model.config, "schema_tokens", schema_tokens)
@@ -805,17 +821,15 @@ class aitextgen:
             )
 
         if hivemind:
-            # train_params["strategy"] = HivemindStrategy(target_batch_size=8192)
-            train_params["accelerator"] ="gpu"
-            train_params["devices"] = 1
+            train_params["strategy"] = HivemindStrategy(target_batch_size=batch_size, verbose=True, matchmaking_time=900)
             train_params["accumulate_grad_batches"] = None
 
-        trainer = pl.Trainer(**train_params)
+        trainer = Trainer(**train_params)
         trainer.fit(train_model)
 
-        logger.info(f"Saving trained model pytorch_model.bin to /{output_dir}")
-
-        self.model.save_pretrained(output_dir)
+        if not petals:
+            logger.info(f"Saving trained model pytorch_model.bin to /{output_dir}")
+            self.model.save_pretrained(output_dir)
 
         if save_gdrive:
             for pt_file in ["pytorch_model.bin", "config.json"]:

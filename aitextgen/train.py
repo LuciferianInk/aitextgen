@@ -9,15 +9,15 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import get_scheduler
 import logging
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ProgressBar
-from pytorch_lightning.accelerators import TPUAccelerator
+from lightning.pytorch import LightningModule
+from lightning.pytorch.callbacks import ProgressBar
+from lightning.pytorch.accelerators import TPUAccelerator
 import random
 from .utils import bc, ad
 
 logging.getLogger("transformers").setLevel(logging.WARNING)
 
-class ATGTransformer(pl.LightningModule):
+class ATGTransformer(LightningModule):
     """
     A training module for aitextgen.
     """
@@ -33,7 +33,7 @@ class ATGTransformer(pl.LightningModule):
         self.automatic_optimization = True
 
     def forward(self, inputs):
-        return self.model(**inputs, return_dict=False)
+        return self.model(**inputs)
 
     def training_step(self, batch, batch_num):
         outputs = self({"input_ids": batch, "labels": batch})
@@ -276,9 +276,11 @@ class ATGProgressBar(ProgressBar):
         self.main_progress_bar.write(f"={color}=>{ad.TEXT}")
 
     def save_pytorch_model(self, trainer, pl_module, tpu=False):
-        if tpu:
+        if self.petals:
+            with open(os.path.join(self.output_dir, 'prompts.pt'), 'wb') as f:
+                torch.save((pl_module.model.transformer.prompt_embeddings, pl_module.model.transformer.intermediate_prompt_embeddings), f)
+        elif tpu:
             import torch_xla.core.xla_model as xm
-
             pl_module.model.save_pretrained(self.output_dir, save_function=xm.save)
         else:
             pl_module.model.save_pretrained(self.output_dir)
