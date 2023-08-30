@@ -20,7 +20,6 @@ from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
     AutoTokenizer,
-    GenerationConfig,
     GPT2Config,
     GPT2LMHeadModel,
     GPT2TokenizerFast,
@@ -309,7 +308,6 @@ class aitextgen:
         lstrip: bool = True,
         nonempty_output: bool = True,
         skip_special_tokens: bool = True,
-        generation_config: GenerationConfig = None,
         **kwargs,
     ) -> Optional[str]:
         """
@@ -362,20 +360,13 @@ class aitextgen:
             )
 
         while True:
-            if not generation_config:
-                generation_config = GenerationConfig(
-                        n=n,
-                        do_sample=do_sample,
-                        max_new_tokens=max_new_tokens,
-                        temperature=temperature,
-                    )
-
             outputs = self.model.generate(
                 inputs=input_ids,
-                generation_config=generation_config,
+                do_sample=do_sample,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
                 pad_token_id=pad_token_id,
                 use_cache=use_cache,
-                max_length=self.model_max_length,
                 **kwargs,
             )
 

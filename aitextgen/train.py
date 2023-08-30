@@ -15,6 +15,7 @@ from pytorch_lightning.accelerators import TPUAccelerator
 import random
 from .utils import bc, ad
 
+logging.getLogger("transformers").setLevel(logging.WARNING)
 
 class ATGTransformer(pl.LightningModule):
     """
@@ -252,8 +253,6 @@ class ATGProgressBar(ProgressBar):
         else:
             input_ids = None
 
-        logging.getLogger("transformers").setLevel(logging.ERROR)
-
         outputs = pl_module.model.generate(
             inputs=input_ids,
             do_sample=True,
@@ -263,8 +262,6 @@ class ATGProgressBar(ProgressBar):
         )
 
         gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)
-
-        logging.getLogger("transformers").setLevel(logging.WARNING)
 
         pl_module.model.train()
 
