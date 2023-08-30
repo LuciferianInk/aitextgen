@@ -611,6 +611,7 @@ class aitextgen:
         prompt: str = None,
         petals: bool = False,
         hivemind: bool = False,
+        target_batch_size: int = 8192,
         **kwargs,
     ) -> None:
         """
@@ -762,7 +763,6 @@ class aitextgen:
 
         train_params = dict(
             max_epochs=1000000,
-            accumulate_grad_batches=gradient_accumulation_steps,
             accelerator=accelerator,
             devices=n_gpu,
             max_steps=num_steps,
@@ -821,8 +821,9 @@ class aitextgen:
             )
 
         if hivemind:
-            train_params["strategy"] = HivemindStrategy(target_batch_size=batch_size, verbose=True, matchmaking_time=900)
-            train_params["accumulate_grad_batches"] = None
+            train_params["strategy"] = HivemindStrategy(target_batch_size=target_batch_size, verbose=True)
+        else:
+            train_params["accumulate_grad_batches"] = gradient_accumulation_steps
 
         trainer = Trainer(**train_params)
         trainer.fit(train_model)
