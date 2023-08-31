@@ -15,7 +15,7 @@ from lightning.pytorch.accelerators import TPUAccelerator
 import random
 from .utils import bc, ad
 
-logging.getLogger("transformers").setLevel(logging.WARNING)
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
 class ATGTransformer(LightningModule):
     """
@@ -275,12 +275,7 @@ class ATGProgressBar(ProgressBar):
         for text in gen_texts:
             self.main_progress_bar.write(f"{bc.CORE}<={ad.TEXT}=")
             self.main_progress_bar.write(text)
-
-        color = bc.FOLD
-        if random.choice(["blue", "green"]) == "green":
-            color = bc.ROOT
-
-        self.main_progress_bar.write(f"={color}=>{ad.TEXT}")
+            self.main_progress_bar.write(f"={bc.FOLD}=>{ad.TEXT}")
 
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
