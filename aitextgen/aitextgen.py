@@ -724,7 +724,8 @@ class aitextgen:
             use_tpu=tpu_cores > 0,
             stage=stage,
             scheduler=scheduler,
-            petals=petals
+            petals=petals,
+            hivemind=hivemind
         )
 
         # Wrap the model in a pytorch-lightning module
@@ -784,6 +785,7 @@ class aitextgen:
                     freeze_layers,
                     num_layers_freeze,
                     petals,
+                    hivemind,
                     prompt
                 )
             ],

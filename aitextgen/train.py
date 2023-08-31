@@ -108,6 +108,7 @@ class ATGProgressBar(ProgressBar):
         train_transformers_only,
         num_layers_freeze,
         petals,
+        hivemind,
         prompt
     ):
         super().__init__()
@@ -126,6 +127,7 @@ class ATGProgressBar(ProgressBar):
         self.train_transformers_only = train_transformers_only
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
+        self.hivemind = hivemind
         self.prompt = prompt
 
     @property
@@ -138,8 +140,8 @@ class ATGProgressBar(ProgressBar):
     def disable(self):
         self.enabled = False
 
-    def on_train_start(self, trainer, pl_module):
-        super().on_train_start(trainer, pl_module)
+    def on_train_start(self, trainer, lm):
+        super().on_train_start(trainer, lm)
         self.main_progress_bar = tqdm(
             total=trainer.max_steps,
             disable=not self.enabled,
@@ -148,14 +150,14 @@ class ATGProgressBar(ProgressBar):
             dynamic_ncols=True,
             file=sys.stdout,
         )
-        self.freeze_layers(pl_module)
+        self.freeze_layers(lm)
 
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer, lm):
         self.main_progress_bar.close()
-        self.unfreeze_layers(pl_module)
+        self.unfreeze_layers(lm)
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
+    def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
+        super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
         # clean up the GPU cache used for the benchmark
         # https://discuss.pytorch.org/t/about-torch-cuda-empty-cache/34232/4
@@ -174,31 +176,31 @@ class ATGProgressBar(ProgressBar):
         if TPUAccelerator.is_available() and self.save_every_check:
             did_unfreeze = False
             if self.enabled:
-                self.unfreeze_layers(pl_module)
+                self.unfreeze_layers(lm)
                 did_unfreeze = True
-            self.save_pytorch_model(trainer, pl_module, tpu=True)
+            self.save_pytorch_model(trainer, lm, tpu=True)
             if did_unfreeze:
-                self.freeze_layers(pl_module)
+                self.freeze_layers(lm)
 
         if self.enabled:
             did_unfreeze = False
             if not TPUAccelerator.is_available() and self.save_every_check:
-                self.unfreeze_layers(pl_module)
-                self.save_pytorch_model(trainer, pl_module)
+                self.unfreeze_layers(lm)
+                self.save_pytorch_model(trainer, lm)
                 did_unfreeze = True
 
             if self.generate_every > 0 and self.steps % self.generate_every == 0:
-                self.unfreeze_layers(pl_module)
-                self.generate_sample_text(trainer, pl_module)
+                self.unfreeze_layers(lm)
+                self.generate_sample_text(trainer, lm)
                 did_unfreeze = True
 
             if did_unfreeze:
-                self.freeze_layers(pl_module)
+                self.freeze_layers(lm)
 
-        pl_module.logger.experiment.add_scalars(
-            "loss/" + str(pl_module.hparams["stage"]),
+        lm.logger.experiment.add_scalars(
+            "loss/" + str(lm.hparams["stage"]),
             {"train": current_loss},
-            pl_module.global_step,
+            lm.global_step,
         )
 
         color = bc.ROOT
@@ -207,7 +209,7 @@ class ATGProgressBar(ProgressBar):
         elif current_loss > avg_loss:
             color = bc.CORE
 
-        bearing = "{:.8f}".format(round(current_loss / avg_loss, 8))
+        bearing = "{:.5f}".format(round(current_loss / avg_loss, 5))
 
         mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
             "SC_PHYS_PAGES"
@@ -235,25 +237,30 @@ class ATGProgressBar(ProgressBar):
                 gpu_memory = result.stdout.strip().split(os.linesep)
                 cat = f"MB{ad.TEXT} => {bc.FOLD}".join(gpu_memory)
                 echo += f" => GPU => {bc.FOLD}{cat}MB{ad.TEXT}"
+
+            if self.hivemind:
+                num_peers = trainer.strategy.num_peers
+                echo = echo + f" => Peers => {bc.FOLD}{str(num_peers)}{ad.TEXT}"
+
             self.main_progress_bar.update(self.progress_bar_refresh_rate)
             self.main_progress_bar.set_description(echo)
 
-    def generate_sample_text(self, trainer, pl_module):
+    def generate_sample_text(self, trainer, lm):
 
-        pl_module.model.eval()
+        lm.model.eval()
 
-        pad_token_id = getattr(pl_module.tokenizer, "pad_token_id", None) or getattr(
-            pl_module.tokenizer, "eos_token_id", None
+        pad_token_id = getattr(lm.tokenizer, "pad_token_id", None) or getattr(
+            lm.tokenizer, "eos_token_id", None
         )
 
         prompt = self.prompt
         if prompt:
-            prompt_tensors = pl_module.tokenizer(text=prompt, return_tensors="pt")
-            input_ids = prompt_tensors["input_ids"].to(pl_module.model.device.type)
+            prompt_tensors = lm.tokenizer(text=prompt, return_tensors="pt")
+            input_ids = prompt_tensors["input_ids"].to(lm.model.device.type)
         else:
             input_ids = None
 
-        outputs = pl_module.model.generate(
+        outputs = lm.model.generate(
             inputs=input_ids,
             do_sample=True,
             temperature=0.7,
@@ -261,9 +268,9 @@ class ATGProgressBar(ProgressBar):
             pad_token_id=pad_token_id
         )
 
-        gen_texts = pl_module.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+        gen_texts = lm.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
-        pl_module.model.train()
+        lm.model.train()
 
         for text in gen_texts:
             self.main_progress_bar.write(f"{bc.CORE}<={ad.TEXT}=")
@@ -275,15 +282,15 @@ class ATGProgressBar(ProgressBar):
 
         self.main_progress_bar.write(f"={color}=>{ad.TEXT}")
 
-    def save_pytorch_model(self, trainer, pl_module, tpu=False):
+    def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
             with open(os.path.join(self.output_dir, 'prompts.pt'), 'wb') as f:
-                torch.save((pl_module.model.transformer.prompt_embeddings, pl_module.model.transformer.intermediate_prompt_embeddings), f)
+                torch.save((lm.model.transformer.prompt_embeddings, lm.model.transformer.intermediate_prompt_embeddings), f)
         elif tpu:
             import torch_xla.core.xla_model as xm
-            pl_module.model.save_pretrained(self.output_dir, save_function=xm.save)
+            lm.model.save_pretrained(self.output_dir, save_function=xm.save)
         else:
-            pl_module.model.save_pretrained(self.output_dir)
+            lm.model.save_pretrained(self.output_dir)
 
         if self.enabled and self.save_gdrive:
             for pt_file in ["pytorch_model.bin", "config.json"]:
@@ -298,9 +305,9 @@ class ATGProgressBar(ProgressBar):
         else:
             return (smoothing * current_loss) + (1 - smoothing) * prev_avg_loss
 
-    def modify_layers(self, pl_module, unfreeze):
+    def modify_layers(self, lm, unfreeze):
         if self.train_transformers_only:
-            for name, param in pl_module.model.named_parameters():
+            for name, param in lm.model.named_parameters():
                 if self.num_layers_freeze:
                     layer_num = int(name.split(".")[2]) if ".h." in name else None
                     to_freeze = layer_num and layer_num < self.num_layers_freeze
@@ -309,8 +316,8 @@ class ATGProgressBar(ProgressBar):
                 if name == "transformer.wte.weight" or to_freeze:
                     param.requires_grad = unfreeze
 
-    def freeze_layers(self, pl_module):
-        self.modify_layers(pl_module, False)
+    def freeze_layers(self, lm):
+        self.modify_layers(lm, False)
 
-    def unfreeze_layers(self, pl_module):
-        self.modify_layers(pl_module, True)
+    def unfreeze_layers(self, lm):
+        self.modify_layers(lm, True)
