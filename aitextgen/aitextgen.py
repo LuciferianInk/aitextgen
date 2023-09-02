@@ -40,11 +40,13 @@ from .utils import (
     reset_seed,
     set_seed,
 )
+
 try:
     from lightning_hivemind.strategy import HivemindStrategy
-    print('Successfully imported HivemindStrategy.')
+
+    print("Successfully imported HivemindStrategy.")
 except ImportError:
-    print('Failed to import HivemindStrategy. Did you install it into a venv?')
+    print("Failed to import HivemindStrategy. Did you install it into a venv?")
 
 logger = logging.getLogger("aitextgen")
 logger.setLevel(logging.INFO)
@@ -107,8 +109,9 @@ class aitextgen:
         bos_token: str = None,
         eos_token: str = None,
         unk_token: str = None,
-        adapter = None,
-        pre_seq_len = 24,
+        adapter=None,
+        tuning_mode=None,
+        pre_seq_len=24,
         **kwargs,
     ) -> None:
         if model:
@@ -130,17 +133,40 @@ class aitextgen:
 
         self.petals = petals
         if petals:
-            print('loading model from Petals')
+            print("loading model from Petals")
             # self.model = AutoDistributedModelForCausalLM.from_pretrained(model, active_adapter=adapter, cache_dir=cache_dir, torch_dtype=torch.float32)
-            self.model = AutoDistributedModelForCausalLM.from_pretrained(model, pre_seq_len=pre_seq_len, tuning_mode='deep_ptune', cache_dir=cache_dir, torch_dtype=torch.float32)
-            self.tokenizer = AutoTokenizer.from_pretrained(model, cache_dir=cache_dir, padding_side="left")
-            embeddings_path = embeddings_dir + '/prompts.pt'
-            if os.path.exists(embeddings_path):
-                with open(embeddings_path, 'rb') as f:
-                    if to_gpu:
-                        self.model.transformer.prompt_embeddings, self.model.transformer.intermediate_prompt_embeddings = torch.load(f)
-                    else:
-                        self.model.transformer.prompt_embeddings, self.model.transformer.intermediate_prompt_embeddings = torch.load(f, map_location=torch.device('cpu'))
+            self.model = AutoDistributedModelForCausalLM.from_pretrained(
+                model,
+                pre_seq_len=pre_seq_len,
+                tuning_mode="deep_ptune",
+                cache_dir=cache_dir,
+                torch_dtype=torch.float32,
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model, cache_dir=cache_dir, padding_side="left"
+            )
+            embeddings_path = embeddings_dir + "/prompts.pt"
+            if tuning_mode:
+                if os.path.exists(embeddings_path):
+                    with open(embeddings_path, "rb") as f:
+                        if tuning_mode == "ptune":
+                            if to_gpu:
+                                self.model.transformer.prompt_embeddings = torch.load(f)
+                            else:
+                                self.model.transformer.prompt_embeddings = torch.load(
+                                    f, map_location=torch.device("cpu")
+                                )
+                        elif tuning_mode == "deep_ptune":
+                            if to_gpu:
+                                (
+                                    self.model.transformer.prompt_embeddings,
+                                    self.model.transformer.intermediate_prompt_embeddings,
+                                ) = torch.load(f)
+                            else:
+                                (
+                                    self.model.transformer.prompt_embeddings,
+                                    self.model.transformer.intermediate_prompt_embeddings,
+                                ) = torch.load(f, map_location=torch.device("cpu"))
 
         elif tf_gpt2:
             self.openai_tf_gpt2 = tf_gpt2
@@ -453,7 +479,6 @@ class aitextgen:
 
             # Typical use case
             else:
-
                 gen_texts = self.tokenizer.batch_decode(
                     outputs, skip_special_tokens=skip_special_tokens
                 )
@@ -725,7 +750,7 @@ class aitextgen:
             stage=stage,
             scheduler=scheduler,
             petals=petals,
-            hivemind=hivemind
+            hivemind=hivemind,
         )
 
         # Wrap the model in a pytorch-lightning module
@@ -786,7 +811,7 @@ class aitextgen:
                     num_layers_freeze,
                     petals,
                     hivemind,
-                    prompt
+                    prompt,
                 )
             ],
             plugins=deepspeed_plugin,
@@ -823,7 +848,9 @@ class aitextgen:
             )
 
         if hivemind:
-            train_params["strategy"] = HivemindStrategy(target_batch_size=target_batch_size, verbose=True)
+            train_params["strategy"] = HivemindStrategy(
+                target_batch_size=target_batch_size, verbose=True
+            )
         else:
             train_params["accumulate_grad_batches"] = gradient_accumulation_steps
 
