@@ -17,6 +17,7 @@ from .utils import bc, ad
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
+
 class ATGTransformer(LightningModule):
     """
     A training module for aitextgen.
@@ -109,7 +110,7 @@ class ATGProgressBar(ProgressBar):
         num_layers_freeze,
         petals,
         hivemind,
-        prompt
+        prompt,
     ):
         super().__init__()
         self.enabled = True
@@ -246,12 +247,10 @@ class ATGProgressBar(ProgressBar):
             self.main_progress_bar.set_description(echo)
 
     def generate_sample_text(self, trainer, lm):
-
         lm.model.eval()
 
-        pad_token_id = getattr(lm.tokenizer, "pad_token_id", None) or getattr(
-            lm.tokenizer, "eos_token_id", None
-        )
+        eos_token_id = getattr(lm.tokenizer, "eos_token_id", None)
+        pad_token_id = getattr(lm.tokenizer, "pad_token_id", None) or eos_token_id
 
         prompt = self.prompt
         if prompt:
@@ -264,8 +263,9 @@ class ATGProgressBar(ProgressBar):
             inputs=input_ids,
             do_sample=True,
             temperature=0.7,
-            max_new_tokens=111,
-            pad_token_id=pad_token_id
+            max_new_tokens=222,
+            pad_token_id=pad_token_id,
+            eos_token_id=eos_token_id,
         )
 
         gen_texts = lm.tokenizer.batch_decode(outputs, skip_special_tokens=True)
@@ -275,13 +275,20 @@ class ATGProgressBar(ProgressBar):
         for text in gen_texts:
             self.main_progress_bar.write(f"={bc.FOLD}=>{ad.TEXT}")
             self.main_progress_bar.write(text)
-            
+
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
-            with open(os.path.join(self.output_dir, 'prompts.pt'), 'wb') as f:
-                torch.save((lm.model.transformer.prompt_embeddings, lm.model.transformer.intermediate_prompt_embeddings), f)
+            with open(os.path.join(self.output_dir, "prompts.pt"), "wb") as f:
+                torch.save(
+                    (
+                        lm.model.transformer.prompt_embeddings,
+                        lm.model.transformer.intermediate_prompt_embeddings,
+                    ),
+                    f,
+                )
         elif tpu:
             import torch_xla.core.xla_model as xm
+
             lm.model.save_pretrained(self.output_dir, save_function=xm.save)
         else:
             lm.model.save_pretrained(self.output_dir)
