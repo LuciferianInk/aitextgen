@@ -273,8 +273,8 @@ class ATGProgressBar(ProgressBar):
         lm.model.train()
 
         for text in gen_texts:
-            self.main_progress_bar.write(f"={bc.FOLD}=>{ad.TEXT}")
             self.main_progress_bar.write(text)
+            self.main_progress_bar.write(f"={bc.FOLD}=>{ad.TEXT}")
 
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
