@@ -247,8 +247,10 @@ class ATGProgressBar(ProgressBar):
             self.main_progress_bar.set_description(echo)
 
     def generate_sample_text(self, trainer, lm):
-        if "rwkv" not in getattr(lm.model.config, "_name_or_path"):
-            lm.model.eval()
+        # if "rwkv" not in getattr(lm.model.config, "_name_or_path"):
+        #     lm.model.eval()
+
+        lm.model.eval()
 
         eos_token_id = getattr(lm.tokenizer, "eos_token_id", None)
         pad_token_id = getattr(lm.tokenizer, "pad_token_id", None) or eos_token_id
