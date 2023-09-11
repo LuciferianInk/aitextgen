@@ -605,7 +605,7 @@ class aitextgen:
         accelerator: str = "gpu",
         n_gpu: int = -1,
         tpu_cores: int = 0,
-        max_grad_norm: float = 0.5,
+        gradient_clip_val: float = 0.5,
         gradient_accumulation_steps: int = 1,
         seed: int = None,
         learning_rate: float = 1e-3,
@@ -646,7 +646,7 @@ class aitextgen:
         :param fp16_opt_level: Option level for FP16/APEX training.
         :param n_gpu: Number of GPU to use (-1 implies all available GPUs)
         :param tpu_cores: Number of TPU cores to use (should be a multiple of 8)
-        :param max_grad_norm: Maximum gradient normalization
+        :param gradient_clip_val: Maximum gradient normalization
         :param gradient_accumulation_steps: Number of gradient acc steps
         :param seed: Interger representing the training seed.
         :param learning_rate: Training learning rate for the default AdamW optimizer.
@@ -788,7 +788,7 @@ class aitextgen:
             accelerator=accelerator,
             devices=n_gpu,
             max_steps=num_steps,
-            gradient_clip_val=max_grad_norm,
+            gradient_clip_val=gradient_clip_val,
             enable_checkpointing=False,  # checkpoint_callback deprecated in pytorch_lighning v1.7
             logger=loggers if loggers else False,
             enable_model_summary=None,  # weights_summary and progress_bar_refresh_rate are removed in pytorch_lighning v1.7
