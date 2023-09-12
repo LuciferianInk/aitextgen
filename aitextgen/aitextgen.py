@@ -23,6 +23,7 @@ from transformers import (
     GPT2LMHeadModel,
     GPT2TokenizerFast,
     PreTrainedTokenizerFast,
+    GenerationConfig,
 )
 from petals import AutoDistributedModelForCausalLM
 from peft import PeftConfig, PeftModel
@@ -397,14 +398,18 @@ class aitextgen:
             )
 
         while True:
-            outputs = self.model.generate(
-                inputs=input_ids,
+            config = GenerationConfig(
                 do_sample=do_sample,
-                max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 pad_token_id=pad_token_id,
-                use_cache=use_cache,
                 **kwargs,
+            )
+
+            outputs = self.model.generate(
+                inputs=input_ids,
+                generation_config=config,
+                max_new_tokens=max_new_tokens,
+                use_cache=use_cache,
             )
 
             # Schema token handling
