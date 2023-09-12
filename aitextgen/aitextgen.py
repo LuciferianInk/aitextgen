@@ -134,7 +134,6 @@ class aitextgen:
         self.petals = petals
         if petals:
             print("loading model from Petals")
-            # self.model = AutoDistributedModelForCausalLM.from_pretrained(model, active_adapter=adapter, cache_dir=cache_dir, torch_dtype=torch.float32)
             self.model = AutoDistributedModelForCausalLM.from_pretrained(
                 model,
                 pre_seq_len=pre_seq_len,
@@ -230,7 +229,7 @@ class aitextgen:
                 f"Loading model from provided weights and config in /{model_folder}."
             )
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_folder, local_files_only=True
+                model_folder, local_files_only=True, trust_remote_code=True
             )
         elif config:
             # Manually construct a model from scratch
@@ -245,7 +244,7 @@ class aitextgen:
             else:
                 logger.info(f"Downloading {model or 'gpt2'} model to /{cache_dir}.")
             self.model = AutoModelForCausalLM.from_pretrained(
-                model or "gpt2", cache_dir=cache_dir
+                model or "gpt2", cache_dir=cache_dir, trust_remote_code=True
             )
             if model and "gpt2" not in model:
                 logger.info(f"Using the tokenizer for {model}.")
@@ -789,6 +788,7 @@ class aitextgen:
             devices=n_gpu,
             max_steps=num_steps,
             gradient_clip_val=gradient_clip_val,
+            gradient_clip_algorithm="norm",
             enable_checkpointing=False,  # checkpoint_callback deprecated in pytorch_lighning v1.7
             logger=loggers if loggers else False,
             enable_model_summary=None,  # weights_summary and progress_bar_refresh_rate are removed in pytorch_lighning v1.7
