@@ -143,7 +143,7 @@ class aitextgen:
                 torch_dtype=torch.float32,
             )
             self.tokenizer = AutoTokenizer.from_pretrained(
-                model, cache_dir=cache_dir, padding_side="left"
+                model, cache_dir=cache_dir, padding_side="left", add_prefix_space=True
             )
             embeddings_path = embeddings_dir + "/prompts.pt"
             if tuning_mode:
@@ -250,7 +250,10 @@ class aitextgen:
             if model and "gpt2" not in model:
                 logger.info(f"Using the tokenizer for {model}.")
                 self.tokenizer = AutoTokenizer.from_pretrained(
-                    model, cache_dir=cache_dir, padding_side="left"
+                    model,
+                    cache_dir=cache_dir,
+                    padding_side="left",
+                    add_prefix_space=True,
                 )
 
         if adapter and not petals:
@@ -316,6 +319,7 @@ class aitextgen:
                     pad_token=self.pad_token,
                     verbose=False,
                     padding_side="left",
+                    add_prefix_space=True,
                 )
                 if not custom_tokenizer:
                     # https://github.com/huggingface/transformers/issues/10202
