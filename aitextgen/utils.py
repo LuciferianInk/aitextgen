@@ -7,41 +7,6 @@ import random
 from transformers import GPT2Config, GPTNeoConfig
 
 
-def download_gpt2(model_dir: str = "tf_model", model_name: str = "124M") -> None:
-    """
-    Downloads the GPT-2 model (weights only) into the specified directory
-    from Google Cloud Storage.
-
-    If running in Colaboratory or Google Compute Engine,
-    this is substantially faster (and cheaper for HuggingFace) than using the
-    default model downloading. However, the model is in TensorFlow,
-    so the weights must be converted.
-
-    Adapted from gpt-2-simple.
-    """
-
-    # create the <model_dir>/<model_name> subdirectory if not present
-    sub_dir = os.path.join(model_dir, model_name)
-    if not os.path.exists(sub_dir):
-        os.makedirs(sub_dir)
-    sub_dir = sub_dir.replace("\\", "/")  # needed for Windows
-
-    for file_name in [
-        "checkpoint",
-        "hparams.json",
-        "model.ckpt.data-00000-of-00001",
-        "model.ckpt.index",
-        "model.ckpt.meta",
-    ]:
-        if not os.path.isfile(os.path.join(sub_dir, file_name)):
-            download_file_with_progress(
-                url_base="https://openaipublic.blob.core.windows.net/gpt-2",
-                sub_dir=sub_dir,
-                model_name=model_name,
-                file_name=file_name,
-            )
-
-
 def download_file_with_progress(
     url_base: str, sub_dir: str, model_name: str, file_name: str
 ):

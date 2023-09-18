@@ -76,11 +76,28 @@ class ATGTransformer(LightningModule):
                 "weight_decay": 0.0,
             },
         ]
-        optimizer = AdamW(
-            optimizer_grouped_parameters,
-            lr=self.hparams["learning_rate"],
-            eps=self.hparams["adam_epsilon"],
-        )
+
+        opt = self.hparams["optimizer"]
+        if opt == "SophiaH":
+            try:
+                from pytorch_optimizer import SophiaH
+
+                for n, p in self.model.named_parameters():
+                    p.requires_grad = False
+
+                optimizer = SophiaH(
+                    optimizer_grouped_parameters,
+                    lr=self.hparams["learning_rate"],
+                    update_period=self.hparams["update_period"],
+                )
+            except ImportError:
+                print("Failed to import SophiaH optimizer. Is it installed?")
+        else:
+            optimizer = AdamW(
+                optimizer_grouped_parameters,
+                lr=self.hparams["learning_rate"],
+                eps=self.hparams["adam_epsilon"],
+            )
 
         scheduler = get_scheduler(
             self.hparams.get("scheduler", "linear"),

@@ -6,3 +6,4 @@ torch>=2.0.1
 petals>=2.1.0
 peft>=0.5.0
 accelerate>=0.22.0
+pytorch_optimizer>=2.11.2
