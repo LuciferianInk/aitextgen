@@ -1,6 +1,6 @@
 # Text Generation
 
-Thanks to the base Transformers package, aitextgen has more options for generating text than other text-generating apps before.
+Thanks to the base Transformers package, aigen has more options for generating text than other text-generating apps before.
 
 ## Generation Parameters
 
@@ -26,13 +26,13 @@ Some lesser-known-but-still-useful-parameters that are unique to Transformers:
 
 ## Generation Functions
 
-Given a `aitextgen` object with a loaded model + tokenizer named `ai`:
+Given a `aigen` object with a loaded model + tokenizer named `ai`:
 
 <!--prettier-ignore-->
 !!! note "About devices"
-    aitextgen does not automatically set the device used to generate text. If you
+    aigen does not automatically set the device used to generate text. If you
     want to generate on the GPU, make sure you call `ai.to_gpu()` beforehand, or
-    load the model into the GPU using `ai = aitextgen(to_gpu=True)`
+    load the model into the GPU using `ai = aigen(to_gpu=True)`
 
 - `ai.generate()`: Generates and prints text to console. If `prompt` is used, the `prompt` is **bolded**.
 - `ai.generate_one()`: A helper function which generates a single text and returns as a string (good for APIs)
@@ -45,6 +45,6 @@ Given a `aitextgen` object with a loaded model + tokenizer named `ai`:
 
 ## Seed
 
-aitextgen has a new `seed` parameter for generation. Using any generate function with a `seed` parameter (must be an integer) and all other models/parameters the same, and the generated text will be identical. This allows for reproducible generations in case someone accuses you of faking the AI output.
+aigen has a new `seed` parameter for generation. Using any generate function with a `seed` parameter (must be an integer) and all other models/parameters the same, and the generated text will be identical. This allows for reproducible generations in case someone accuses you of faking the AI output.
 
 For `generate_to_file()`, the 8-digit number at the end of the file name will be the seed used to generate the file, making reprodicibility easy.

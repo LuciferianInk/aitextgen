@@ -18,13 +18,13 @@ from .utils import bc, ad
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
 
-class ATGTransformer(LightningModule):
+class AIGTrainer(LightningModule):
     """
-    A training module for aitextgen.
+    A training module for aigen.
     """
 
     def __init__(self, model, dataset, hparams, tokenizer):
-        super(ATGTransformer, self).__init__()
+        super(AIGTrainer, self).__init__()
         self.model, self.dataset, self.tokenizer = (
             model,
             dataset,
@@ -121,7 +121,7 @@ class ATGTransformer(LightningModule):
         return [optimizer], [scheduler]
 
 
-class ATGProgressBar(ProgressBar):
+class AIGProgressBar(ProgressBar):
     """A variant progress bar that works off of steps and prints periodically."""
 
     def __init__(

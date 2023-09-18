@@ -26,5 +26,5 @@ transformers-cli upload model_name
 You (or another user) can download cache, and generate from that model via:
 
 ```
-ai = aitextgen(model="username/model_name")
+ai = aigen(model="username/model_name")
 ```

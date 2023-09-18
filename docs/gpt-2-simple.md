@@ -8,6 +8,6 @@ In the case of gpt-2-simple (where the output is structured `checkpoint/run1`), 
 transformers-cli convert --model_type gpt2 --tf_checkpoint checkpoint/run1 --pytorch_dump_output pytorch --config checkpoint/run1/hparams.json
 ```
 
-This will put a `pytorch_model.bin` and `config.json` in the `pytorch` folder, which is what you'll need to pass to `aitextgen()` to load the model.
+This will put a `pytorch_model.bin` and `config.json` in the `pytorch` folder, which is what you'll need to pass to `aigen()` to load the model.
 
 That's it!

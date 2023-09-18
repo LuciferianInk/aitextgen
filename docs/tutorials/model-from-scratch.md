@@ -12,18 +12,18 @@ It still will require a _massive_ amount of training time (several hours) but wi
 
 ## Building a Custom Tokenizer.
 
-The `train_tokenizer()` function from `aitextgen.tokenizers` trains the model on the specified text(s) on disk.
+The `train_tokenizer()` function from `aigen.tokenizers` trains the model on the specified text(s) on disk.
 
 <!--prettier-ignore-->
 !!! note "Vocabulary Size"
     The default vocabulary size for `train_tokenizer()` is 1,000 tokens. Although this is much lower than GPT-2's 50k vocab size, the smaller the vocab size, the easier it is to train the model (since it's more likely for the model to make a correct "guess"), and the model file size will be _much_ smaller.
 
 ```py3
-from aitextgen.tokenizers import train_tokenizer
+from aigen.tokenizers import train_tokenizer
 train_tokenizer(file_name)
 ```
 
-This creates one file, `aitextgen.tokenizer.json`, which is needed to rebuild the tokenizer.
+This creates one file, `aigen.tokenizer.json`, which is needed to rebuild the tokenizer.
 
 # Building a Custom Dataset
 
@@ -37,7 +37,7 @@ data = TokenDataset(file_name, vocab_file=vocab_file, merges_file=merges_file, b
 
 Whenever you load a default 124M GPT-2 model, it uses a `GPT2Config()` under the hood. But you can create your own, with whatever parameters you want.
 
-The `build_gpt2_config()` function from `aitextgen.utils` gives you more control.
+The `build_gpt2_config()` function from `aigen.utils` gives you more control.
 
 ```py3
 config = build_gpt2_config(vocab_size=5000, max_length=32, dropout=0.0, n_embd=256, n_layer=8, n_head=8)
@@ -61,7 +61,7 @@ A few notes on the inputs:
 You can instantiate an empty GPT-2 according to your custom config, and construct a custom tokenizer according to your vocab and merges file:
 
 ```py3
-ai = aitextgen(tokenizer_file=tokenizer_file, config=config)
+ai = aigen(tokenizer_file=tokenizer_file, config=config)
 ```
 
 Training is done as normal.
@@ -75,5 +75,5 @@ ai.train(data, batch_size=16, num_steps=5000)
 You'll always need to provide the tokenizer_file and the folder containing the `pytorch_model.bin` and `config.json`.
 
 ```py3
-ai = aitextgen(model_folder="trained_model", tokenizer_file="aitextgen.tokenizer.json")
+ai = aigen(model_folder="trained_model", tokenizer_file="aigen.tokenizer.json")
 ```

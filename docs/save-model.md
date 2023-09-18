@@ -4,11 +4,11 @@ There are are multiple ways to save models.
 
 Whenever a model is saved, two files are generated: `pytorch_model.bin` which contains the model weights, and `config.json` which is needed to load the model.
 
-Assuming we have an aitextgen model `ai`:
+Assuming we have an aigen model `ai`:
 
 ## Ad Hoc saving
 
-The aitextgen model can be saved at any time using `save`.
+The aigen model can be saved at any time using `save`.
 
 ```py3
 ai.save()
@@ -25,7 +25,7 @@ If you are using Google Colaboratory, you can mount your personal Google Drive t
 First mount your Google Drive using `mount_gdrive()`:
 
 ```py3
-from aitextgen.colab import mount_gdrive, copy_file_to_gdrive
+from aigen.colab import mount_gdrive, copy_file_to_gdrive
 mount_gdrive()
 ```
 
@@ -44,7 +44,7 @@ By default, the `train()` function has `save_every = 1000`, which means the mode
 
 ## Saving During Training in Google Colab
 
-Concerned about timeouts in Google Colab? aitextgen has a feature that will copy models to your Google Drive periodically in case the instance gets killed!
+Concerned about timeouts in Google Colab? aigen has a feature that will copy models to your Google Drive periodically in case the instance gets killed!
 
 As long as your drive is mounted as above, pass `save_gdrive = True` to the `train()` function:
 

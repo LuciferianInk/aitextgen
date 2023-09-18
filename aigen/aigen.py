@@ -7,7 +7,6 @@ import sys
 from datetime import datetime
 from random import randint
 from typing import List, Optional, Union
-
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.callbacks import ModelPruning
 from lightning.pytorch.strategies import StrategyRegistry
@@ -29,7 +28,7 @@ from petals import AutoDistributedModelForCausalLM
 from peft import PeftConfig, PeftModel
 from .colab import create_gdrive_folder
 from .TokenDataset import TokenDataset
-from .train import ATGProgressBar, ATGTransformer
+from .train import AIGProgressBar, AIGTrainer
 from .utils import (
     find_index_of_subset,
     model_max_length,
@@ -37,15 +36,15 @@ from .utils import (
     set_seed,
 )
 
-logger = logging.getLogger("aitextgen")
+logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
 
 STATIC_PATH = resource_filename(__name__, "static")
 
 
-class aitextgen:
+class aigen:
     """
-    Class that serves as the main aitextgen object for training and generation.
+    Class that serves as the main aigen object for training and generation.
 
     :param model: Either the file path of a PyTorch GPT-2 model, or a string
     representing the Huggingface model to download.
@@ -83,7 +82,7 @@ class aitextgen:
         tokenizer_file: str = None,
         schema_tokens: List[str] = None,
         schema_return: List[str] = None,
-        cache_dir: str = "aitextgen",
+        cache_dir: str = "aigen",
         embeddings_dir: str = "",
         to_gpu: bool = False,
         to_fp16: bool = False,
@@ -100,7 +99,7 @@ class aitextgen:
     ) -> None:
         if model:
             assert not os.path.isfile(model), (
-                "As of aitextgen 0.5.0, you must "
+                "As of aigen 0.5.0, you must "
                 + "use `model_folder` to load an existing model."
             )
 
@@ -695,7 +694,7 @@ class aitextgen:
         )
 
         # Wrap the model in a pytorch-lightning module
-        train_model = ATGTransformer(self.model, train_data, hparams, self.tokenizer)
+        train_model = AIGTrainer(self.model, train_data, hparams, self.tokenizer)
 
         # Begin training
         if seed:
@@ -737,7 +736,7 @@ class aitextgen:
             logger=loggers if loggers else False,
             enable_model_summary=None,  # weights_summary and progress_bar_refresh_rate are removed in pytorch_lighning v1.7
             callbacks=[
-                ATGProgressBar(
+                AIGProgressBar(
                     save_every,
                     generate_every,
                     output_dir,
@@ -770,7 +769,7 @@ class aitextgen:
             n_gpu = 0
 
         # benchmark gives a boost for GPUs if input size is constant,
-        # which will always be the case with aitextgen training
+        # which will always be the case with aigen training
         if is_gpu_used and benchmark:
             train_params["benchmark"] = True
 

@@ -1,6 +1,6 @@
 # TokenDataset
 
-aitextgen has a special class, `TokenDataset`, used for managing tokenized datasets to be fed into model training. (this is in contrast with other GPT-2 finetuning approaches, which tokenizes at training time although you can still do that by passing a `file_path` and other relevant parameters to `ai.train()`.)
+aigen has a special class, `TokenDataset`, used for managing tokenized datasets to be fed into model training. (this is in contrast with other GPT-2 finetuning approaches, which tokenizes at training time although you can still do that by passing a `file_path` and other relevant parameters to `ai.train()`.)
 
 This has a few nice bonuses, including:
 
@@ -15,7 +15,7 @@ This has a few nice bonuses, including:
 The easiest way to create a TokenDataset is to provide a target file. If no `tokenizer_file` is provided, it will use the default GPT-2 tokenizer.
 
 ```py3
-from aitextgen.TokenDataset import TokenDataset
+from aigen.TokenDataset import TokenDataset
 
 data = TokenDataset("shakespeare.txt")
 ```
@@ -67,7 +67,7 @@ data = TokenDataset("dataset_cache.tar.gz", from_cache=True)
 
 <!--prettier-ignore-->
 !!! note "CLI"
-    You can quickly create a Tokenized dataset using the command line, e.g. `aitextgen encode text.txt`. This will drastically reduce the file size, and is recommended before moving the file to cloud services (where it can be loaded using the `from_cache` parameter noted above)
+    You can quickly create a Tokenized dataset using the command line, e.g. `aigen encode text.txt`. This will drastically reduce the file size, and is recommended before moving the file to cloud services (where it can be loaded using the `from_cache` parameter noted above)
 
 ## Using TokenDatasets with a Custom GPT-2 Model
 
@@ -86,7 +86,7 @@ Merging processed TokenDatasets can be done with the `merge_datasets()` function
     The current implementation merges by subset count, so equalization may not be perfect, but it will not significantly impact training.
 
 ```py3
-from aitextgen.TokenDataset import TokenDataset, merge_datasets
+from aigen.TokenDataset import TokenDataset, merge_datasets
 
 data1 = TokenDataset("politics1000.csv", line_by_line=True)   # 1000 samples
 data2 = TokenDataset("politics4000.csv", line_by_line=True)   # 4000 samples

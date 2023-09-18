@@ -1,4 +1,4 @@
-site_name: aitextgen
+site_name: aigen
 site_description: A robust Python tool for text-based AI training and generation using GPT-2 and GPT Neo.
 site_author: Max Woolf (@minimaxir)
 
@@ -47,8 +47,8 @@ theme:
     logo: fontawesome/solid/robot
     repo: fontawesome/brands/github
 
-repo_name: minimaxir/aitextgen
-repo_url: https://github.com/minimaxir/aitextgen
+repo_name: minimaxir/aigen
+repo_url: https://github.com/minimaxir/aigen
 edit_uri: ""
 
 copyright: "Copyright &copy; 2019 - 2021 Max Woolf"
@@ -56,7 +56,7 @@ copyright: "Copyright &copy; 2019 - 2021 Max Woolf"
 extra:
   social:
     - icon: "fontawesome/brands/github-alt"
-      link: "https://github.com/minimaxir/aitextgen"
+      link: "https://github.com/minimaxir/aigen"
     - icon: "fontawesome/brands/twitter"
       link: "https://twitter.com/minimaxir"
 
