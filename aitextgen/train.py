@@ -31,7 +31,10 @@ class ATGTransformer(LightningModule):
             tokenizer,
         )
         self.save_hyperparameters(hparams)
-        self.automatic_optimization = True
+        if self.hparams["optimizer"] in ["SophiaH"]:
+            self.automatic_optimization = False
+        else:
+            self.automatic_optimization = True
 
     def forward(self, inputs):
         return self.model(**inputs)
@@ -40,8 +43,20 @@ class ATGTransformer(LightningModule):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
 
-        schedule = self.lr_schedulers()
-        schedule.step()
+        if self.hparams["optimizer"] in ["SophiaH"]:
+            opt = self.optimizers()
+            opt.zero_grad()
+            self.manual_backward(loss, create_graph=True)
+            # hessian = [
+            #     p.grad * p.grad
+            #     for p in self.model.parameters()
+            #     if p.requires_grad and p.grad is not None and not p.grad.is_sparse
+            # ]
+            # opt.step(hessian=hessian)
+        else:
+            opt = self.lr_schedulers()
+
+        opt.step()
 
         return {"loss": loss}
 
@@ -77,21 +92,18 @@ class ATGTransformer(LightningModule):
             },
         ]
 
-        opt = self.hparams["optimizer"]
-        if opt == "SophiaH":
+        if self.hparams["optimizer"] in ["SophiaH"]:
             try:
                 from pytorch_optimizer import SophiaH
 
-                for n, p in self.model.named_parameters():
-                    p.requires_grad = False
-
-                optimizer = SophiaH(
-                    optimizer_grouped_parameters,
-                    lr=self.hparams["learning_rate"],
-                    update_period=self.hparams["update_period"],
-                )
             except ImportError:
                 print("Failed to import SophiaH optimizer. Is it installed?")
+
+            optimizer = SophiaH(
+                optimizer_grouped_parameters,
+                lr=self.hparams["learning_rate"],
+                update_period=self.hparams["update_period"],
+            )
         else:
             optimizer = AdamW(
                 optimizer_grouped_parameters,

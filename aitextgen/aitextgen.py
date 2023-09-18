@@ -733,8 +733,6 @@ class aitextgen:
             accelerator=accelerator,
             devices=n_gpu,
             max_steps=num_steps,
-            gradient_clip_val=gradient_clip_val,
-            gradient_clip_algorithm="norm",
             enable_checkpointing=False,  # checkpoint_callback deprecated in pytorch_lighning v1.7
             logger=loggers if loggers else False,
             enable_model_summary=None,  # weights_summary and progress_bar_refresh_rate are removed in pytorch_lighning v1.7
@@ -759,10 +757,12 @@ class aitextgen:
             plugins=deepspeed_plugin,
         )
 
+        if hparams["optimizer"] not in ["SophiaH"]:
+            train_params["gradient_clip_val"] = gradient_clip_val
+            train_params["gradient_clip_algorithm"] = "norm"
+
         if fp16:
             train_params["precision"] = 16 if fp16 else 32
-            # train_params["amp_level"] = fp16_opt_level
-            # train_params["amp_backend"] = "apex"
 
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
