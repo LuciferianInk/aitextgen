@@ -47,12 +47,6 @@ class AIGTrainer(LightningModule):
             opt = self.optimizers()
             opt.zero_grad()
             self.manual_backward(loss, create_graph=True)
-            # hessian = [
-            #     p.grad * p.grad
-            #     for p in self.model.parameters()
-            #     if p.requires_grad and p.grad is not None and not p.grad.is_sparse
-            # ]
-            # opt.step(hessian=hessian)
         else:
             opt = self.lr_schedulers()
 
