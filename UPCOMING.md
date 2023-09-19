@@ -1,6 +1,6 @@
 # Upcoming Features
 
-Here is a list of features, in no particular order, of what I _hope_ to add to aitextgen, given that it's feasible.
+Here is a list of features, in no particular order, of what I _hope_ to add to aigen, given that it's feasible.
 
 ## Training Features
 

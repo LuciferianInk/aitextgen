@@ -1,13 +1,13 @@
 # Generating From GPT-2 1.5B
 
 <!-- prettier-ignore -->
-Want to generate a ton of text with the largest GPT-2 model, with the generation control provided by aitextgen? Now you can, at a surprisingly low cost! ($0.382/hr, prorated to the nearest second)
+Want to generate a ton of text with the largest GPT-2 model, with the generation control provided by aigen? Now you can, at a surprisingly low cost! ($0.382/hr, prorated to the nearest second)
 
 Here's how to set it up on Google Cloud Platform.
 
 ## Setting Up an AI Platform Notebook
 
-An [AI Platform Notebook](https://cloud.google.com/ai-platform-notebooks) is a hosted Jupyter Lab instance on Google Cloud Platform oriented for AI training and inference. Since it requires zero setup _and has no additional costs outside of CPU/GPUs_, it's the best tool to play with aitextgen.
+An [AI Platform Notebook](https://cloud.google.com/ai-platform-notebooks) is a hosted Jupyter Lab instance on Google Cloud Platform oriented for AI training and inference. Since it requires zero setup _and has no additional costs outside of CPU/GPUs_, it's the best tool to play with aigen.
 
 First, go to [AI Platform Notebooks in the GCP console](https://console.cloud.google.com/ai-platform/notebooks/) (if you haven't made a project + billing, it should prompt you to do so). Go to `New Instance`, select `PyTorch 1.4` and `With 1 NVIDIA Tesla T4`.
 
@@ -19,14 +19,14 @@ The rest of the VM config settings are fine to leave as/is, however make sure yo
 
 Once the instance is created, wait a bit (it takes awhile to install the driver), and a `OPEN JUPYTERLAB` button will appear. Click it to open the hosted Jupyter Lab
 
-## Installing aitextgen on the VM
+## Installing aigen on the VM
 
 Now we have to install the dependencies, which only have to be done once.
 
-In the Jupyter Lab instance, open a Terminal tab, and install both aitextgen and tensorflow (we'll need tensorflow later)
+In the Jupyter Lab instance, open a Terminal tab, and install both aigen and tensorflow (we'll need tensorflow later)
 
 ```sh
-pip3 install aitextgen tensorflow
+pip3 install aigen tensorflow
 ```
 
 Now the harder part: we need to install and compile [apex](https://github.com/NVIDIA/apex) for FP16 support with the T4 GPU. To do that, run:
@@ -46,16 +46,16 @@ Now go back to the Launcher and create a Python 3 Notebook (or upload the one he
 !!! warning "CUDA"
     You may want to ensure the Notebook sees the CUDA installation, which appears to be somewhat random. This can be verified by running `import torch` in a cell, then `torch.cuda.is_available()`.
 
-In a cell, load aitextgen:
+In a cell, load aigen:
 
 ```py3
-from aitextgen import aitextgen
+from aigen import aigen
 ```
 
 In another cell, input and run:
 
 ```py3
-ai = aitextgen(tf_gpt2="1558M", to_gpu=True, to_fp16=True)
+ai = aigen(tf_gpt2="1558M", to_gpu=True, to_fp16=True)
 ```
 
 A few things going on here:

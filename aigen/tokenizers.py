@@ -7,7 +7,7 @@ def train_tokenizer(
     dropout: float = None,
     vocab_size: int = 1000,
     min_frequency: int = 2,
-    prefix: str = "aitextgen",
+    prefix: str = "aigen",
     save_path: str = "",
     added_tokens: List[str] = [],
     bos_token: str = "<|endoftext|>",
