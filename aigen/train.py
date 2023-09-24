@@ -98,6 +98,16 @@ class AIGTrainer(LightningModule):
                 lr=self.hparams["learning_rate"],
                 update_period=self.hparams["update_period"],
             )
+        elif self.hparams["optimizer"] in ["Lion"]:
+            try:
+                from pytorch_optimizer import Lion
+
+            except ImportError:
+                print("Failed to import Lion optimizer. Is it installed?")
+
+            optimizer = Lion(
+                optimizer_grouped_parameters, lr=self.hparams["learning_rate"]
+            )
         else:
             optimizer = AdamW(
                 optimizer_grouped_parameters,
@@ -233,7 +243,9 @@ class AIGProgressBar(ProgressBar):
         elif current_loss > avg_loss:
             color = bc.CORE
 
-        bearing = "{:.5f}".format(round(current_loss / avg_loss, 5))
+        bearing = "{:.5f}".format(
+            round((current_loss / avg_loss) if avg_loss != 0 else 0, 5)
+        )
 
         mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
             "SC_PHYS_PAGES"

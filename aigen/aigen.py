@@ -26,7 +26,7 @@ from transformers import (
     BitsAndBytesConfig,
 )
 from petals import AutoDistributedModelForCausalLM
-from peft import PeftConfig, PeftModel
+from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
 from .colab import create_gdrive_folder
 from .TokenDataset import TokenDataset
 from .train import AIGProgressBar, AIGTrainer
@@ -92,14 +92,24 @@ class aigen:
         pre_seq_len=24,
         **kwargs,
     ) -> None:
+        self.precision = precision
+
         qargs = dict(torch_dtype=torch.float32)
         if precision == 4:
             qargs["load_in_4bit"] = True
             qargs["bnb_4bit_quant_type"] = "nf4"
             qargs["bnb_4bit_use_double_quant"] = True
             qargs["bnb_4bit_compute_dtype"] = torch.float32
+            qargs["llm_int8_has_fp16_weight"] = True
+            qargs["llm_int8_threshold"] = 6
+            qargs["llm_int8_skip_modules"] = ["lm_head", "ln_1", "ln_2", "ln_f"]
         if precision == 8:
             qargs["load_in_8bit"] = True
+            qargs["llm_int8_has_fp16_weight"] = True
+            qargs["llm_int8_threshold"] = 6
+            qargs["llm_int8_skip_modules"] = ["lm_head", "ln_1", "ln_2", "ln_f"]
+        if precision == 16:
+            qargs["torch_dtype"] = torch.float16
 
         self.petals = petals
         if petals:
@@ -186,9 +196,6 @@ class aigen:
         if gradient_checkpointing:
             logger.info("Gradient checkpointing enabled for model training.")
             self.model.gradient_checkpointing_enable()
-            for n, p in self.model.named_parameters():
-                p.requires_grad = True
-                break
             setattr(self.model.config, "use_cache", None if petals else False)
 
         if schema_tokens:
@@ -523,8 +530,6 @@ class aigen:
         self,
         train_data: Union[str, TokenDataset],
         output_dir: str = "trained_model",
-        fp16: bool = False,
-        fp16_opt_level: str = "O1",
         accelerator: str = "gpu",
         n_gpu: int = -1,
         tpu_cores: int = 0,
@@ -567,8 +572,6 @@ class aigen:
         a string containing the text to be trained (shortcut instead of dataset)
         :param output_dir: A string indicating where to store the resulting
         model file folder.
-        :param fp16: Boolean whether to use fp16, assuming using a compatible GPU/TPU.
-        :param fp16_opt_level: Option level for FP16/APEX training.
         :param n_gpu: Number of GPU to use (-1 implies all available GPUs)
         :param tpu_cores: Number of TPU cores to use (should be a multiple of 8)
         :param gradient_clip_val: Maximum gradient normalization
@@ -610,6 +613,17 @@ class aigen:
 
         self.model = self.model.train()
         is_gpu_used = torch.cuda.is_available() and n_gpu != 0
+
+        if hasattr(self.model, "enable_input_require_grads"):
+            self.model.enable_input_require_grads()
+        else:
+
+            def make_inputs_require_grad(module, input, output):
+                output.requires_grad_(True)
+
+            self.model.get_input_embeddings().register_forward_hook(
+                make_inputs_require_grad
+            )
 
         if isinstance(train_data, str):
             block_size = model_max_length(self.model.config)
@@ -677,7 +691,12 @@ class aigen:
         )
 
         # Wrap the model in a pytorch-lightning module
-        train_model = AIGTrainer(self.model, train_data, hparams, self.tokenizer)
+        train_model = AIGTrainer(
+            self.model,
+            train_data,
+            hparams,
+            self.tokenizer,
+        )
 
         # Begin training
         if seed:
@@ -715,9 +734,9 @@ class aigen:
             accelerator=accelerator,
             devices=n_gpu,
             max_steps=num_steps,
-            enable_checkpointing=False,  # checkpoint_callback deprecated in pytorch_lighning v1.7
+            enable_checkpointing=False,
+            precision=32,
             logger=loggers if loggers else False,
-            enable_model_summary=None,  # weights_summary and progress_bar_refresh_rate are removed in pytorch_lighning v1.7
             callbacks=[
                 AIGProgressBar(
                     save_every,
@@ -742,9 +761,6 @@ class aigen:
         if hparams["optimizer"] not in ["SophiaH"]:
             train_params["gradient_clip_val"] = gradient_clip_val
             train_params["gradient_clip_algorithm"] = "norm"
-
-        if fp16:
-            train_params["precision"] = 16 if fp16 else 32
 
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
