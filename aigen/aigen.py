@@ -25,6 +25,7 @@ from transformers import (
     GenerationConfig,
     BitsAndBytesConfig,
 )
+from accelerate import Accelerator
 from petals import AutoDistributedModelForCausalLM
 from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
 from .colab import create_gdrive_folder
@@ -93,58 +94,41 @@ class aigen:
         **kwargs,
     ) -> None:
         self.precision = precision
+        self.petals = petals
 
         qargs = dict(torch_dtype=torch.float32)
+        if precision in [16, 8, 4]:
+            qargs["torch_dtype"] = torch.bfloat16
+
+        if precision in [8, 4]:
+            qargs["llm_int8_has_fp16_weight"] = True
+            qargs["llm_int8_threshold"] = 6
+            qargs["llm_int8_skip_modules"] = [
+                "lm_head",
+                "head",
+                "pre_ln",
+                "ln1",
+                "ln2",
+                "ln_1",
+                "ln_2",
+                "ln_f",
+                "ln_out",
+                "input_layernorm",
+                "post_attention_layernorm",
+                "final_layer_norm",
+                "embed_out",
+            ]
+
+        if precision == 8:
+            qargs["load_in_8bit"] = True
+
         if precision == 4:
             qargs["load_in_4bit"] = True
             qargs["bnb_4bit_quant_type"] = "nf4"
-            qargs["bnb_4bit_use_double_quant"] = True
-            qargs["bnb_4bit_compute_dtype"] = torch.float32
-            qargs["llm_int8_has_fp16_weight"] = True
-            qargs["llm_int8_threshold"] = 6
-            qargs["llm_int8_skip_modules"] = ["lm_head", "ln_1", "ln_2", "ln_f"]
-        if precision == 8:
-            qargs["load_in_8bit"] = True
-            qargs["llm_int8_has_fp16_weight"] = True
-            qargs["llm_int8_threshold"] = 6
-            qargs["llm_int8_skip_modules"] = ["lm_head", "ln_1", "ln_2", "ln_f"]
-        if precision == 16:
-            qargs["torch_dtype"] = torch.float16
+            qargs["bnb_4bit_use_double_quant"] = False
+            qargs["bnb_4bit_compute_dtype"] = torch.bfloat16
 
-        self.petals = petals
-        if petals:
-            print("loading model from Petals")
-            self.model = AutoDistributedModelForCausalLM.from_pretrained(
-                model,
-                pre_seq_len=pre_seq_len,
-                tuning_mode=tuning_mode,
-                cache_dir=cache_dir,
-                device_map="auto",
-                **qargs,
-            )
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model, cache_dir=cache_dir, padding_side="left", add_prefix_space=True
-            )
-            embeddings_path = embeddings_dir + "/prompts.pt"
-            if tuning_mode:
-                if os.path.exists(embeddings_path):
-                    with open(embeddings_path, "rb") as f:
-                        if torch.cuda.is_available():
-                            self.model.transformer.prompt_embeddings = torch.load(f)
-                            if tuning_mode == "deep_ptune":
-                                self.model.transformer.intermediate_prompt_embeddings = torch.load(
-                                    f
-                                )
-                        else:
-                            self.model.transformer.prompt_embeddings = torch.load(
-                                f, map_location=torch.device("cpu")
-                            )
-                            if tuning_mode == "deep_ptune":
-                                self.model.transformer.intermediate_prompt_embeddings = torch.load(
-                                    f, map_location=torch.device("cpu")
-                                )
-
-        elif config:
+        if config:
             # Manually construct a model from scratch
             logger.info("Constructing model from provided config.")
             if isinstance(config, str):
@@ -163,20 +147,50 @@ class aigen:
                 logger.info(
                     f"Loading model from provided weights and config in /{model_folder}."
                 )
-            # Download and cache model from Huggingface
-            if os.path.isdir(cache_dir) and len(os.listdir(cache_dir)) > 0:
-                logger.info(f"Loading {model} model from /{cache_dir}.")
             else:
-                logger.info(f"Downloading {model} model to /{cache_dir}.")
+                # Download and cache model from Huggingface
+                if os.path.isdir(cache_dir) and len(os.listdir(cache_dir)) > 0:
+                    logger.info(f"Loading {model} model from /{cache_dir}.")
+                else:
+                    logger.info(f"Downloading {model} model to /{cache_dir}.")
 
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model if not model_folder else model,
-                cache_dir=cache_dir,
-                trust_remote_code=True,
-                local_files_only=True if model_folder else False,
-                device_map="auto",
-                **qargs,
-            )
+            if self.petals:
+                print("loading model from Petals")
+                self.model = AutoDistributedModelForCausalLM.from_pretrained(
+                    model if not model_folder else model,
+                    pre_seq_len=pre_seq_len,
+                    tuning_mode=tuning_mode,
+                    cache_dir=cache_dir,
+                    device_map="auto",
+                    **qargs,
+                )
+                embeddings_path = embeddings_dir + "/prompts.pt"
+                if tuning_mode:
+                    if os.path.exists(embeddings_path):
+                        with open(embeddings_path, "rb") as f:
+                            if torch.cuda.is_available():
+                                self.model.transformer.prompt_embeddings = torch.load(f)
+                                if tuning_mode == "deep_ptune":
+                                    self.model.transformer.intermediate_prompt_embeddings = torch.load(
+                                        f
+                                    )
+                            else:
+                                self.model.transformer.prompt_embeddings = torch.load(
+                                    f, map_location=torch.device("cpu")
+                                )
+                                if tuning_mode == "deep_ptune":
+                                    self.model.transformer.intermediate_prompt_embeddings = torch.load(
+                                        f, map_location=torch.device("cpu")
+                                    )
+            else:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model if not model_folder else model,
+                    cache_dir=cache_dir,
+                    trust_remote_code=True,
+                    local_files_only=True if model_folder else False,
+                    device_map="auto",
+                    **qargs,
+                )
             logger.info(f"Using the tokenizer for {model}.")
             self.tokenizer = AutoTokenizer.from_pretrained(
                 model,
@@ -530,7 +544,6 @@ class aigen:
         self,
         train_data: Union[str, TokenDataset],
         output_dir: str = "trained_model",
-        accelerator: str = "gpu",
         n_gpu: int = -1,
         tpu_cores: int = 0,
         gradient_clip_val: float = 0.5,
@@ -719,22 +732,27 @@ class aigen:
             n_gpu = 1
 
         # use the DeepSpeed plugin if installed and specified
-        deepspeed_plugin = None
-        if is_gpu_used and use_deepspeed:
-            deepspeed_plugin = DeepSpeedPrecisionPlugin(
-                "16-mixed" if fp16 else "32-true"
-            )
-            logger.info("Using DeepSpeed training.")
-            if not fp16:
-                logger.info("Setting FP16 to True for DeepSpeed ZeRO Training.")
-                fp16 = True
+        # deepspeed_plugin = None
+        # if is_gpu_used and use_deepspeed:
+        #     deepspeed_plugin = DeepSpeedPrecisionPlugin(
+        #         "16-mixed" if fp16 else "32-true"
+        #     )
+        #     logger.info("Using DeepSpeed training.")
+        #     if not fp16:
+        #         logger.info("Setting FP16 to True for DeepSpeed ZeRO Training.")
+        #         fp16 = True
+
+        # accelerator = Accelerator(
+        #     cpu=False, mixed_precision="fp16" if self.precision in [4, 8, 16] else "no"
+        # )
 
         train_params = dict(
             max_epochs=1000000,
-            accelerator=accelerator,
+            accelerator="auto",
             devices=n_gpu,
             max_steps=num_steps,
             enable_checkpointing=False,
+            # precision="bf16-mixed" if self.precision in [4, 8, 16] else 32,
             precision=32,
             logger=loggers if loggers else False,
             callbacks=[
@@ -755,7 +773,7 @@ class aigen:
                     prompt,
                 )
             ],
-            plugins=deepspeed_plugin,
+            # plugins=deepspeed_plugin,
         )
 
         if hparams["optimizer"] not in ["SophiaH"]:

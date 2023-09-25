@@ -106,7 +106,10 @@ class AIGTrainer(LightningModule):
                 print("Failed to import Lion optimizer. Is it installed?")
 
             optimizer = Lion(
-                optimizer_grouped_parameters, lr=self.hparams["learning_rate"]
+                optimizer_grouped_parameters,
+                lr=self.hparams["learning_rate"],
+                use_gc=True,
+                adanorm=True,
             )
         else:
             optimizer = AdamW(
