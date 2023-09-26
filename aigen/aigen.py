@@ -747,7 +747,6 @@ class aigen:
         # )
 
         train_params = dict(
-            max_epochs=1000000,
             accelerator="auto",
             devices=n_gpu,
             max_steps=num_steps,
