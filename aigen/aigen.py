@@ -127,7 +127,7 @@ class aigen:
         if precision == 4:
             qargs["load_in_4bit"] = True
             qargs["bnb_4bit_quant_type"] = "nf4"
-            qargs["bnb_4bit_use_double_quant"] = False
+            qargs["bnb_4bit_use_double_quant"] = True
             qargs["bnb_4bit_compute_dtype"] = torch.bfloat16
 
         if config:
@@ -272,14 +272,12 @@ class aigen:
 
     def generate(
         self,
-        n: int = 1,
         prompt: str = "",
         prepend_bos: bool = None,
         min_length: int = None,
         max_new_tokens: int = None,
         temperature: float = 0.7,
         do_sample: bool = True,
-        return_as_list: bool = False,
         seed: int = None,
         pad_token_id: str = None,
         schema: str = False,
@@ -302,8 +300,6 @@ class aigen:
         :param do_sample: Samples the text, which is what we want. If False,
         the generated text will be the optimal prediction at each time,
         and therefore deterministic.
-        :param return_as_list: Boolean which determine if text should be returned
-        as a list. If False, the generated texts will be print to console.
         :param seed: A numeric seed which sets all randomness, allowing the
         generate text to be reproducible if rerunning with same parameters
         and model.
@@ -417,14 +413,7 @@ class aigen:
                 if seed:
                     reset_seed()
 
-                if not return_as_list:
-                    print(*gen_texts, sep="\n" + "=" * 10 + "\n")
-                    break
-                else:
-                    if n > 1:
-                        return gen_texts
-                    else:
-                        return gen_texts[0]
+                return gen_texts[0]
 
             # Typical use case
             else:
@@ -433,9 +422,8 @@ class aigen:
                 )
 
                 if stop_word:
-                    for i, text in enumerate(gen_texts):
-                        if text.endswith(stop_word):
-                            gen_texts[i] = text[: -len(stop_word)]
+                    if gen_texts[0].endswith(stop_word):
+                        gen_texts[0] = gen_texts[0][: -len(stop_word)]
 
                 # Handle stripping tokenization spaces w/ regex
                 if lstrip:
@@ -457,81 +445,7 @@ class aigen:
                 if seed:
                     reset_seed()
 
-                if not return_as_list:
-                    if prompt:
-                        # Bold the prompt if printing to console
-                        gen_texts = [
-                            text.replace(prompt, f"\033[1m{prompt}\033[0m", 1)
-                            for text in gen_texts
-                        ]
-
-                    if n > 1:
-                        print(*gen_texts, sep="\n" + "=" * 10 + "\n")
-                    else:
-                        print(gen_texts[0])
-                    break
-                else:
-                    return gen_texts
-
-    def generate_to_file(
-        self,
-        n: int = 20,
-        batch_size: int = 1,
-        destination_path: str = None,
-        sample_delim: str = "=" * 20 + "\n",
-        seed: int = None,
-        **kwargs,
-    ) -> None:
-        """
-        Generates a bulk amount of texts to a file, into a format
-        good for manually inspecting and curating the texts.
-
-        :param n: Number of texts to generate
-        :param batch_size: Number of texts to generate simultaneously, taking
-        advantage of CPU/GPU parallelization.
-        :param destination_path: File name of the file. If None, a timestampped
-        file name is automatically used.
-        :param sample_delim: The text used to delimit each generated text.
-        :param seed: Seed used for the generation. The last part of a file name
-        will be the seed used to reproduce a generation.
-        :param cleanup: Whether to polish the text before returning
-
-        See generate() for more parameters.
-        """
-
-        assert n % batch_size == 0, f"n must be divisible by batch_size ({batch_size})."
-
-        self.model = self.model.eval()
-
-        if destination_path is None:
-            # Create a time-based file name to prevent overwriting.
-            # Use a 8-digit number as the seed, which is the last
-            # numeric part of the file name.
-            if seed is None:
-                seed = randint(10**7, 10**8 - 1)
-
-            destination_path = f"ATG_{datetime.utcnow():%Y%m%d_%H%M%S}_{seed}.txt"
-
-        if seed:
-            set_seed(seed)
-
-        logger.info(f"Generating {n:,} texts to {destination_path}")
-
-        pbar = trange(n)
-        f = open(destination_path, "w", encoding="utf-8")
-
-        for _ in range(n // batch_size):
-            gen_texts = self.generate(n=batch_size, return_as_list=True, **kwargs)
-
-            for gen_text in gen_texts:
-                f.write("{}\n{}".format(gen_text, sample_delim))
-            pbar.update(batch_size)
-
-        pbar.close()
-        f.close()
-
-        if seed:
-            reset_seed()
+                return gen_texts[0]
 
     def train(
         self,
