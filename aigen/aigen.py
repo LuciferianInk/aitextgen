@@ -24,6 +24,8 @@ from transformers import (
     PreTrainedTokenizerFast,
     GenerationConfig,
     BitsAndBytesConfig,
+    StoppingCriteria,
+    StoppingCriteriaList,
 )
 from accelerate import Accelerator
 from petals import AutoDistributedModelForCausalLM
@@ -286,6 +288,7 @@ class aigen:
         lstrip: bool = True,
         nonempty_output: bool = True,
         skip_special_tokens: bool = True,
+        stop_word: str = None,
         **kwargs,
     ) -> Optional[str]:
         """
@@ -306,7 +309,6 @@ class aigen:
         and model.
         """
 
-        prompt_text = prompt
         prompt_tensors = self.tokenizer(text=prompt, return_tensors="pt")
 
         if prompt:
@@ -337,6 +339,12 @@ class aigen:
                 self.tokenizer, "eos_token_id", None
             )
 
+        stopping_criteria = None
+        if stop_word:
+            stopping_criteria = SingleStoppingCriteria(
+                self.tokenizer, stop_word, prompt
+            )
+
         while True:
             config = GenerationConfig(
                 do_sample=do_sample,
@@ -350,6 +358,7 @@ class aigen:
                 generation_config=config,
                 max_new_tokens=max_new_tokens,
                 use_cache=use_cache,
+                stopping_criteria=stopping_criteria,
             )
 
             # Schema token handling
@@ -423,6 +432,11 @@ class aigen:
                     outputs, skip_special_tokens=skip_special_tokens
                 )
 
+                if stop_word:
+                    for i, text in enumerate(gen_texts):
+                        if text.endswith(stop_word):
+                            gen_texts[i] = text[: -len(stop_word)]
+
                 # Handle stripping tokenization spaces w/ regex
                 if lstrip:
                     gen_texts = [re.sub(r"^\s+", "", text) for text in gen_texts]
@@ -447,7 +461,7 @@ class aigen:
                     if prompt:
                         # Bold the prompt if printing to console
                         gen_texts = [
-                            text.replace(prompt_text, f"\033[1m{prompt_text}\033[0m", 1)
+                            text.replace(prompt, f"\033[1m{prompt}\033[0m", 1)
                             for text in gen_texts
                         ]
 
@@ -458,27 +472,6 @@ class aigen:
                     break
                 else:
                     return gen_texts
-
-    def generate_one(self, **kwargs) -> None:
-        """
-        Generates a single text, and returns it as a string. Useful for
-        returning a generated text within an API.
-
-        See generate() for more parameters.
-        """
-
-        return self.generate(n=1, return_as_list=True, **kwargs)[0]
-
-    def generate_samples(
-        self, n: int = 3, temperatures: List[float] = [0.7, 1.0, 1.2], **kwargs
-    ) -> None:
-        """
-        Prints multiple samples to console at specified temperatures.
-        """
-
-        for temperature in temperatures:
-            print("#" * 20 + f"\nTemperature: {temperature}\n" + "#" * 20)
-            self.generate(n=n, temperature=temperature, return_as_list=False, **kwargs)
 
     def generate_to_file(
         self,
@@ -846,25 +839,36 @@ class aigen:
         self.model.save_pretrained(target_folder)
         self.tokenizer.save_pretrained(target_folder)
 
-    def export(
-        self,
-        quantize: bool = True,
-    ) -> None:
-        """
-        Exports the model, with optional quantization
-        """
-
-    def to_cpu(self, index: int = 0) -> None:
-        """Moves the model to the specified CPU."""
-
-        self.model.to(torch.device("cpu", index))
-
     def get_device(self) -> str:
         """Getter for the current device where the model is located."""
         return self.model.device.type
 
+    # This controls the output of the aigen object, when printed to console.
     def __repr__(self) -> str:
         # https://discuss.pytorch.org/t/how-do-i-check-the-number-of-parameters-of-a-model/4325/24
         num_params_m = int(sum(p.numel() for p in self.model.parameters()) / 10**6)
         model_name = type(self.model.config).__name__.replace("Config", "")
         return f"{model_name} loaded with {num_params_m}M parameters."
+
+
+class SingleStoppingCriteria(StoppingCriteria):
+    def __init__(self, tokenizer, target_sequence, prompt):
+        self.target_sequence = target_sequence
+        self.prompt = prompt
+        self.tokenizer = tokenizer
+
+    def __call__(self, input_ids, scores, **kwargs):
+        # Get the generated text as a string
+        generated_text = self.tokenizer.decode(input_ids[0])
+        generated_text = generated_text.replace(self.prompt, "")
+        # Check if the target sequence appears in the generated text
+        if self.target_sequence in generated_text:
+            return True  # Stop generation
+
+        return False  # Continue generation
+
+    def __len__(self):
+        return 1
+
+    def __iter__(self):
+        yield self
