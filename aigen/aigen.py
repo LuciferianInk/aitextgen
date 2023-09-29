@@ -335,7 +335,7 @@ class aigen:
             eos_token_id = getattr(
                 self.tokenizer,
                 "eos_token_id",
-                getattr(self.tokenizer, "pad_token_id", None),
+                getattr(self.tokenizer, "pad_token_id", self.eos_token),
             )
 
         if pad_token_id is None:
