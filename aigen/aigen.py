@@ -367,6 +367,10 @@ class aigen:
                 stopping_criteria=stopping_criteria,
             )
 
+            # Reset seed if used
+            if seed:
+                reset_seed()
+
             # Schema token handling
             if schema:
                 schema_tokens = getattr(self.model.config, "schema_tokens")
@@ -419,10 +423,6 @@ class aigen:
 
                     gen_texts.append(gen_text_dict)
 
-                # Reset seed if used
-                if seed:
-                    reset_seed()
-
                 return gen_texts[0]
 
             # Typical use case
@@ -450,10 +450,6 @@ class aigen:
                 # if there is no generated text after cleanup, try again.
                 if len(gen_texts) == 0:
                     continue
-
-                # Reset seed if used
-                if seed:
-                    reset_seed()
 
                 return gen_texts[0]
 
