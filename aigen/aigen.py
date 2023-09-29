@@ -127,7 +127,7 @@ class aigen:
         if precision == 4:
             qargs["load_in_4bit"] = True
             qargs["bnb_4bit_quant_type"] = "nf4"
-            qargs["bnb_4bit_use_double_quant"] = True
+            qargs["bnb_4bit_use_double_quant"] = False
             qargs["bnb_4bit_compute_dtype"] = torch.bfloat16
 
         if config:
@@ -280,6 +280,7 @@ class aigen:
         do_sample: bool = True,
         seed: int = None,
         pad_token_id: str = None,
+        eos_token_id: str = None,
         schema: str = False,
         normalize_key: bool = True,
         use_cache: bool = True,
@@ -330,9 +331,18 @@ class aigen:
         if seed:
             set_seed(seed)
 
+        if eos_token_id is None:
+            eos_token_id = getattr(
+                self.tokenizer,
+                "eos_token_id",
+                getattr(self.tokenizer, "pad_token_id", None),
+            )
+
         if pad_token_id is None:
-            pad_token_id = getattr(self.tokenizer, "pad_token_id", None) or getattr(
-                self.tokenizer, "eos_token_id", None
+            pad_token_id = getattr(
+                self.tokenizer,
+                "pad_token_id",
+                eos_token_id,
             )
 
         stopping_criteria = None
@@ -341,14 +351,14 @@ class aigen:
                 self.tokenizer, stop_word, prompt
             )
 
-        while True:
-            config = GenerationConfig(
-                do_sample=do_sample,
-                temperature=temperature,
-                pad_token_id=pad_token_id,
-                **kwargs,
-            )
+        config = GenerationConfig(
+            do_sample=do_sample,
+            pad_token_id=pad_token_id,
+            eos_token_id=eos_token_id,
+            **kwargs,
+        )
 
+        while True:
             outputs = self.model.generate(
                 inputs=input_ids,
                 generation_config=config,
