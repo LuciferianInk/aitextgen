@@ -146,7 +146,6 @@ class AIGProgressBar(ProgressBar):
         num_layers_freeze,
         petals,
         hivemind,
-        prompt,
     ):
         super().__init__()
         self.enabled = True
@@ -288,19 +287,17 @@ class AIGProgressBar(ProgressBar):
         lm.model.eval()
 
         eos_token_id = getattr(lm.tokenizer, "eos_token_id", None)
-        pad_token_id = getattr(lm.tokenizer, "pad_token_id", None) or eos_token_id
-
-        prompt = self.prompt
-        if prompt:
-            prompt_tensors = lm.tokenizer(text=prompt, return_tensors="pt")
-            input_ids = prompt_tensors["input_ids"].to(lm.model.device.type)
-        else:
-            input_ids = None
+        pad_token_id = getattr(lm.tokenizer, "pad_token_id", eos_token_id)
 
         outputs = lm.model.generate(
             inputs=input_ids,
             do_sample=True,
             temperature=0.7,
+            eta_cutoff=0.0003,
+            penalty_alpha=0.6,
+            top_k=4,
+            repetition_penalty=2.3,
+            no_repeat_ngram_size=9,
             max_new_tokens=222,
             pad_token_id=pad_token_id,
             eos_token_id=eos_token_id,

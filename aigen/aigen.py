@@ -485,7 +485,6 @@ class aigen:
         stage: int = 0,
         scheduler: str = "get_linear_schedule_with_warmup",
         prune: float = 0.0,
-        prompt: str = None,
         petals: bool = False,
         hivemind: bool = False,
         target_batch_size: int = 8192,
@@ -523,7 +522,6 @@ class aigen:
         """
 
         self.petals = petals
-        self.prompt = prompt
 
         if num_layers_freeze is not None:
             freeze_layers = True
@@ -682,7 +680,6 @@ class aigen:
                     num_layers_freeze,
                     petals,
                     hivemind,
-                    prompt,
                 )
             ],
             # plugins=deepspeed_plugin,
