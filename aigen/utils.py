@@ -7,33 +7,6 @@ import random
 from transformers import GPT2Config, GPTNeoConfig
 
 
-def download_file_with_progress(
-    url_base: str, sub_dir: str, model_name: str, file_name: str
-):
-    """
-    General utility for incrementally downloading files from the internet
-    with progress bar.
-
-    Adapted from gpt-2-simple.
-    """
-
-    # set to download 1MB at a time. This could be much larger with no issue
-    DOWNLOAD_CHUNK_SIZE = 1024 * 1024
-    r = requests.get(
-        os.path.join(url_base, "models", model_name, file_name), stream=True
-    )
-    with open(os.path.join(sub_dir, file_name), "wb") as f:
-        file_size = int(r.headers["content-length"])
-        with tqdm(
-            desc="Fetching " + file_name,
-            total=file_size,
-            unit_scale=True,
-        ) as pbar:
-            for chunk in r.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
-                f.write(chunk)
-                pbar.update(DOWNLOAD_CHUNK_SIZE)
-
-
 def set_seed(seed: int):
     """
     Sets the seed for all potential generation libraries.
@@ -71,24 +44,6 @@ def find_index_of_subset(large_list, small_list):
             if large_list[idx : idx + length_small_list] == small_list:
                 return idx + length_small_list
     return -1
-
-
-def skip_special_tokens(tensor, device, special_token_ids):
-    """Filters out special tokens by ids in the given 1D tensor.
-
-    Adapted from https://stackoverflow.com/a/62588955
-
-    Args:
-        tensor (tensor): PyTorch Tensor
-        device (str): Device, usually "cpu" or "cuda:0"
-        token_ids (set): List of Token IDs
-    """
-    special_token_id_tensor = torch.unique(torch.as_tensor(special_token_ids)).to(
-        device
-    )
-    return tensor[
-        ~tensor.unsqueeze(1).eq(special_token_id_tensor.unsqueeze(1)).any(1)
-    ].tolist()
 
 
 def model_max_length(config):

@@ -164,7 +164,6 @@ class AIGProgressBar(ProgressBar):
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
         self.hivemind = hivemind
-        self.prompt = prompt
 
     @property
     def save_every_check(self):
@@ -286,11 +285,8 @@ class AIGProgressBar(ProgressBar):
     def generate_sample_text(self, trainer, lm):
         lm.model.eval()
 
-        eos_token_id = getattr(lm.tokenizer, "eos_token_id", None)
-        pad_token_id = getattr(lm.tokenizer, "pad_token_id", eos_token_id)
-
         outputs = lm.model.generate(
-            inputs=input_ids,
+            inputs=None,
             do_sample=True,
             temperature=0.7,
             eta_cutoff=0.0003,
@@ -299,8 +295,6 @@ class AIGProgressBar(ProgressBar):
             repetition_penalty=2.3,
             no_repeat_ngram_size=9,
             max_new_tokens=222,
-            pad_token_id=pad_token_id,
-            eos_token_id=eos_token_id,
         )
 
         gen_texts = lm.tokenizer.batch_decode(outputs, skip_special_tokens=True)
