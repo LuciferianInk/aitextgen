@@ -198,7 +198,8 @@ class aigen:
                 model,
                 cache_dir=cache_dir,
                 padding_side="left",
-                add_prefix_space=True,
+                padding="max_length",
+                add_prefix_space=False,
             )
 
         if adapter and not petals:
@@ -262,7 +263,7 @@ class aigen:
                     pad_token=self.pad_token,
                     verbose=False,
                     padding_side="left",
-                    add_prefix_space=True,
+                    add_prefix_space=False,
                 )
                 if not custom_tokenizer:
                     # https://github.com/huggingface/transformers/issues/10202
