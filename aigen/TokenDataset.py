@@ -121,11 +121,6 @@ class NewTokenDataset(Dataset):
             assert os.path.isfile(
                 file_path
             ), f"{file_path} is not present in the current directory."
-            if file_path.endswith(".csv"):
-                logger.warning(
-                    "You are tokenizing a CSV file, but you did not "
-                    + "set line_by_line=True. Please change if unintended."
-                )
 
             eos_token = ""
             header = False
@@ -143,7 +138,6 @@ class NewTokenDataset(Dataset):
                 eos_token,
                 tokenizer,
                 text_delim,
-                header,
                 progress_bar_refresh_rate,
                 block_size,
                 stride,
@@ -201,157 +195,34 @@ class NewTokenDataset(Dataset):
         eos_token: str,
         tokenizer: GPT2TokenizerFast,
         newline: str,
-        header: bool = True,
         progress_bar_refresh_rate: int = 20,
         block_size: int = 256,
         stride: int = 4,
     ) -> List[int]:
         """
-        Retrieves texts from a newline-delimited file/CSV and returns texts.
+        Retrieve texts from a newline-delimited file.
         """
 
-        is_csv = file_path.endswith(".csv")
         a_dtype = get_dtype(tokenizer.vocab_size)
 
-        if is_csv:
-            num_texts = get_lines_in_file_csv(file_path, header)
-        else:
-            num_texts = get_lines_in_file(file_path, newline)
-
-        pbar = tqdm(
-            total=num_texts,
-            smoothing=0,
-            leave=True,
-            dynamic_ncols=True,
-        )
-        # tokens = np.full((num_texts, 1), -1, dtype=a_dtype)
-        # num_batches = 0
+        num_texts = get_lines_in_file(file_path, newline)
 
         with open(file_path, "r", encoding="utf-8", newline=newline) as f_load:
-            if header:
-                f_load.readline()
-            if is_csv:
-                f_read = csv.reader(f_load)
-                logger.info(f"Encoding {num_texts:,} rows from {file_path}.")
-            else:
-                f_read = f_load
-                logger.info(f"Encoding {num_texts:,} sets of tokens from {file_path}.")
+            logger.info(f"Encoding {num_texts:,} sets of tokens from {file_path}.")
 
-            # https://stackoverflow.com/a/6335876/9314418
-            while True:
-                if is_csv:
-                    # batch = [
-                    #     text[0] + eos_token
-                    #     for text in list(itertools.islice(f_read, batch_size))
-                    # ]
-                    batch = f_read.read()[0]
-                else:
-                    # batch = [
-                    #     text + eos_token
-                    #     for text in list(itertools.islice(f_read, batch_size))
-                    # ]
-                    batch = f_read.read()
+            batch = f_load.read()
 
-                # print(batch)
+            tokenized = tokenizer(
+                batch,
+                max_length=block_size,
+                stride=stride,
+                return_overflowing_tokens=True,
+            )["input_ids"]
 
-                if not batch:
-                    break
+            token_list = list(itertools.chain.from_iterable(tokenized))
+            tokens = np.full_like(token_list, token_list, dtype=a_dtype)
 
-                # print(tokenizer)
-
-                # tokenizer.add_special_tokens({"pad_token": "[PAD]"})
-
-                tokenized = tokenizer(
-                    batch,
-                    max_length=block_size,
-                    # padding_side="left",
-                    # padding="max_length",
-                    # truncation=True,
-                    stride=stride,
-                    return_overflowing_tokens=True,
-                    # pad_token_id=tokenizer.eos_token_id,
-                    # return_tensors="np",
-                )["input_ids"]
-
-                # print(tokenized)
-
-                # tokens = tokenized
-                token_list = list(itertools.chain.from_iterable(tokenized))
-                # print(tokens1)
-                tokens = np.full_like(token_list, token_list, dtype=a_dtype)
-                # print(tokens)
-
-                # tokens = np.concatenate(
-                #     (
-                #         tokens,
-                #         np.full(
-                #             (len(tokenized), 32),
-                #             -1,
-                #             dtype=a_dtype,
-                #         ),
-                #     ),
-                #     axis=1,
-                # )
-
-                # tokens = np.concatenate(
-                #     (
-                #         tokenized,
-                #         np.full(
-                #             (len(tokenized), 32),
-                #             -1,
-                #             dtype=a_dtype,
-                #         ),
-                #     ),
-                #     axis=1,
-                # )
-
-                # tokens = np.full_like(
-                #     tokenized,
-                #     -1,
-                #     dtype=a_dtype,
-                # )
-
-                # encoded_texts = tokenizer(
-                #     batch,
-                #     add_special_tokens=False,
-                #     return_token_type_ids=False,
-                #     return_attention_mask=False,
-                # )["input_ids"]
-
-                # print(encoded_texts)
-
-                # for i, encoded_text in enumerate(encoded_texts):
-                #     if len(encoded_text) > tokens.shape[1]:
-                #         cols_to_add = len(encoded_text) - tokens.shape[1]
-                #         tokens = np.concatenate(
-                #             (
-                #                 tokens,
-                #                 np.full(
-                #                     (num_texts, cols_to_add),
-                #                     -1,
-                #                     dtype=a_dtype,
-                #                 ),
-                #             ),
-                #             axis=1,
-                #         )
-                #     tokens[
-                #         (num_batches * batch_size) + i, : len(encoded_text)
-                #     ] = encoded_text
-
-                # num_batches += 1
-
-                # if num_batches % progress_bar_refresh_rate == 0:
-                #     pbar.update(batch_size * progress_bar_refresh_rate)
-
-        pbar.n = num_texts
-        pbar.refresh()
-        pbar.close()
-        # print(tokens)
         tokens = tokens.flatten()
-        # print(tokens.tolist())
-        # print(tokens.shape[0])
-        # print(len(tokens))
-        # return tokens
         return tokens[tokens < np.array(-1, dtype=a_dtype)]
 
 
@@ -687,10 +558,7 @@ def encode_tokens_from_file(
     pbar.n = num_texts
     pbar.refresh()
     pbar.close()
-    # print(tokens)
     tokens = tokens.flatten()
-    # print(tokens)
-    # print(f"old style has shape of {tokens.shape[0]}")
     return tokens[tokens < np.array(-1, dtype=a_dtype)]
 
 
