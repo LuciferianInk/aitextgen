@@ -198,7 +198,8 @@ class aigen:
                 model,
                 cache_dir=cache_dir,
                 padding_side="left",
-                padding="max_length",
+                padding=False,
+                truncation=False,
                 add_prefix_space=False,
             )
 
