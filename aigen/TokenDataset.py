@@ -19,6 +19,342 @@ logger.setLevel(logging.INFO)
 STATIC_PATH = resource_filename(__name__, "static")
 
 
+class NewTokenDataset(Dataset):
+    def __init__(
+        self,
+        file_path: str = None,
+        vocab_file: str = os.path.join(STATIC_PATH, "gpt2_vocab.json"),
+        merges_file: str = os.path.join(STATIC_PATH, "gpt2_merges.txt"),
+        tokenizer: GPT2TokenizerFast = None,
+        tokenizer_file: str = None,
+        texts: List[str] = None,
+        line_by_line: bool = False,
+        from_cache: bool = False,
+        header: bool = True,
+        save_cache: bool = False,
+        cache_destination: str = "dataset_cache.tar.gz",
+        compress: bool = True,
+        block_size: int = 1024,
+        stride: int = 4,
+        tokenized_texts: bool = False,
+        text_delim: str = "\n",
+        bos_token: str = "<|endoftext|>",
+        eos_token: str = "<|endoftext|>",
+        unk_token: str = "<|endoftext|>",
+        pad_token: str = "<|endoftext|>",
+        progress_bar_refresh_rate: int = 20,
+        **kwargs,
+    ) -> None:
+        self.line_by_line = False
+
+        # Special case; load tokenized texts immediately
+        if tokenized_texts:
+            self.tokens = np.asarray(tokenized_texts)
+            self.num_subsets = self.tokens.shape[0] - block_size
+            self.block_size = block_size
+            self.file_path = "merged TokenDataset"
+            self.str_suffix = "by merging TokenDatasets."
+            return
+
+        assert any([texts, file_path]), "texts or file_path must be specified."
+
+        if not tokenizer:
+            if tokenizer_file:
+                # load the custom tokenizer from a serialized tokenizer
+                tokenizer = PreTrainedTokenizerFast(
+                    tokenizer_file=tokenizer_file,
+                    bos_token=bos_token,
+                    eos_token=eos_token,
+                    unk_token=unk_token,
+                    pad_token=pad_token,
+                )
+            else:
+                tokenizer = GPT2TokenizerFast(
+                    vocab_file=vocab_file,
+                    merges_file=merges_file,
+                    bos_token=bos_token,
+                    eos_token=eos_token,
+                    unk_token=unk_token,
+                    pad_token=pad_token,
+                    verbose=False,
+                )
+                # https://github.com/huggingface/transformers/issues/10202
+                tokenizer.add_special_tokens(
+                    {"additional_special_tokens": ["<|endoftext|>"]}
+                )
+
+        # If a cache path is provided, load it.
+        if from_cache:
+            open_func = gzip.open if file_path.endswith(".gz") else open
+
+            with open_func(file_path, "rb") as f:
+                self.tokens = np.load(f)
+            self.num_subsets = self.tokens.shape[0] - block_size
+            self.block_size = block_size
+            self.line_by_line = line_by_line
+            self.str_suffix = "via cache."
+
+            logger.info(
+                f"TokenDataset containing {self.num_subsets:,} subsets loaded {self.str_suffix}"
+            )
+            return
+
+        # if texts are present, just tokenize them.
+        elif texts:
+            self.str_suffix = "via application."
+
+        # if a file is specified, and it's line-delimited,
+        # the text must be processed line-by-line into a a single bulk file
+        elif line_by_line:
+            assert os.path.isfile(
+                file_path
+            ), f"{file_path} is not present in the current directory."
+
+            text_delim = None
+            self.line_by_line = True
+            self.file_path = file_path
+            self.str_suffix = f"from line-by-line file at {file_path}."
+
+        # if a file is specified, and it's not line-delimited,
+        # the texts must be parsed as a single bulk file.
+        else:
+            assert os.path.isfile(
+                file_path
+            ), f"{file_path} is not present in the current directory."
+            if file_path.endswith(".csv"):
+                logger.warning(
+                    "You are tokenizing a CSV file, but you did not "
+                    + "set line_by_line=True. Please change if unintended."
+                )
+
+            eos_token = ""
+            header = False
+            self.file_path = file_path
+            self.str_suffix = f"from file at {file_path}."
+
+        # Encode tokens in a batched manner to ensure constant memory usage
+        if texts:
+            self.tokens = encode_tokens_from_list(
+                texts, eos_token, tokenizer, progress_bar_refresh_rate
+            )
+        else:
+            self.tokens = self.encode_tokens(
+                file_path,
+                eos_token,
+                tokenizer,
+                text_delim,
+                header,
+                progress_bar_refresh_rate,
+                block_size,
+                stride,
+            )
+
+        assert (
+            self.tokens.shape[0] >= block_size
+        ), f"There are fewer than {block_size} encoded tokens."
+        self.num_subsets = self.tokens.shape[0] - block_size
+        self.block_size = block_size
+
+        if save_cache:
+            self.save(cache_destination, compress=compress)
+
+    def save(
+        self, cache_destination: str = "dataset_cache.tar.gz", compress: bool = True
+    ) -> None:
+        assert self.tokens.shape[0] > 0, "No data loaded to save."
+
+        if compress:
+            open_func = gzip.open
+            compress_str = "and compressing "
+        else:
+            open_func = open
+            cache_destination = (
+                "dataset_cache.npy"
+                if cache_destination == "dataset_cache.tar.gz"
+                else cache_destination
+            )
+            compress_str = ""
+
+        logger.info(f"Caching {compress_str}dataset to {cache_destination}")
+
+        with open_func(cache_destination, "wb") as f:
+            np.save(f, self.tokens)
+
+    def __len__(self) -> int:
+        return self.num_subsets
+
+    def __getitem__(self, item: int) -> torch.Tensor:
+        return torch.as_tensor(
+            self.tokens[item : (item + self.block_size)].astype(np.int64, copy=False),
+            dtype=torch.long,
+        )
+
+    def __str__(self) -> str:
+        return self.file_path if self.file_path is not None else "loaded dataset"
+
+    def __repr__(self) -> str:
+        return f"TokenDataset containing {self.num_subsets:,} subsets loaded {self.str_suffix}"
+
+    def encode_tokens(
+        self,
+        file_path: str,
+        eos_token: str,
+        tokenizer: GPT2TokenizerFast,
+        newline: str,
+        header: bool = True,
+        progress_bar_refresh_rate: int = 20,
+        block_size: int = 256,
+        stride: int = 4,
+    ) -> List[int]:
+        """
+        Retrieves texts from a newline-delimited file/CSV and returns texts.
+        """
+
+        is_csv = file_path.endswith(".csv")
+        a_dtype = get_dtype(tokenizer.vocab_size)
+
+        if is_csv:
+            num_texts = get_lines_in_file_csv(file_path, header)
+        else:
+            num_texts = get_lines_in_file(file_path, newline)
+
+        pbar = tqdm(
+            total=num_texts,
+            smoothing=0,
+            leave=True,
+            dynamic_ncols=True,
+        )
+        # tokens = np.full((num_texts, 1), -1, dtype=a_dtype)
+        # num_batches = 0
+
+        with open(file_path, "r", encoding="utf-8", newline=newline) as f_load:
+            if header:
+                f_load.readline()
+            if is_csv:
+                f_read = csv.reader(f_load)
+                logger.info(f"Encoding {num_texts:,} rows from {file_path}.")
+            else:
+                f_read = f_load
+                logger.info(f"Encoding {num_texts:,} sets of tokens from {file_path}.")
+
+            # https://stackoverflow.com/a/6335876/9314418
+            while True:
+                if is_csv:
+                    # batch = [
+                    #     text[0] + eos_token
+                    #     for text in list(itertools.islice(f_read, batch_size))
+                    # ]
+                    batch = f_read.read()[0]
+                else:
+                    # batch = [
+                    #     text + eos_token
+                    #     for text in list(itertools.islice(f_read, batch_size))
+                    # ]
+                    batch = f_read.read()
+
+                # print(batch)
+
+                if not batch:
+                    break
+
+                # print(tokenizer)
+
+                # tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+
+                tokenized = tokenizer(
+                    batch,
+                    max_length=block_size,
+                    # padding_side="left",
+                    # padding="max_length",
+                    # truncation=True,
+                    stride=stride,
+                    return_overflowing_tokens=True,
+                    # pad_token_id=tokenizer.eos_token_id,
+                    # return_tensors="np",
+                )["input_ids"]
+
+                # print(tokenized)
+
+                # tokens = tokenized
+                token_list = list(itertools.chain.from_iterable(tokenized))
+                # print(tokens1)
+                tokens = np.full_like(token_list, token_list, dtype=a_dtype)
+                # print(tokens)
+
+                # tokens = np.concatenate(
+                #     (
+                #         tokens,
+                #         np.full(
+                #             (len(tokenized), 32),
+                #             -1,
+                #             dtype=a_dtype,
+                #         ),
+                #     ),
+                #     axis=1,
+                # )
+
+                # tokens = np.concatenate(
+                #     (
+                #         tokenized,
+                #         np.full(
+                #             (len(tokenized), 32),
+                #             -1,
+                #             dtype=a_dtype,
+                #         ),
+                #     ),
+                #     axis=1,
+                # )
+
+                # tokens = np.full_like(
+                #     tokenized,
+                #     -1,
+                #     dtype=a_dtype,
+                # )
+
+                # encoded_texts = tokenizer(
+                #     batch,
+                #     add_special_tokens=False,
+                #     return_token_type_ids=False,
+                #     return_attention_mask=False,
+                # )["input_ids"]
+
+                # print(encoded_texts)
+
+                # for i, encoded_text in enumerate(encoded_texts):
+                #     if len(encoded_text) > tokens.shape[1]:
+                #         cols_to_add = len(encoded_text) - tokens.shape[1]
+                #         tokens = np.concatenate(
+                #             (
+                #                 tokens,
+                #                 np.full(
+                #                     (num_texts, cols_to_add),
+                #                     -1,
+                #                     dtype=a_dtype,
+                #                 ),
+                #             ),
+                #             axis=1,
+                #         )
+                #     tokens[
+                #         (num_batches * batch_size) + i, : len(encoded_text)
+                #     ] = encoded_text
+
+                # num_batches += 1
+
+                # if num_batches % progress_bar_refresh_rate == 0:
+                #     pbar.update(batch_size * progress_bar_refresh_rate)
+
+        pbar.n = num_texts
+        pbar.refresh()
+        pbar.close()
+        # print(tokens)
+        tokens = tokens.flatten()
+        # print(tokens.tolist())
+        # print(tokens.shape[0])
+        # print(len(tokens))
+        # return tokens
+        return tokens[tokens < np.array(-1, dtype=a_dtype)]
+
+
 class TokenDataset(Dataset):
     """
     Class that merges TextDataset and LineByLineTextDataset from
@@ -351,7 +687,10 @@ def encode_tokens_from_file(
     pbar.n = num_texts
     pbar.refresh()
     pbar.close()
+    # print(tokens)
     tokens = tokens.flatten()
+    # print(tokens)
+    # print(f"old style has shape of {tokens.shape[0]}")
     return tokens[tokens < np.array(-1, dtype=a_dtype)]
 
 
