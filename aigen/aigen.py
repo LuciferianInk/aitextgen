@@ -280,8 +280,6 @@ class aigen:
         temperature: float = 0.7,
         do_sample: bool = True,
         seed: int = None,
-        pad_token_id: str = None,
-        eos_token_id: str = None,
         schema: str = False,
         normalize_key: bool = True,
         use_cache: bool = True,
@@ -332,40 +330,26 @@ class aigen:
         if seed:
             set_seed(seed)
 
-        if eos_token_id is None:
-            eos_token_id = getattr(
-                self.tokenizer,
-                "eos_token_id",
-                "<|endoftext|>",
-            )
-
-        if pad_token_id is None:
-            pad_token_id = getattr(
-                self.tokenizer,
-                "pad_token_id",
-                "<|padding|>",
-            )
-
         stopping_criteria = None
         if stop_word:
             stopping_criteria = SingleStoppingCriteria(
                 self.tokenizer, stop_word, prompt
             )
 
-        config = GenerationConfig(
-            do_sample=do_sample,
-            pad_token_id=pad_token_id,
-            eos_token_id=eos_token_id,
-            **kwargs,
-        )
+        # config = GenerationConfig(
+        #     do_sample=do_sample,
+        #     **kwargs,
+        # )
 
         while True:
             outputs = self.model.generate(
                 inputs=input_ids,
-                generation_config=config,
+                # generation_config=config,
+                do_sample=do_sample,
                 max_new_tokens=max_new_tokens,
                 use_cache=use_cache,
                 stopping_criteria=stopping_criteria,
+                **kwargs,
             )
 
             # Reset seed if used
