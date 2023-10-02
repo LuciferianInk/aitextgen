@@ -287,7 +287,6 @@ class aigen:
         lstrip: bool = True,
         nonempty_output: bool = True,
         skip_special_tokens: bool = True,
-        stop_word: str = None,
         **kwargs,
     ) -> Optional[str]:
         """
@@ -331,12 +330,6 @@ class aigen:
         if seed:
             set_seed(seed)
 
-        stopping_criteria = None
-        if stop_word:
-            stopping_criteria = SingleStoppingCriteria(
-                self.tokenizer, stop_word, prompt
-            )
-
         # config = GenerationConfig(
         #     do_sample=do_sample,
         #     **kwargs,
@@ -349,7 +342,6 @@ class aigen:
                 do_sample=do_sample,
                 max_new_tokens=max_new_tokens,
                 use_cache=use_cache,
-                stopping_criteria=stopping_criteria,
                 **kwargs,
             )
 
@@ -416,10 +408,6 @@ class aigen:
                 gen_texts = self.tokenizer.batch_decode(
                     outputs, skip_special_tokens=skip_special_tokens
                 )
-
-                if stop_word:
-                    if gen_texts[0].endswith(stop_word):
-                        gen_texts[0] = gen_texts[0][: -len(stop_word)]
 
                 # Handle stripping tokenization spaces w/ regex
                 if lstrip:
