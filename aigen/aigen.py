@@ -8,7 +8,7 @@ from datetime import datetime
 from random import randint
 from typing import List, Optional, Union
 from lightning.pytorch.trainer import Trainer
-from lightning.pytorch.callbacks import ModelPruning
+from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
 from lightning.pytorch.strategies import StrategyRegistry
 from lightning.pytorch.plugins import DeepSpeedPrecisionPlugin
 import torch
@@ -450,6 +450,7 @@ class aigen:
         seed: int = None,
         optimizer: str = "AdamW",
         learning_rate: float = 1e-3,
+        swa_lr: float = None,
         update_period: int = 10,
         weight_decay: float = 0.05,
         adam_epsilon: float = 1e-8,
@@ -699,6 +700,9 @@ class aigen:
                     use_lottery_ticket_hypothesis=False,
                 )
             )
+
+        if swa_lr:
+            train_params["callbacks"].append(StochasticWeightAveraging(swa_lrs=swa_lr))
 
         if hivemind:
             try:
