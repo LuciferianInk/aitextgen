@@ -1,9 +1,10 @@
 import os
-import requests
-from tqdm.auto import tqdm
-import torch
-import numpy as np
 import random
+
+import numpy as np
+import requests
+import torch
+from tqdm.auto import tqdm
 from transformers import GPT2Config, GPTNeoConfig
 
 
@@ -63,4 +64,5 @@ class bc:
 
 
 class ad:
+    TEXT = "\033[0m"
     TEXT = "\033[0m"

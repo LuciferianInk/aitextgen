@@ -1,19 +1,21 @@
+import logging
 import os
-import psutil
+import random
 import shutil
 import subprocess
 import sys
+
+import psutil
 import torch
+from lightning.pytorch import LightningModule
+from lightning.pytorch.accelerators import TPUAccelerator
+from lightning.pytorch.callbacks import ProgressBar
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import get_scheduler
-import logging
-from lightning.pytorch import LightningModule
-from lightning.pytorch.callbacks import ProgressBar
-from lightning.pytorch.accelerators import TPUAccelerator
-import random
-from .utils import bc, ad
+
+from .utils import ad, bc
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
@@ -348,6 +350,9 @@ class AIGProgressBar(ProgressBar):
 
     def freeze_layers(self, lm):
         self.modify_layers(lm, False)
+
+    def unfreeze_layers(self, lm):
+        self.modify_layers(lm, True)
 
     def unfreeze_layers(self, lm):
         self.modify_layers(lm, True)

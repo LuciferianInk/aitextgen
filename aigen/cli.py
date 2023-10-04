@@ -1,7 +1,8 @@
+import fire
+
 from .aigen import aigen
 from .TokenDataset import TokenDataset
 from .tokenizers import train_tokenizer
-import fire
 
 
 def aigen_cli(**kwargs):
@@ -40,4 +41,5 @@ def generate_cli(**kwargs):
 
 def train_tokenizer_cli(files: str, **kwargs):
     """Trains a tokenizer on the specified file."""
+    train_tokenizer(files, **kwargs)
     train_tokenizer(files, **kwargs)

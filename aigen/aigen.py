@@ -1,6 +1,7 @@
 import logging
 import os
 import platform
+import random
 import re
 import shutil
 import sys
@@ -92,6 +93,7 @@ class aigen:
         pre_seq_len=24,
         **kwargs,
     ) -> None:
+        self.mode = "transformer"
         self.memory = None
         self.precision = precision
         self.petals = petals
@@ -285,6 +287,7 @@ class aigen:
         lstrip: bool = True,
         nonempty_output: bool = True,
         skip_special_tokens: bool = True,
+        mode: str = "transformer",
         **kwargs,
     ) -> Optional[str]:
         """
@@ -328,10 +331,10 @@ class aigen:
         if seed:
             set_seed(seed)
 
-        # mode = "rnn"
-        mode = "transformer"
+        self.mode = mode
         if mode in ["rnn"]:
-            inputs = prompt_tensors["input_ids"][:, :2].to(self.get_device())
+            torch.set_grad_enabled(False)
+            inputs = prompt_tensors["input_ids"].to(self.get_device())
             if self.memory is not None:
                 self.memory = self.model(
                     inputs,
@@ -339,10 +342,7 @@ class aigen:
                 ).state
             else:
                 self.memory = self.model(inputs).state
-            # print(len(inputs[0]))
-            # print(inputs)
-            torch.cuda.empty_cache()
-            # print(sys.getsizeof(self.model.state))
+            # print(self.memory[0][:, -2])
 
         # config = GenerationConfig(
         #     do_sample=do_sample,
@@ -357,15 +357,12 @@ class aigen:
                 max_new_tokens=max_new_tokens,
                 use_cache=use_cache,
                 return_dict_in_generate=True,
-                output_hidden_states=True,
+                output_hidden_states=False,
                 output_attentions=False,
                 output_scores=False,
+                state=self.memory,
                 **kwargs,
             )
-
-            # Reset seed if used
-            if seed:
-                reset_seed()
 
             gen_texts = self.tokenizer.batch_decode(
                 outputs["sequences"], skip_special_tokens=skip_special_tokens
@@ -384,6 +381,10 @@ class aigen:
             # if there is no generated text after cleanup, try again.
             if len(gen_texts) == 0:
                 continue
+
+            # Reset seed if used
+            if seed:
+                reset_seed()
 
             return gen_texts[0]
 

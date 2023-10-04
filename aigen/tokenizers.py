@@ -1,5 +1,6 @@
+from typing import List, Union
+
 from tokenizers import ByteLevelBPETokenizer
-from typing import Union, List
 
 
 def train_tokenizer(
@@ -55,4 +56,5 @@ def train_tokenizer(
     if serialize:
         tokenizer.save(f"{prefix}.tokenizer.json")
     else:
+        tokenizer.save_model(save_path, prefix)
         tokenizer.save_model(save_path, prefix)

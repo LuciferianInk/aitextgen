@@ -1,15 +1,16 @@
-import torch
-import logging
 import csv
-import os
 import gzip
-from torch.utils.data import Dataset
-from typing import List
-from transformers import GPT2TokenizerFast, PreTrainedTokenizerFast
-from pkg_resources import resource_filename
 import itertools
-from tqdm.auto import tqdm
+import logging
+import os
+from typing import List
+
 import numpy as np
+import torch
+from pkg_resources import resource_filename
+from torch.utils.data import Dataset
+from tqdm.auto import tqdm
+from transformers import GPT2TokenizerFast, PreTrainedTokenizerFast
 
 csv.field_size_limit(2**31 - 1)
 
@@ -665,4 +666,5 @@ def merge_datasets(datasets: List[TokenDataset], equalize: bool = True) -> Token
         else:
             tokenized_texts.extend(dataset.tokens)
 
+    return TokenDataset(tokenized_texts=tokenized_texts, block_size=block_size)
     return TokenDataset(tokenized_texts=tokenized_texts, block_size=block_size)
