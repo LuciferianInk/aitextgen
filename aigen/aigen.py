@@ -7,38 +7,35 @@ import sys
 from datetime import datetime
 from random import randint
 from typing import List, Optional, Union
-from lightning.pytorch.trainer import Trainer
-from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
-from lightning.pytorch.strategies import StrategyRegistry
-from lightning.pytorch.plugins import DeepSpeedPrecisionPlugin
+
 import torch
+from accelerate import Accelerator
+from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
+from lightning.pytorch.plugins import DeepSpeedPrecisionPlugin
+from lightning.pytorch.strategies import StrategyRegistry
+from lightning.pytorch.trainer import Trainer
+from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
+from petals import AutoDistributedModelForCausalLM
 from pkg_resources import resource_filename
 from tqdm.auto import trange
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
     AutoTokenizer,
+    BitsAndBytesConfig,
+    GenerationConfig,
     GPT2Config,
     GPT2LMHeadModel,
     GPT2TokenizerFast,
     PreTrainedTokenizerFast,
-    GenerationConfig,
-    BitsAndBytesConfig,
     StoppingCriteria,
     StoppingCriteriaList,
 )
-from accelerate import Accelerator
-from petals import AutoDistributedModelForCausalLM
-from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
+
 from .colab import create_gdrive_folder
 from .TokenDataset import TokenDataset
 from .train import AIGProgressBar, AIGTrainer
-from .utils import (
-    find_index_of_subset,
-    model_max_length,
-    reset_seed,
-    set_seed,
-)
+from .utils import find_index_of_subset, model_max_length, reset_seed, set_seed
 
 logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
@@ -95,6 +92,7 @@ class aigen:
         pre_seq_len=24,
         **kwargs,
     ) -> None:
+        self.memory = None
         self.precision = precision
         self.petals = petals
 
@@ -330,6 +328,22 @@ class aigen:
         if seed:
             set_seed(seed)
 
+        # mode = "rnn"
+        mode = "transformer"
+        if mode in ["rnn"]:
+            inputs = prompt_tensors["input_ids"][:, :2].to(self.get_device())
+            if self.memory is not None:
+                self.memory = self.model(
+                    inputs,
+                    state=self.memory,
+                ).state
+            else:
+                self.memory = self.model(inputs).state
+            # print(len(inputs[0]))
+            # print(inputs)
+            torch.cuda.empty_cache()
+            # print(sys.getsizeof(self.model.state))
+
         # config = GenerationConfig(
         #     do_sample=do_sample,
         #     **kwargs,
@@ -342,6 +356,10 @@ class aigen:
                 do_sample=do_sample,
                 max_new_tokens=max_new_tokens,
                 use_cache=use_cache,
+                return_dict_in_generate=True,
+                output_hidden_states=True,
+                output_attentions=False,
+                output_scores=False,
                 **kwargs,
             )
 
@@ -349,83 +367,82 @@ class aigen:
             if seed:
                 reset_seed()
 
+            gen_texts = self.tokenizer.batch_decode(
+                outputs["sequences"], skip_special_tokens=skip_special_tokens
+            )
+
+            # Handle stripping tokenization spaces w/ regex
+            if lstrip:
+                gen_texts = [re.sub(r"^\s+", "", text) for text in gen_texts]
+
+            if nonempty_output:
+                if min_length:
+                    gen_texts = list(filter(lambda x: len(x) > min_length, gen_texts))
+                else:
+                    gen_texts = list(filter(lambda x: len(x) > 0, gen_texts))
+
+            # if there is no generated text after cleanup, try again.
+            if len(gen_texts) == 0:
+                continue
+
+            return gen_texts[0]
+
             # Schema token handling
-            if schema:
-                schema_tokens = getattr(self.model.config, "schema_tokens")
-                schema_return = getattr(self.model.config, "schema_return", None)
-                schema_tokens_enc = self.tokenizer(text=schema_tokens)["input_ids"]
+            # if schema:
+            #     schema_tokens = getattr(self.model.config, "schema_tokens")
+            #     schema_return = getattr(self.model.config, "schema_return", None)
+            #     schema_tokens_enc = self.tokenizer(text=schema_tokens)["input_ids"]
 
-                nonalphanum_pattern = re.compile(r"[\W_]+", re.UNICODE)
+            #     nonalphanum_pattern = re.compile(r"[\W_]+", re.UNICODE)
 
-                outputs = outputs.tolist()
-                gen_texts = []
-                for output in outputs:
-                    gen_text_dict = {}
+            #     outputs = outputs.tolist()
+            #     gen_texts = []
+            #     for output in outputs:
+            #         gen_text_dict = {}
 
-                    # Get indices of each schema token within the text
-                    schema_token_indices = [
-                        (schema_tokens[i], find_index_of_subset(output, token_enc))
-                        for i, token_enc in enumerate(schema_tokens_enc)
-                    ]
+            #         # Get indices of each schema token within the text
+            #         schema_token_indices = [
+            #             (schema_tokens[i], find_index_of_subset(output, token_enc))
+            #             for i, token_enc in enumerate(schema_tokens_enc)
+            #         ]
 
-                    schema_token_indices.sort(key=lambda x: x[1])
+            #         schema_token_indices.sort(key=lambda x: x[1])
 
-                    for i, token_tuple in enumerate(schema_token_indices):
-                        start_index = token_tuple[1]
-                        key = (
-                            nonalphanum_pattern.sub("", token_tuple[0])
-                            if normalize_key
-                            else token_tuple[0]
-                        )
-                        if start_index == -1:
-                            gen_text_dict[key] = ""
-                        else:
-                            end_index = (
-                                schema_token_indices[i + 1][1] - 1
-                                if i + 1 < len(schema_token_indices)
-                                else None
-                            )
+            #         for i, token_tuple in enumerate(schema_token_indices):
+            #             start_index = token_tuple[1]
+            #             key = (
+            #                 nonalphanum_pattern.sub("", token_tuple[0])
+            #                 if normalize_key
+            #                 else token_tuple[0]
+            #             )
+            #             if start_index == -1:
+            #                 gen_text_dict[key] = ""
+            #             else:
+            #                 end_index = (
+            #                     schema_token_indices[i + 1][1] - 1
+            #                     if i + 1 < len(schema_token_indices)
+            #                     else None
+            #                 )
 
-                            gen_text_dict[key] = self.tokenizer.decode(
-                                output[start_index:end_index], skip_special_tokens=True
-                            )
+            #                 gen_text_dict[key] = self.tokenizer.decode(
+            #                     output[start_index:end_index], skip_special_tokens=True
+            #                 )
 
-                    # remove fields not in schema_return
-                    if schema_return:
-                        keys = gen_text_dict.keys()
-                        if len(schema_return) == 1:
-                            gen_text_dict = gen_text_dict[schema_return[0]]
-                        for key in keys:
-                            if key not in schema_return:
-                                gen_text_dict.pop(key, None)
+            #         # remove fields not in schema_return
+            #         if schema_return:
+            #             keys = gen_text_dict.keys()
+            #             if len(schema_return) == 1:
+            #                 gen_text_dict = gen_text_dict[schema_return[0]]
+            #             for key in keys:
+            #                 if key not in schema_return:
+            #                     gen_text_dict.pop(key, None)
 
-                    gen_texts.append(gen_text_dict)
+            #         gen_texts.append(gen_text_dict)
 
-                return gen_texts[0]
+            #     return gen_texts[0]
 
-            # Typical use case
-            else:
-                gen_texts = self.tokenizer.batch_decode(
-                    outputs, skip_special_tokens=skip_special_tokens
-                )
-
-                # Handle stripping tokenization spaces w/ regex
-                if lstrip:
-                    gen_texts = [re.sub(r"^\s+", "", text) for text in gen_texts]
-
-                if nonempty_output:
-                    if min_length:
-                        gen_texts = list(
-                            filter(lambda x: len(x) > min_length, gen_texts)
-                        )
-                    else:
-                        gen_texts = list(filter(lambda x: len(x) > 0, gen_texts))
-
-                # if there is no generated text after cleanup, try again.
-                if len(gen_texts) == 0:
-                    continue
-
-                return gen_texts[0]
+            # # Typical use case
+            # else:
 
     def train(
         self,
