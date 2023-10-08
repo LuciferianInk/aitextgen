@@ -152,9 +152,9 @@ class aigen:
             else:
                 # Download and cache model from Huggingface
                 if os.path.isdir(cache_dir) and len(os.listdir(cache_dir)) > 0:
-                    logger.info(f"Loading {model} model from /{cache_dir}.")
+                    logger.info(f"Loading {model} model from {cache_dir}.")
                 else:
-                    logger.info(f"Downloading {model} model to /{cache_dir}.")
+                    logger.info(f"Downloading {model} model to {cache_dir}.")
 
             if self.petals:
                 print("loading model from Petals")
