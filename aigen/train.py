@@ -235,7 +235,7 @@ class AIGProgressBar(ProgressBar):
                 self.freeze_layers(lm)
 
         lm.logger.experiment.add_scalars(
-            "loss/" + str(lm.hparams["stage"]),
+            "loss",
             {"train": current_loss},
             lm.global_step,
         )

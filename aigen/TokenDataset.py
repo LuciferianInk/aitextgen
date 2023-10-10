@@ -131,7 +131,7 @@ class TokenDataset(Dataset):
         # Encode tokens in a batched manner to ensure constant memory usage
         if texts:
             self.tokens = encode_tokens_from_list(
-                texts, eos_token, tokenizer, progress_bar_refresh_rate
+                texts, eos_token, tokenizer, progress_bar_refresh_rate, stride
             )
         elif self.line_by_line:
             self.tokens = encode_tokens_from_file(
@@ -141,6 +141,7 @@ class TokenDataset(Dataset):
                 text_delim,
                 header,
                 progress_bar_refresh_rate,
+                stride,
             )
         else:
             self.tokens = self.encode_tokens(
@@ -487,6 +488,7 @@ def encode_tokens_from_file(
     header: bool = True,
     progress_bar_refresh_rate: int = 20,
     batch_size: int = 256,
+    stride: int = 4,
 ) -> List[int]:
     """
     Retrieves texts from a newline-delimited file/CSV and returns texts.
@@ -537,6 +539,7 @@ def encode_tokens_from_file(
 
             encoded_texts = tokenizer(
                 batch,
+                stride=stride,
                 add_special_tokens=False,
                 return_token_type_ids=False,
                 return_attention_mask=False,
@@ -578,6 +581,7 @@ def encode_tokens_from_list(
     tokenizer: GPT2TokenizerFast,
     progress_bar_refresh_rate: int = 20,
     batch_size: int = 256,
+    stride: int = 4,
 ) -> List[int]:
     """
     Retrieves texts from a newline-delimited file/CSV and returns texts.
@@ -605,6 +609,7 @@ def encode_tokens_from_list(
 
         encoded_texts = tokenizer(
             batch,
+            stride=stride,
             add_special_tokens=False,
             return_token_type_ids=False,
             return_attention_mask=False,
