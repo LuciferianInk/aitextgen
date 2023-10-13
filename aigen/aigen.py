@@ -205,11 +205,17 @@ class aigen:
 
         if adapters and not petals:
             for adapter in adapters:
-                peft_config = PeftConfig.from_pretrained(adapter)
-                peft_config.init_lora_weights = False
+                # self.model = PeftModel.from_pretrained(self.model, adapter)
+                self.model.load_adapter(adapter)
+                # self.model.add_weighted_adapter()
                 logger.info(f"Using adapter: {adapter}")
-                self.model.add_adapter(peft_config, adapter_name=adapter)
-            self.model.enable_adapters()
+                # To merge adapters: https://huggingface.co/docs/peft/main/en/package_reference/tuners#peft.LoraModel.add_weighted_adapter
+            #     peft_config = PeftConfig.from_pretrained(adapter)
+            #     peft_config.init_lora_weights = False
+            #     self.model.add_adapter(peft_config, adapter_name=adapter)
+            # self.model.enable_adapters()
+            # self.model.set_adapter(adapters[0])
+            print(self.model.active_adapters)
 
         self.model_max_length = model_max_length(self.model.config)
 
