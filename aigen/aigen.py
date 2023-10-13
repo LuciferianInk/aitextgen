@@ -88,7 +88,7 @@ class aigen:
         bos_token: str = None,
         eos_token: str = None,
         unk_token: str = None,
-        adapter=None,
+        adapters=None,
         tuning_mode=None,
         pre_seq_len=24,
         **kwargs,
@@ -203,8 +203,13 @@ class aigen:
                 add_prefix_space=False,
             )
 
-        if adapter and not petals:
-            self.model = PeftModel.from_pretrained(self.model, adapter)
+        if adapters and not petals:
+            for adapter in adapters:
+                peft_config = PeftConfig.from_pretrained(adapter)
+                peft_config.init_lora_weights = False
+                logger.info(f"Using adapter: {adapter}")
+                self.model.add_adapter(peft_config, adapter_name=adapter)
+            self.model.enable_adapters()
 
         self.model_max_length = model_max_length(self.model.config)
 
