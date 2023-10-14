@@ -56,6 +56,10 @@ class AIGTrainer(LightningModule):
 
         return {"loss": loss}
 
+    def on_train_epoch_end(self, inputs):
+        print("epoch ended")
+        self.trainer.step()
+
     def train_dataloader(self):
         return DataLoader(
             self.dataset,
@@ -202,6 +206,7 @@ class AIGProgressBar(ProgressBar):
             torch.cuda.empty_cache()
 
         current_loss = float(outputs["loss"])
+        current_epoch = str(trainer.current_epoch)
         self.steps += 1
         avg_loss = 0
         if current_loss == current_loss:  # don't add if current_loss is NaN
@@ -257,7 +262,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        echo = f"{bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
+        echo = f"{current_epoch} => {bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
 
         if self.steps % self.progress_bar_refresh_rate == 0:
             if self.gpu:

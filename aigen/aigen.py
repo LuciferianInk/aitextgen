@@ -655,17 +655,14 @@ class aigen:
         #         logger.info("Setting FP16 to True for DeepSpeed ZeRO Training.")
         #         fp16 = True
 
-        # accelerator = Accelerator(
-        #     cpu=False, mixed_precision="fp16" if self.precision in [4, 8, 16] else "no"
-        # )
-
         train_params = dict(
             accelerator="auto",
+            strategy="auto",
             devices=n_gpu,
             max_steps=num_steps,
+            reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
-            # precision="bf16-mixed" if self.precision in [4, 8, 16] else 32,
-            precision=32,
+            precision="32-true",
             logger=loggers if loggers else False,
             callbacks=[
                 AIGProgressBar(
