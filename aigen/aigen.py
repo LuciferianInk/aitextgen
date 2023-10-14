@@ -538,7 +538,6 @@ class aigen:
             ), "You must be in Colaboratory to copy to your Google Drive"
             create_gdrive_folder(run_id)
 
-        self.model = self.model.train()
         is_gpu_used = torch.cuda.is_available() and n_gpu != 0
 
         if hasattr(self.model, "enable_input_require_grads"):
@@ -637,13 +636,6 @@ class aigen:
         if not is_gpu_used:
             n_gpu = 0
 
-        # force single-GPU on Windows
-        if platform.system() == "Windows" and is_gpu_used and n_gpu != 1:
-            logger.warning(
-                "Windows does not support multi-GPU training. Setting to 1 GPU."
-            )
-            n_gpu = 1
-
         # use the DeepSpeed plugin if installed and specified
         # deepspeed_plugin = None
         # if is_gpu_used and use_deepspeed:
@@ -660,6 +652,7 @@ class aigen:
             strategy="auto",
             devices=n_gpu,
             max_steps=num_steps,
+            max_epochs=-1,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
             precision="32-true",
@@ -726,6 +719,8 @@ class aigen:
             )
         else:
             train_params["accumulate_grad_batches"] = gradient_accumulation_steps
+
+        self.model.train()
 
         trainer = Trainer(**train_params)
         trainer.fit(train_model)

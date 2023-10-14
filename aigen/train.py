@@ -63,8 +63,8 @@ class AIGTrainer(LightningModule):
     def train_dataloader(self):
         return DataLoader(
             self.dataset,
-            batch_size=self.hparams["batch_size"],
             shuffle=True,
+            batch_size=self.hparams["batch_size"],
             pin_memory=self.hparams["pin_memory"],
             num_workers=self.hparams["num_workers"],
         )
@@ -262,7 +262,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        echo = f"{current_epoch} => {bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
+        echo = f"E{current_epoch} => {bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
 
         if self.steps % self.progress_bar_refresh_rate == 0:
             if self.gpu:
@@ -279,8 +279,8 @@ class AIGProgressBar(ProgressBar):
                     check=True,
                 )
                 gpu_memory = result.stdout.strip().split(os.linesep)
-                cat = f"MB{ad.TEXT} => {bc.FOLD}".join(gpu_memory)
-                echo += f" => GPU => {bc.FOLD}{cat}MB{ad.TEXT}"
+                gpus = f"MB{ad.TEXT} => {bc.FOLD}".join(gpu_memory)
+                echo += f" => GPU => {bc.FOLD}{gpus}MB{ad.TEXT}"
 
             if self.hivemind:
                 num_peers = trainer.strategy.num_peers
