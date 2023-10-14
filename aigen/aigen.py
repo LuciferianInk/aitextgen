@@ -657,7 +657,6 @@ class aigen:
             enable_checkpointing=False,
             precision="32-true",
             logger=loggers if loggers else False,
-            use_reentrant=False,
             callbacks=[
                 AIGProgressBar(
                     save_every,

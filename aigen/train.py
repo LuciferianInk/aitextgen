@@ -58,7 +58,7 @@ class AIGTrainer(LightningModule):
 
     def on_train_epoch_end(self, inputs):
         print("epoch ended")
-        self.trainer.step()
+        # self.trainer.step()
 
     def train_dataloader(self):
         return DataLoader(
