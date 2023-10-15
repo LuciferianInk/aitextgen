@@ -127,7 +127,7 @@ class aigen:
         if precision == 4:
             qargs["load_in_4bit"] = True
             qargs["bnb_4bit_quant_type"] = "nf4"
-            qargs["bnb_4bit_use_double_quant"] = False
+            qargs["bnb_4bit_use_double_quant"] = True
             qargs["bnb_4bit_compute_dtype"] = torch.bfloat16
 
         if config:
