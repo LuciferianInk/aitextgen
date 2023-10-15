@@ -89,6 +89,7 @@ class aigen:
         eos_token: str = None,
         unk_token: str = None,
         adapters=None,
+        adapter_dir: str = "adapters",
         tuning_mode=None,
         pre_seq_len=24,
         **kwargs,
@@ -204,18 +205,26 @@ class aigen:
             )
 
         if adapters and not petals:
-            for adapter in adapters:
-                # self.model = PeftModel.from_pretrained(self.model, adapter)
-                self.model.load_adapter(adapter)
-                # self.model.add_weighted_adapter()
+            for i, adapter in enumerate(adapters):
                 logger.info(f"Using adapter: {adapter}")
+                if i == 0:
+                    self.model = PeftModel.from_pretrained(
+                        self.model, f"{adapter_dir}/{adapter}", adapter_name=adapter
+                    )
+                else:
+                    self.model.load_adapter(
+                        f"{adapter_dir}/{adapter}", adapter_name=adapter
+                    )
+                    # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
+                    # peft_config.init_lora_weights = False
+                    # self.model.add_adapter(peft_config, adapter_name=adapter)
+                # self.model.load_adapter(f"{adapter_dir}/voice", adapter_name="voice")
+                # self.model.add_weighted_adapter()
                 # To merge adapters: https://huggingface.co/docs/peft/main/en/package_reference/tuners#peft.LoraModel.add_weighted_adapter
-            #     peft_config = PeftConfig.from_pretrained(adapter)
-            #     peft_config.init_lora_weights = False
-            #     self.model.add_adapter(peft_config, adapter_name=adapter)
+
             # self.model.enable_adapters()
             # self.model.set_adapter(adapters[0])
-            print(self.model.active_adapters)
+            # print(self.model.active_adapters)
 
         self.model_max_length = model_max_length(self.model.config)
 
