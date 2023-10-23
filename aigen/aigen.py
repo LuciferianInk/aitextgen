@@ -242,12 +242,17 @@ class aigen:
             print(self.model.active_adapters)
 
             # if len(adapters) > 1:
-            #     self.model.add_weighted_adapter(
-            #         adapters=adapters,
-            #         weights=[0.5] * len(adapters),
-            #         adapter_name="combined",
-            #         combination_type="svd",
-            #     )
+            #     try:
+            #         self.model.add_weighted_adapter(
+            #             adapters=adapters,
+            #             weights=[0.5] * len(adapters),
+            #             adapter_name="combined",
+            #             combination_type="svd",
+            #         )
+            #     except Exception as e:
+            #         import traceback
+
+            #         print(traceback.format_exc())
             # self.model.set_adapter("combined")
 
             # print(self.model.active_adapters)

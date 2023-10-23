@@ -187,7 +187,8 @@ class TokenDataset(Dataset):
             np.save(f, self.tokens)
 
     def __len__(self) -> int:
-        return self.num_subsets // self.block_size
+        return self.num_subsets
+        # return self.num_subsets // self.block_size
 
     def __getitem__(self, index: int) -> torch.Tensor:
         return torch.as_tensor(
