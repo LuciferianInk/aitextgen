@@ -42,4 +42,3 @@ def generate_cli(**kwargs):
 def train_tokenizer_cli(files: str, **kwargs):
     """Trains a tokenizer on the specified file."""
     train_tokenizer(files, **kwargs)
-    train_tokenizer(files, **kwargs)

@@ -16,6 +16,7 @@ from lightning.pytorch.plugins import DeepSpeedPrecisionPlugin
 from lightning.pytorch.strategies import StrategyRegistry
 from lightning.pytorch.trainer import Trainer
 from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
+from peft.tuners.lora.layer import LoraLayer
 from petals import AutoDistributedModelForCausalLM
 from pkg_resources import resource_filename
 from tqdm.auto import trange
@@ -29,14 +30,11 @@ from transformers import (
     GPT2LMHeadModel,
     GPT2TokenizerFast,
     PreTrainedTokenizerFast,
-    StoppingCriteria,
-    StoppingCriteriaList,
 )
 
-from .colab import create_gdrive_folder
 from .TokenDataset import TokenDataset
 from .train import AIGProgressBar, AIGTrainer
-from .utils import find_index_of_subset, model_max_length, reset_seed, set_seed
+from .utils import model_max_length, reset_seed, set_seed
 
 logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
@@ -207,20 +205,52 @@ class aigen:
         if adapters and not petals:
             for i, adapter in enumerate(adapters):
                 logger.info(f"Using adapter: {adapter}")
+                # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
+                # peft_config.init_lora_weights = False
+                # self.model.add_adapter(peft_config, adapter_name=adapter)
                 if i == 0:
                     self.model = PeftModel.from_pretrained(
                         self.model, f"{adapter_dir}/{adapter}", adapter_name=adapter
                     )
+                #     # self.model.load_adapter(
+                #     #     f"{adapter_dir}/{adapter}", adapter_name=adapter
+                #     # )
                 else:
                     self.model.load_adapter(
                         f"{adapter_dir}/{adapter}", adapter_name=adapter
                     )
-                    # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
-                    # peft_config.init_lora_weights = False
-                    # self.model.add_adapter(peft_config, adapter_name=adapter)
+                # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
+                # peft_config.init_lora_weights = False
+                # self.model.add_adapter(peft_config, adapter_name=adapter)
+                # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
+                # peft_config.init_lora_weights = False
+                # self.model.add_adapter(peft_config, adapter_name=adapter)
                 # self.model.load_adapter(f"{adapter_dir}/voice", adapter_name="voice")
                 # self.model.add_weighted_adapter()
                 # To merge adapters: https://huggingface.co/docs/peft/main/en/package_reference/tuners#peft.LoraModel.add_weighted_adapter
+
+            # self.model.set_adapter("core")
+            # self.model.enable_adapters()
+
+            # This is a hack, which apparently enables multi-adapter inference:
+            # https://github.com/huggingface/peft/pull/992
+            if len(adapters) > 1:
+                for name, module in self.model.named_modules():
+                    if isinstance(module, LoraLayer):
+                        module.set_adapter(adapters)
+
+            print(self.model.active_adapters)
+
+            # if len(adapters) > 1:
+            #     self.model.add_weighted_adapter(
+            #         adapters=adapters,
+            #         weights=[0.5] * len(adapters),
+            #         adapter_name="combined",
+            #         combination_type="svd",
+            #     )
+            # self.model.set_adapter("combined")
+
+            # print(self.model.active_adapters)
 
             # self.model.enable_adapters()
             # self.model.set_adapter(adapters[0])
@@ -408,63 +438,6 @@ class aigen:
 
             return gen_texts[0]
 
-            # Schema token handling
-            # if schema:
-            #     schema_tokens = getattr(self.model.config, "schema_tokens")
-            #     schema_return = getattr(self.model.config, "schema_return", None)
-            #     schema_tokens_enc = self.tokenizer(text=schema_tokens)["input_ids"]
-
-            #     nonalphanum_pattern = re.compile(r"[\W_]+", re.UNICODE)
-
-            #     outputs = outputs.tolist()
-            #     gen_texts = []
-            #     for output in outputs:
-            #         gen_text_dict = {}
-
-            #         # Get indices of each schema token within the text
-            #         schema_token_indices = [
-            #             (schema_tokens[i], find_index_of_subset(output, token_enc))
-            #             for i, token_enc in enumerate(schema_tokens_enc)
-            #         ]
-
-            #         schema_token_indices.sort(key=lambda x: x[1])
-
-            #         for i, token_tuple in enumerate(schema_token_indices):
-            #             start_index = token_tuple[1]
-            #             key = (
-            #                 nonalphanum_pattern.sub("", token_tuple[0])
-            #                 if normalize_key
-            #                 else token_tuple[0]
-            #             )
-            #             if start_index == -1:
-            #                 gen_text_dict[key] = ""
-            #             else:
-            #                 end_index = (
-            #                     schema_token_indices[i + 1][1] - 1
-            #                     if i + 1 < len(schema_token_indices)
-            #                     else None
-            #                 )
-
-            #                 gen_text_dict[key] = self.tokenizer.decode(
-            #                     output[start_index:end_index], skip_special_tokens=True
-            #                 )
-
-            #         # remove fields not in schema_return
-            #         if schema_return:
-            #             keys = gen_text_dict.keys()
-            #             if len(schema_return) == 1:
-            #                 gen_text_dict = gen_text_dict[schema_return[0]]
-            #             for key in keys:
-            #                 if key not in schema_return:
-            #                     gen_text_dict.pop(key, None)
-
-            #         gen_texts.append(gen_text_dict)
-
-            #     return gen_texts[0]
-
-            # # Typical use case
-            # else:
-
     def train(
         self,
         train_data: Union[str, TokenDataset],
@@ -489,10 +462,6 @@ class aigen:
         batch_size: int = 1,
         num_workers: int = None,
         benchmark: bool = True,
-        avg_loss_smoothing: float = 0.01,
-        save_gdrive: bool = False,
-        run_id: str = f"AIG_{datetime.utcnow():%Y%m%d_%H%M%S}",
-        progress_bar_refresh_rate: int = 1,
         num_layers_freeze: int = None,
         use_deepspeed: bool = False,
         scheduler: str = "get_linear_schedule_with_warmup",
@@ -525,12 +494,6 @@ class aigen:
         :param batch_size: Number of input samples per batch
         :param num_workers: Number of DataLoader workers
         :param benchmark: If using GPU, whether to use cudnn.benchmarkl
-        :param avg_loss_smoothing: Smoothing factor for Avg loss in progress bar
-        :param save_gdrive: If using Colab, whether to save the notebook
-        to Google Drive at each save_every
-        :param run_id: Run identifier; used for save_gdrive
-        :param progress_bar_refresh_rate: How often to update
-        the progress bar while training.
         """
 
         self.petals = petals
@@ -540,12 +503,6 @@ class aigen:
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-
-        if save_gdrive:
-            assert (
-                "google.colab" in sys.modules
-            ), "You must be in Colaboratory to copy to your Google Drive"
-            create_gdrive_folder(run_id)
 
         is_gpu_used = torch.cuda.is_available() and n_gpu != 0
 
@@ -673,10 +630,6 @@ class aigen:
                     output_dir,
                     n_generate,
                     is_gpu_used,
-                    avg_loss_smoothing,
-                    run_id,
-                    save_gdrive,
-                    progress_bar_refresh_rate,
                     freeze_layers,
                     num_layers_freeze,
                     petals,
@@ -738,13 +691,6 @@ class aigen:
             logger.info(f"Saving trained model pytorch_model.bin to /{output_dir}")
             self.model.save_pretrained(output_dir)
 
-        if save_gdrive:
-            for pt_file in ["pytorch_model.bin", "config.json"]:
-                shutil.copyfile(
-                    os.path.join(output_dir, pt_file),
-                    os.path.join("/content/drive/MyDrive/", run_id, pt_file),
-                )
-
         if seed:
             reset_seed()
 
@@ -772,26 +718,3 @@ class aigen:
         num_params_m = int(sum(p.numel() for p in self.model.parameters()) / 10**6)
         model_name = type(self.model.config).__name__.replace("Config", "")
         return f"{model_name} loaded with {num_params_m}M parameters."
-
-
-class SingleStoppingCriteria(StoppingCriteria):
-    def __init__(self, tokenizer, target_sequence, prompt):
-        self.target_sequence = target_sequence
-        self.prompt = prompt
-        self.tokenizer = tokenizer
-
-    def __call__(self, input_ids, scores, **kwargs):
-        # Get the generated text as a string
-        generated_text = self.tokenizer.decode(input_ids[0])
-        generated_text = generated_text.replace(self.prompt, "")
-        # Check if the target sequence appears in the generated text
-        if self.target_sequence in generated_text:
-            return True  # Stop generation
-
-        return False  # Continue generation
-
-    def __len__(self):
-        return 1
-
-    def __iter__(self):
-        yield self

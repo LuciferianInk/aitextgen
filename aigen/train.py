@@ -56,9 +56,8 @@ class AIGTrainer(LightningModule):
 
         return {"loss": loss}
 
-    def on_train_epoch_end(self, inputs):
-        print("epoch ended")
-        # self.trainer.step()
+    def on_train_epoch_end(self):
+        pass
 
     def train_dataloader(self):
         return DataLoader(
@@ -144,10 +143,6 @@ class AIGProgressBar(ProgressBar):
         output_dir,
         n_generate,
         gpu,
-        smoothing,
-        run_id,
-        save_gdrive,
-        progress_bar_refresh_rate,
         train_transformers_only,
         num_layers_freeze,
         petals,
@@ -162,10 +157,7 @@ class AIGProgressBar(ProgressBar):
         self.gpu = gpu
         self.steps = 0
         self.prev_avg_loss = None
-        self.smoothing = smoothing
-        self.run_id = run_id
-        self.save_gdrive = save_gdrive
-        self.progress_bar_refresh_rate = progress_bar_refresh_rate
+        self.smoothing = 0.01
         self.train_transformers_only = train_transformers_only
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
@@ -184,7 +176,7 @@ class AIGProgressBar(ProgressBar):
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
         self.main_progress_bar = tqdm(
-            total=trainer.max_steps,
+            total=trainer.max_steps * trainer.accumulate_grad_batches,
             disable=not self.enabled,
             smoothing=0,
             leave=True,
@@ -206,7 +198,7 @@ class AIGProgressBar(ProgressBar):
             torch.cuda.empty_cache()
 
         current_loss = float(outputs["loss"])
-        current_epoch = str(trainer.current_epoch)
+        current_epoch = trainer.current_epoch + (batch_idx / len(lm.dataset))
         self.steps += 1
         avg_loss = 0
         if current_loss == current_loss:  # don't add if current_loss is NaN
@@ -244,6 +236,11 @@ class AIGProgressBar(ProgressBar):
             {"train": current_loss},
             lm.global_step,
         )
+        lm.logger.experiment.add_scalars(
+            "epoch",
+            {"train": current_epoch},
+            lm.global_step,
+        )
 
         color = bc.ROOT
         if current_loss < avg_loss:
@@ -262,32 +259,32 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        echo = f"E{current_epoch} => {bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
+        echo = f"{bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
 
-        if self.steps % self.progress_bar_refresh_rate == 0:
-            if self.gpu:
-                # via pytorch-lightning's get_gpu_memory_map()
-                result = subprocess.run(
-                    [
-                        shutil.which("nvidia-smi"),
-                        "--query-gpu=memory.used",
-                        "--format=csv,nounits,noheader",
-                    ],
-                    encoding="utf-8",
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=True,
-                )
-                gpu_memory = result.stdout.strip().split(os.linesep)
-                gpus = f"MB{ad.TEXT} => {bc.FOLD}".join(gpu_memory)
-                echo += f" => GPU => {bc.FOLD}{gpus}MB{ad.TEXT}"
+        if self.gpu:
+            # via pytorch-lightning's get_gpu_memory_map()
+            result = subprocess.run(
+                [
+                    shutil.which("nvidia-smi"),
+                    "--query-gpu=memory.used",
+                    "--format=csv,nounits,noheader",
+                ],
+                encoding="utf-8",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+            gpu_memory = result.stdout.strip().split(os.linesep)
+            gpus = f"MB{ad.TEXT} => {bc.FOLD}".join(gpu_memory)
+            epoch_string = "{:.3f}".format(current_epoch)
+            echo += f" => GPU => {bc.FOLD}{gpus}MB{ad.TEXT} => Epoch => {bc.FOLD}{epoch_string}{ad.TEXT}"
 
-            if self.hivemind:
-                num_peers = trainer.strategy.num_peers
-                echo = echo + f" => Peers => {bc.FOLD}{str(num_peers)}{ad.TEXT}"
+        if self.hivemind:
+            num_peers = trainer.strategy.num_peers
+            echo = echo + f" => Peers => {bc.FOLD}{num_peers}{ad.TEXT}"
 
-            self.main_progress_bar.update(self.progress_bar_refresh_rate)
-            self.main_progress_bar.set_description(echo)
+        self.main_progress_bar.update(1)
+        self.main_progress_bar.set_description(echo)
 
     def generate_sample_text(self, trainer, lm):
         lm.model.eval()
@@ -329,13 +326,6 @@ class AIGProgressBar(ProgressBar):
         else:
             lm.model.save_pretrained(self.output_dir)
 
-        if self.enabled and self.save_gdrive:
-            for pt_file in ["pytorch_model.bin", "config.json"]:
-                shutil.copyfile(
-                    os.path.join(self.output_dir, pt_file),
-                    os.path.join("/content/drive/MyDrive/", self.run_id, pt_file),
-                )
-
     def average_loss(self, current_loss, prev_avg_loss, smoothing):
         if prev_avg_loss is None:
             return current_loss
@@ -355,9 +345,6 @@ class AIGProgressBar(ProgressBar):
 
     def freeze_layers(self, lm):
         self.modify_layers(lm, False)
-
-    def unfreeze_layers(self, lm):
-        self.modify_layers(lm, True)
 
     def unfreeze_layers(self, lm):
         self.modify_layers(lm, True)

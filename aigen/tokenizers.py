@@ -57,4 +57,3 @@ def train_tokenizer(
         tokenizer.save(f"{prefix}.tokenizer.json")
     else:
         tokenizer.save_model(save_path, prefix)
-        tokenizer.save_model(save_path, prefix)
