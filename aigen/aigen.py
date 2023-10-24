@@ -203,63 +203,28 @@ class aigen:
             )
 
         if adapters and not petals:
-            for i, adapter in enumerate(adapters):
+            for adapter in adapters:
                 logger.info(f"Using adapter: {adapter}")
-                # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
-                # peft_config.init_lora_weights = False
-                # self.model.add_adapter(peft_config, adapter_name=adapter)
-                if i == 0:
+                if adapters.index(adapter) == 0:
                     self.model = PeftModel.from_pretrained(
                         self.model, f"{adapter_dir}/{adapter}", adapter_name=adapter
                     )
-                #     # self.model.load_adapter(
-                #     #     f"{adapter_dir}/{adapter}", adapter_name=adapter
-                #     # )
                 else:
                     self.model.load_adapter(
                         f"{adapter_dir}/{adapter}", adapter_name=adapter
                     )
-                # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
-                # peft_config.init_lora_weights = False
-                # self.model.add_adapter(peft_config, adapter_name=adapter)
-                # peft_config = PeftConfig.from_pretrained(f"{adapter_dir}/{adapter}")
-                # peft_config.init_lora_weights = False
-                # self.model.add_adapter(peft_config, adapter_name=adapter)
-                # self.model.load_adapter(f"{adapter_dir}/voice", adapter_name="voice")
-                # self.model.add_weighted_adapter()
-                # To merge adapters: https://huggingface.co/docs/peft/main/en/package_reference/tuners#peft.LoraModel.add_weighted_adapter
 
-            # self.model.set_adapter("core")
-            # self.model.enable_adapters()
-
-            # This is a hack, which apparently enables multi-adapter inference:
-            # https://github.com/huggingface/peft/pull/992
             if len(adapters) > 1:
-                for name, module in self.model.named_modules():
-                    if isinstance(module, LoraLayer):
-                        module.set_adapter(adapters)
+                self.model.add_weighted_adapter(
+                    adapters=adapters,
+                    weights=[1.0 / len(adapters)] * len(adapters),
+                    adapter_name="combined",
+                    combination_type="cat",
+                )
 
-            print(self.model.active_adapters)
-
-            # if len(adapters) > 1:
-            #     try:
-            #         self.model.add_weighted_adapter(
-            #             adapters=adapters,
-            #             weights=[0.5] * len(adapters),
-            #             adapter_name="combined",
-            #             combination_type="svd",
-            #         )
-            #     except Exception as e:
-            #         import traceback
-
-            #         print(traceback.format_exc())
-            # self.model.set_adapter("combined")
-
-            # print(self.model.active_adapters)
-
-            # self.model.enable_adapters()
-            # self.model.set_adapter(adapters[0])
-            # print(self.model.active_adapters)
+                for adapter in adapters:
+                    self.model.delete_adapter(adapter)
+                self.model.set_adapter("combined")
 
         self.model_max_length = model_max_length(self.model.config)
 
@@ -270,12 +235,6 @@ class aigen:
             logger.info("Gradient checkpointing enabled for model training.")
             self.model.gradient_checkpointing_enable()
             setattr(self.model.config, "use_cache", None if petals else False)
-
-        if schema_tokens:
-            setattr(self.model.config, "schema_tokens", schema_tokens)
-
-        if schema_return:
-            setattr(self.model.config, "schema_return", schema_return)
 
         if self.tokenizer is None:
             # Update tokenizer settings (if not set already)

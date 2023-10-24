@@ -188,7 +188,6 @@ class TokenDataset(Dataset):
 
     def __len__(self) -> int:
         return self.num_subsets
-        # return self.num_subsets // self.block_size
 
     def __getitem__(self, index: int) -> torch.Tensor:
         return torch.as_tensor(
@@ -219,23 +218,21 @@ class TokenDataset(Dataset):
         a_dtype = get_dtype(tokenizer.vocab_size)
 
         num_texts = get_lines_in_file(file_path, newline)
+        logger.info(f"Encoding {num_texts:,} sets of tokens from {file_path}.")
 
-        with open(file_path, "r", encoding="utf-8", newline=newline) as f_load:
-            logger.info(f"Encoding {num_texts:,} sets of tokens from {file_path}.")
-
-            batch = f_load.read()
-
+        with open(file_path, "r", encoding="utf-8", newline=newline) as file:
             tokenized = tokenizer(
-                batch,
+                file.read(),
                 max_length=block_size,
                 stride=stride,
                 return_overflowing_tokens=True,
             )["input_ids"]
 
             token_list = list(itertools.chain.from_iterable(tokenized))
-            tokens = np.full_like(token_list, token_list, dtype=a_dtype)
+            tokens = np.fromiter(token_list, dtype=a_dtype)
 
-        tokens = tokens.flatten()
+        print(len(tokens))
+
         return tokens[tokens < np.array(-1, dtype=a_dtype)]
 
 
