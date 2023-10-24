@@ -222,9 +222,10 @@ class aigen:
                     combination_type="cat",
                 )
 
+                self.model.set_adapter("combined")
+
                 for adapter in adapters:
                     self.model.delete_adapter(adapter)
-                self.model.set_adapter("combined")
 
         self.model_max_length = model_max_length(self.model.config)
 
