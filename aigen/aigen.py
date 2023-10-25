@@ -216,12 +216,17 @@ class aigen:
 
             if len(adapters) > 1:
                 logger.info("Merging adapters...")
-                self.model.add_weighted_adapter(
-                    adapters=adapters,
-                    weights=[1.0 / len(adapters)] * len(adapters),
-                    adapter_name="combined",
-                    combination_type="cat",
-                )
+                try:
+                    self.model.add_weighted_adapter(
+                        adapters=adapters,
+                        weights=[1.0 / len(adapters)] * len(adapters),
+                        adapter_name="combined",
+                        combination_type="cat",
+                    )
+                except:
+                    import traceback
+
+                    print(traceback.format_exc())
 
                 self.model.set_adapter("combined")
 
