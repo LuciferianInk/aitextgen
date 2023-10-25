@@ -204,7 +204,7 @@ class aigen:
 
         if adapters and not petals:
             for adapter in adapters:
-                logger.info(f"Using adapter: {adapter}")
+                logger.info(f"Loading adapter: {adapter}")
                 if adapters.index(adapter) == 0:
                     self.model = PeftModel.from_pretrained(
                         self.model, f"{adapter_dir}/{adapter}", adapter_name=adapter
@@ -215,6 +215,7 @@ class aigen:
                     )
 
             if len(adapters) > 1:
+                logger.info("Merging adapters...")
                 self.model.add_weighted_adapter(
                     adapters=adapters,
                     weights=[1.0 / len(adapters)] * len(adapters),
@@ -225,7 +226,10 @@ class aigen:
                 self.model.set_adapter("combined")
 
                 for adapter in adapters:
+                    logger.warning(f"Deleting unused adapter: {adapter}")
                     self.model.delete_adapter(adapter)
+
+            logger.info(f"Using adapter: {self.model.active_adapter}")
 
         self.model_max_length = model_max_length(self.model.config)
 
