@@ -113,8 +113,8 @@ class AIGTrainer(LightningModule):
             optimizer = Lion(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
-                use_gc=True,
-                adanorm=True,
+                use_gc=False,
+                adanorm=False,
             )
         else:
             optimizer = AdamW(
