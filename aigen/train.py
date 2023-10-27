@@ -8,6 +8,7 @@ import sys
 import psutil
 import pytorch_optimizer
 import torch
+import torchmetrics
 from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import ProgressBar
@@ -34,7 +35,6 @@ class AIGTrainer(LightningModule):
             len(dataset),
             tokenizer,
         )
-
         self.manual_optimizers = ["SophiaH"]
 
         if hparams["optimizer"] in self.manual_optimizers:
@@ -66,9 +66,15 @@ class AIGTrainer(LightningModule):
     def validation_step(self, batch, batch_idx):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
+        perplexity = torch.exp(loss)
         self.logger.experiment.add_scalars(
             "vtx",
             {"val_loss": float(loss)},
+            self.global_step,
+        )
+        self.logger.experiment.add_scalars(
+            "vtx",
+            {"val_ppl": float(perplexity)},
             self.global_step,
         )
         return loss
