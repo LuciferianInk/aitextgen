@@ -12,13 +12,14 @@ from typing import List, Optional, Union
 import torch
 from accelerate import Accelerator
 from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
-from lightning.pytorch.plugins import DeepSpeedPrecisionPlugin
 from lightning.pytorch.strategies import StrategyRegistry
 from lightning.pytorch.trainer import Trainer
 from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
 from peft.tuners.lora.layer import LoraLayer
 from petals import AutoDistributedModelForCausalLM
 from pkg_resources import resource_filename
+from pytorch_lightning.core.datamodule import LightningDataModule
+from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers import (
     AutoConfig,
@@ -423,7 +424,7 @@ class aigen:
         seed: int = None,
         optimizer: str = "AdamW",
         learning_rate: float = 1e-3,
-        swa_lr: float = None,
+        swa_learning_rate: float = None,
         update_period: int = 10,
         weight_decay: float = 0.05,
         adam_epsilon: float = 1e-8,
@@ -437,12 +438,13 @@ class aigen:
         num_workers: int = None,
         benchmark: bool = True,
         num_layers_freeze: int = None,
-        use_deepspeed: bool = False,
         scheduler: str = "get_linear_schedule_with_warmup",
         prune: float = 0.0,
         petals: bool = False,
         hivemind: bool = False,
         target_batch_size: int = 8192,
+        val_split: float = 0.0,
+        val_interval: int = 1000,
         **kwargs,
     ) -> None:
         """
@@ -553,14 +555,7 @@ class aigen:
             scheduler=scheduler,
             petals=petals,
             hivemind=hivemind,
-        )
-
-        # Wrap the model in a pytorch-lightning module
-        train_model = AIGTrainer(
-            self.model,
-            train_data,
-            hparams,
-            self.tokenizer,
+            val_split=val_split,
         )
 
         # Begin training
@@ -576,26 +571,18 @@ class aigen:
         if not is_gpu_used:
             n_gpu = 0
 
-        # use the DeepSpeed plugin if installed and specified
-        # deepspeed_plugin = None
-        # if is_gpu_used and use_deepspeed:
-        #     deepspeed_plugin = DeepSpeedPrecisionPlugin(
-        #         "16-mixed" if fp16 else "32-true"
-        #     )
-        #     logger.info("Using DeepSpeed training.")
-        #     if not fp16:
-        #         logger.info("Setting FP16 to True for DeepSpeed ZeRO Training.")
-        #         fp16 = True
-
         train_params = dict(
             accelerator="auto",
             strategy="auto",
             devices=n_gpu,
             max_steps=num_steps,
             max_epochs=-1,
+            val_check_interval=val_interval,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
             precision="32-true",
+            gradient_clip_val=gradient_clip_val,
+            gradient_clip_algorithm="norm",
             logger=loggers if loggers else False,
             callbacks=[
                 AIGProgressBar(
@@ -610,12 +597,7 @@ class aigen:
                     hivemind,
                 )
             ],
-            # plugins=deepspeed_plugin,
         )
-
-        if hparams["optimizer"] not in ["SophiaH"]:
-            train_params["gradient_clip_val"] = gradient_clip_val
-            train_params["gradient_clip_algorithm"] = "norm"
 
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
@@ -642,24 +624,38 @@ class aigen:
                 )
             )
 
-        if swa_lr:
-            train_params["callbacks"].append(StochasticWeightAveraging(swa_lrs=swa_lr))
+        if swa_learning_rate:
+            train_params["callbacks"].append(
+                StochasticWeightAveraging(swa_lrs=swa_learning_rate)
+            )
 
         if hivemind:
-            try:
-                from lightning_hivemind.strategy import HivemindStrategy
-            except ImportError:
-                print("Failed to import HivemindStrategy. Is it installed?")
+            from lightning_hivemind.strategy import HivemindStrategy
+
             train_params["strategy"] = HivemindStrategy(
                 target_batch_size=target_batch_size, verbose=True
             )
         else:
             train_params["accumulate_grad_batches"] = gradient_accumulation_steps
 
+        data_module = AIGDataModule(train_data, hparams)
+        data_module.setup()
+
+        train_split = data_module.train_dataloader()
+        val_split = data_module.val_dataloader()
+
+        # Wrap the model in a pytorch-lightning module
+        train_model = AIGTrainer(
+            self.model,
+            train_split,
+            hparams,
+            self.tokenizer,
+        )
+
         self.model.train()
 
         trainer = Trainer(**train_params)
-        trainer.fit(train_model)
+        trainer.fit(train_model, train_split, val_split)
 
         if not petals:
             logger.info(f"Saving trained model pytorch_model.bin to /{output_dir}")
@@ -672,16 +668,6 @@ class aigen:
         """Saves the model into the specified directory."""
         self.model.save_pretrained(target_folder)
 
-    def save_for_upload(self, target_folder: str = "my-model"):
-        """
-        Saves the model + tokenizerinto the specified directory.
-
-        This generates the 6 files needed to upload the model to
-        Huggingface's S3 bucket.
-        """
-        self.model.save_pretrained(target_folder)
-        self.tokenizer.save_pretrained(target_folder)
-
     def get_device(self) -> str:
         """Getter for the current device where the model is located."""
         return self.model.device.type
@@ -692,3 +678,39 @@ class aigen:
         num_params_m = int(sum(p.numel() for p in self.model.parameters()) / 10**6)
         model_name = type(self.model.config).__name__.replace("Config", "")
         return f"{model_name} loaded with {num_params_m}M parameters."
+
+
+class AIGDataModule(LightningDataModule):
+    def __init__(self, dataset, hparams):
+        super().__init__()
+        self.dataset = dataset
+        self.batch_size = hparams["batch_size"]
+        self.pin_memory = hparams["pin_memory"]
+        self.num_workers = hparams["num_workers"]
+        self.val_split = hparams["val_split"]
+        self.train = None
+        self.val = None
+
+    def setup(self):
+        train_split = 1.0 - self.val_split
+        self.train, self.val = torch.utils.data.random_split(
+            self.dataset, [train_split, self.val_split]
+        )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train,
+            shuffle=True,
+            batch_size=self.batch_size,
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val,
+            shuffle=False,
+            batch_size=self.batch_size,
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers,
+        )

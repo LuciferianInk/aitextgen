@@ -12,7 +12,7 @@ import torch
 from pkg_resources import resource_filename
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
-from transformers import GPT2TokenizerFast, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizer
 
 csv.field_size_limit(2**31 - 1)
 
@@ -28,7 +28,7 @@ class TokenDataset(Dataset):
         file_path: str = None,
         vocab_file: str = os.path.join(STATIC_PATH, "gpt2_vocab.json"),
         merges_file: str = os.path.join(STATIC_PATH, "gpt2_merges.txt"),
-        tokenizer: GPT2TokenizerFast = None,
+        tokenizer: PreTrainedTokenizer = None,
         tokenizer_file: str = None,
         texts: List[str] = None,
         line_by_line: bool = False,
@@ -36,14 +36,13 @@ class TokenDataset(Dataset):
         cache_destination: str = "dataset_cache.tar.gz",
         compress: bool = True,
         block_size: int = 1024,
-        stride: int = 4,
+        stride: int = 0,
         tokenized_texts: bool = False,
         text_delim: str = "\n",
         bos_token: str = "<|endoftext|>",
         eos_token: str = "<|endoftext|>",
         unk_token: str = "<|endoftext|>",
         pad_token: str = "<|endoftext|>",
-        progress_bar_refresh_rate: int = 20,
         **kwargs,
     ) -> None:
         self.block_size = block_size
@@ -56,31 +55,6 @@ class TokenDataset(Dataset):
 
         assert any([texts, file_path]), "texts or file_path must be specified."
 
-        if not tokenizer:
-            if tokenizer_file:
-                # load the custom tokenizer from a serialized tokenizer
-                tokenizer = PreTrainedTokenizerFast(
-                    tokenizer_file=tokenizer_file,
-                    bos_token=bos_token,
-                    eos_token=eos_token,
-                    unk_token=unk_token,
-                    pad_token=pad_token,
-                )
-            else:
-                tokenizer = GPT2TokenizerFast(
-                    vocab_file=vocab_file,
-                    merges_file=merges_file,
-                    bos_token=bos_token,
-                    eos_token=eos_token,
-                    unk_token=unk_token,
-                    pad_token=pad_token,
-                    verbose=False,
-                )
-                # https://github.com/huggingface/transformers/issues/10202
-                tokenizer.add_special_tokens(
-                    {"additional_special_tokens": ["<|endoftext|>"]}
-                )
-
         # If a cache path is provided, load it.
         if from_cache:
             open_func = gzip.open if file_path.endswith(".gz") else open
@@ -91,16 +65,17 @@ class TokenDataset(Dataset):
             self.block_size = block_size
             self.line_by_line = line_by_line
 
-            logger.info(f"TokenDataset containing {len(self.tokens)} subsets loaded.")
+            logger.info(f"TokenDataset containing {len(self.tokens)} batches loaded.")
             return
+
+        assert tokenizer, "A tokenizer must be specified."
+        assert os.path.isfile(
+            file_path
+        ), f"{file_path} is not present in the current directory."
 
         # if a file is specified, and it's line-delimited,
         # the text must be processed line-by-line into a a single bulk file
-        elif line_by_line:
-            assert os.path.isfile(
-                file_path
-            ), f"{file_path} is not present in the current directory."
-
+        if line_by_line:
             text_delim = None
             self.line_by_line = True
             self.file_path = file_path
@@ -108,10 +83,6 @@ class TokenDataset(Dataset):
         # if a file is specified, and it's not line-delimited,
         # the texts must be parsed as a single bulk file.
         else:
-            assert os.path.isfile(
-                file_path
-            ), f"{file_path} is not present in the current directory."
-
             eos_token = ""
             self.file_path = file_path
 
@@ -120,7 +91,6 @@ class TokenDataset(Dataset):
             eos_token,
             tokenizer,
             text_delim,
-            progress_bar_refresh_rate,
             block_size,
             stride,
         )
@@ -156,17 +126,16 @@ class TokenDataset(Dataset):
         return self.file_path if self.file_path is not None else "loaded dataset"
 
     def __repr__(self) -> str:
-        return f"TokenDataset containing {len(self.tokens)} subsets loaded."
+        return f"TokenDataset containing {len(self.tokens)} batches loaded."
 
     def encode_tokens(
         self,
         file_path: str,
         eos_token: str,
-        tokenizer: GPT2TokenizerFast,
+        tokenizer: PreTrainedTokenizer,
         newline: str,
-        progress_bar_refresh_rate: int = 20,
         block_size: int = 256,
-        stride: int = 4,
+        stride: int = 0,
     ) -> List[int]:
         """
         Retrieve texts from a newline-delimited file.

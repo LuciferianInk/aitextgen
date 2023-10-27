@@ -10,6 +10,7 @@ import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import ProgressBar
+from pytorch_optimizer import Lion, SophiaH
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -27,16 +28,22 @@ class AIGTrainer(LightningModule):
 
     def __init__(self, model, dataset, hparams, tokenizer):
         super(AIGTrainer, self).__init__()
-        self.model, self.dataset, self.tokenizer = (
+
+        self.model, self.dataset_len, self.tokenizer = (
             model,
-            dataset,
+            len(dataset),
             tokenizer,
         )
-        self.save_hyperparameters(hparams)
-        if self.hparams["optimizer"] in ["SophiaH"]:
+
+        self.manual_optimizers = ["Lion", "SophiaH"]
+
+        if hparams["optimizer"] in self.manual_optimizers:
             self.automatic_optimization = False
+            hparams["gradient_clip_val"] = None
         else:
             self.automatic_optimization = True
+
+        self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
         return self.model(**inputs)
@@ -45,7 +52,7 @@ class AIGTrainer(LightningModule):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
 
-        if self.hparams["optimizer"] in ["SophiaH"]:
+        if self.hparams["optimizer"] in self.manual_optimizers:
             opt = self.optimizers()
             opt.zero_grad()
             self.manual_backward(loss, create_graph=True)
@@ -54,23 +61,22 @@ class AIGTrainer(LightningModule):
 
         opt.step()
 
-        return {"loss": loss}
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        outputs = self({"input_ids": batch, "labels": batch})
+        loss = outputs[0]
+        self.logger.experiment.add_scalars(
+            "vtx",
+            {"val_loss": float(loss)},
+            self.global_step,
+        )
+        return loss
 
     def on_train_epoch_end(self):
         pass
 
-    def train_dataloader(self):
-        return DataLoader(
-            self.dataset,
-            shuffle=True,
-            batch_size=self.hparams["batch_size"],
-            pin_memory=self.hparams["pin_memory"],
-            num_workers=self.hparams["num_workers"],
-        )
-
-    def configure_optimizers(self):
-        "Prepare optimizer"
-
+    def choose_optimizer(self):
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
@@ -91,25 +97,13 @@ class AIGTrainer(LightningModule):
             },
         ]
 
-        if self.hparams["optimizer"] in ["SophiaH"]:
-            try:
-                from pytorch_optimizer import SophiaH
-
-            except ImportError:
-                print("Failed to import SophiaH optimizer. Is it installed?")
-
+        if self.hparams["optimizer"] == "SophiaH":
             optimizer = SophiaH(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
                 update_period=self.hparams["update_period"],
             )
-        elif self.hparams["optimizer"] in ["Lion"]:
-            try:
-                from pytorch_optimizer import Lion
-
-            except ImportError:
-                print("Failed to import Lion optimizer. Is it installed?")
-
+        elif self.hparams["optimizer"] == "Lion":
             optimizer = Lion(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
@@ -122,6 +116,12 @@ class AIGTrainer(LightningModule):
                 lr=self.hparams["learning_rate"],
                 eps=self.hparams["adam_epsilon"],
             )
+        return optimizer
+
+    def configure_optimizers(self):
+        "Prepare optimizer"
+
+        optimizer = self.choose_optimizer()
 
         scheduler = get_scheduler(
             self.hparams.get("scheduler", "linear"),
@@ -198,7 +198,7 @@ class AIGProgressBar(ProgressBar):
             torch.cuda.empty_cache()
 
         current_loss = float(outputs["loss"])
-        current_epoch = trainer.current_epoch + (batch_idx / len(lm.dataset))
+        current_epoch = trainer.current_epoch + (batch_idx / lm.dataset_len)
         self.steps += 1
         avg_loss = 0
         if current_loss == current_loss:  # don't add if current_loss is NaN
@@ -232,14 +232,7 @@ class AIGProgressBar(ProgressBar):
                 self.freeze_layers(lm)
 
         lm.logger.experiment.add_scalars(
-            "loss",
-            {"train": current_loss},
-            lm.global_step,
-        )
-        lm.logger.experiment.add_scalars(
-            "epoch",
-            {"train": current_epoch},
-            lm.global_step,
+            "vtx", {"train_loss": current_loss, "epoch": current_epoch}, lm.global_step
         )
 
         color = bc.ROOT
