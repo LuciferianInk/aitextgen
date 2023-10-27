@@ -6,11 +6,11 @@ import subprocess
 import sys
 
 import psutil
+import pytorch_optimizer
 import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import ProgressBar
-from pytorch_optimizer import Lion, SophiaH
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -35,7 +35,7 @@ class AIGTrainer(LightningModule):
             tokenizer,
         )
 
-        self.manual_optimizers = ["Lion", "SophiaH"]
+        self.manual_optimizers = ["SophiaH"]
 
         if hparams["optimizer"] in self.manual_optimizers:
             self.automatic_optimization = False
@@ -98,12 +98,14 @@ class AIGTrainer(LightningModule):
         ]
 
         if self.hparams["optimizer"] == "SophiaH":
+            SophiaH = getattr(pytorch_optimizer, "SophiaH")
             optimizer = SophiaH(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
                 update_period=self.hparams["update_period"],
             )
         elif self.hparams["optimizer"] == "Lion":
+            Lion = getattr(pytorch_optimizer, "Lion")
             optimizer = Lion(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
