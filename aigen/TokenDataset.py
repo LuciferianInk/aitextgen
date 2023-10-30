@@ -167,7 +167,7 @@ class TokenDataset(Dataset):
                 padding="max_length",
                 return_overflowing_tokens=True,
                 truncation=True,
-                return_tensors="pt",
+                return_tensors="np",
             )
 
             return tokenized["input_ids"]
