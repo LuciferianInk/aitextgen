@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import get_scheduler
 
-from .utils import ad, bc
+from .utils import colors
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
@@ -243,11 +243,11 @@ class AIGProgressBar(ProgressBar):
             "vtx", {"train_loss": current_loss, "epoch": current_epoch}, lm.global_step
         )
 
-        color = bc.ROOT
+        color = colors.GREEN
         if current_loss < avg_loss:
-            color = bc.FOLD
+            color = colors.BLUE
         elif current_loss > avg_loss:
-            color = bc.CORE
+            color = colors.RED
 
         bearing = "{:.5f}".format(
             round((current_loss / avg_loss) if avg_loss != 0 else 0, 5)
@@ -260,7 +260,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        echo = f"{bc.ROOT}{current_loss:.3f}{ad.TEXT} => Loss => {color}{avg_loss:.3f}{ad.TEXT} => Bearing => {bc.FOLD}{bearing}{random.randint(0,2)}00{ad.TEXT} => System => {bc.FOLD}{memory.percent}%{ad.TEXT}"
+        echo = f"{colors.GREEN}{current_loss:.3f}{colors.WHITE} => Loss => {color}{avg_loss:.3f}{colors.WHITE} => Bearing => {colors.BLUE}{bearing}{random.randint(0,2)}00{colors.WHITE} => System => {colors.BLUE}{memory.percent}%{colors.WHITE}"
 
         if self.gpu:
             # via pytorch-lightning's get_gpu_memory_map()
@@ -276,13 +276,13 @@ class AIGProgressBar(ProgressBar):
                 check=True,
             )
             gpu_memory = result.stdout.strip().split(os.linesep)
-            gpus = f"MB{ad.TEXT} => {bc.FOLD}".join(gpu_memory)
+            gpus = f"MB{colors.WHITE} => {colors.BLUE}".join(gpu_memory)
             epoch_string = "{:.3f}".format(current_epoch)
-            echo += f" => GPU => {bc.FOLD}{gpus}MB{ad.TEXT} => Epoch => {bc.FOLD}{epoch_string}{ad.TEXT}"
+            echo += f" => GPU => {colors.BLUE}{gpus}MB{colors.WHITE} => Epoch => {colors.BLUE}{epoch_string}{colors.WHITE}"
 
         if self.hivemind:
             num_peers = trainer.strategy.num_peers
-            echo = echo + f" => Peers => {bc.FOLD}{num_peers}{ad.TEXT}"
+            echo = echo + f" => Peers => {colors.BLUE}{num_peers}{colors.WHITE}"
 
         self.main_progress_bar.update(1)
         self.main_progress_bar.set_description(echo)
@@ -308,7 +308,7 @@ class AIGProgressBar(ProgressBar):
 
         for text in gen_texts:
             self.main_progress_bar.write(text)
-            self.main_progress_bar.write(f"={bc.FOLD}=>{ad.TEXT}")
+            self.main_progress_bar.write(f"={colors.BLUE}=>{colors.WHITE}")
 
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
