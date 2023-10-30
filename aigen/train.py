@@ -39,7 +39,6 @@ class AIGTrainer(LightningModule):
 
         if hparams["optimizer"] in self.manual_optimizers:
             self.automatic_optimization = False
-            hparams["gradient_clip_val"] = None
         else:
             self.automatic_optimization = True
 
@@ -48,17 +47,18 @@ class AIGTrainer(LightningModule):
     def forward(self, inputs):
         return self.model(**inputs)
 
-    def training_step(self, batch, batch_num):
+    def training_step(self, batch, batch_idx):
         outputs = self({"input_ids": batch, "labels": batch})
-        loss = outputs[0]
 
         if self.hparams["optimizer"] in self.manual_optimizers:
             opt = self.optimizers()
             opt.zero_grad()
+            loss = outputs[0].detach()
+            loss.requires_grad = True
             self.manual_backward(loss, create_graph=True)
         else:
+            loss = outputs[0]
             opt = self.lr_schedulers()
-
         opt.step()
 
         return loss
@@ -82,7 +82,7 @@ class AIGTrainer(LightningModule):
     def on_train_epoch_end(self):
         pass
 
-    def choose_optimizer(self):
+    def select_optimizer(self):
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
@@ -115,8 +115,10 @@ class AIGTrainer(LightningModule):
             optimizer = Lion(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
-                use_gc=False,
-                adanorm=False,
+                betas=(0.9, 0.99),
+                r=0.95,
+                use_gc=True,
+                adanorm=True,
             )
         else:
             optimizer = AdamW(
@@ -129,7 +131,7 @@ class AIGTrainer(LightningModule):
     def configure_optimizers(self):
         "Prepare optimizer"
 
-        optimizer = self.choose_optimizer()
+        optimizer = self.select_optimizer()
 
         scheduler = get_scheduler(
             self.hparams.get("scheduler", "linear"),

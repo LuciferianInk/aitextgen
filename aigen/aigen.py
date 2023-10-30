@@ -581,8 +581,6 @@ class aigen:
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
             precision="32-true",
-            gradient_clip_val=gradient_clip_val,
-            gradient_clip_algorithm="norm",
             logger=loggers if loggers else False,
             callbacks=[
                 AIGProgressBar(
@@ -598,6 +596,10 @@ class aigen:
                 )
             ],
         )
+
+        if optimizer not in ["SophiaH"]:
+            train_params["gradient_clip_val"] = gradient_clip_val
+            train_params["gradient_clip_algorithm"] = "norm"
 
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
