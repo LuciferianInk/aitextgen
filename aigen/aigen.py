@@ -601,9 +601,9 @@ class aigen:
 
         if deepspeed:
             train_params["strategy"] = DeepSpeedStrategy(
+                stage=3,
                 offload_optimizer=True,
                 offload_parameters=True,
-                pin_memory=True,
                 allgather_bucket_size=2e8,
                 reduce_bucket_size=2e8,
             )
