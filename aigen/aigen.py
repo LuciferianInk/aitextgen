@@ -12,7 +12,7 @@ from typing import List, Optional, Union
 import torch
 from accelerate import Accelerator
 from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
-from lightning.pytorch.strategies import StrategyRegistry
+from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.trainer import Trainer
 from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
 from peft.tuners.lora.layer import LoraLayer
@@ -442,6 +442,7 @@ class aigen:
         prune: float = 0.0,
         petals: bool = False,
         hivemind: bool = False,
+        deepspeed: bool = False,
         target_batch_size: int = 8192,
         val_split: float = 0.0,
         val_interval: int = 1000,
@@ -555,6 +556,7 @@ class aigen:
             scheduler=scheduler,
             petals=petals,
             hivemind=hivemind,
+            deepspeed=deepspeed,
             val_split=val_split,
         )
 
@@ -597,6 +599,23 @@ class aigen:
             ],
         )
 
+        if deepspeed:
+            train_params["strategy"] = DeepSpeedStrategy(
+                offload_optimizer=True,
+                offload_parameters=True,
+                pin_memory=True,
+                allgather_bucket_size=2e8,
+                reduce_bucket_size=2e8,
+            )
+        if hivemind:
+            from lightning_hivemind.strategy import HivemindStrategy
+
+            train_params["strategy"] = HivemindStrategy(
+                target_batch_size=target_batch_size, verbose=True
+            )
+        else:
+            train_params["accumulate_grad_batches"] = gradient_accumulation_steps
+
         if optimizer not in ["SophiaH"]:
             train_params["gradient_clip_val"] = gradient_clip_val
             train_params["gradient_clip_algorithm"] = "norm"
@@ -630,15 +649,6 @@ class aigen:
             train_params["callbacks"].append(
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
-
-        if hivemind:
-            from lightning_hivemind.strategy import HivemindStrategy
-
-            train_params["strategy"] = HivemindStrategy(
-                target_batch_size=target_batch_size, verbose=True
-            )
-        else:
-            train_params["accumulate_grad_batches"] = gradient_accumulation_steps
 
         data_module = AIGDataModule(train_data, hparams)
         data_module.setup()

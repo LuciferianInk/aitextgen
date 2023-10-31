@@ -12,6 +12,7 @@ import torchmetrics
 from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import ProgressBar
+from lightning.pytorch.strategies import DeepSpeedStrategy
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -121,11 +122,21 @@ class AIGTrainer(LightningModule):
                 adanorm=True,
             )
         else:
-            optimizer = AdamW(
-                optimizer_grouped_parameters,
-                lr=self.hparams["learning_rate"],
-                eps=self.hparams["adam_epsilon"],
-            )
+            if self.hparams.get("deepspeed"):
+                from deepspeed.ops.adam import DeepSpeedCPUAdam
+
+                optimizer = DeepSpeedCPUAdam(
+                    optimizer_grouped_parameters,
+                    lr=self.hparams["learning_rate"],
+                    eps=self.hparams["adam_epsilon"],
+                    adamw_mode=True,
+                )
+            else:
+                optimizer = AdamW(
+                    optimizer_grouped_parameters,
+                    lr=self.hparams["learning_rate"],
+                    eps=self.hparams["adam_epsilon"],
+                )
         return optimizer
 
     def configure_optimizers(self):
