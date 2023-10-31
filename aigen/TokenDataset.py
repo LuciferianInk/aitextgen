@@ -167,6 +167,7 @@ class TokenDataset(Dataset):
                 padding="max_length",
                 return_overflowing_tokens=True,
                 truncation=True,
+                verbose=True,
                 return_tensors="np",
             )
 

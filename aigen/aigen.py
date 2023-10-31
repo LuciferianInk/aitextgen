@@ -102,27 +102,25 @@ class aigen:
         if precision in [16, 8, 4]:
             qargs["torch_dtype"] = torch.bfloat16
 
-        if precision in [8, 4]:
-            qargs["llm_int8_has_fp16_weight"] = True
-            qargs["llm_int8_threshold"] = 6
-            qargs["llm_int8_skip_modules"] = [
-                "lm_head",
-                "head",
-                "pre_ln",
-                "ln1",
-                "ln2",
-                "ln_1",
-                "ln_2",
-                "ln_f",
-                "ln_out",
-                "input_layernorm",
-                "post_attention_layernorm",
-                "final_layer_norm",
-                "embed_out",
-            ]
-
         if precision == 8:
             qargs["load_in_8bit"] = True
+            qargs["llm_int8_has_fp16_weight"] = False
+            qargs["llm_int8_threshold"] = 6
+            # qargs["llm_int8_skip_modules"] = [
+            #     "lm_head",
+            #     "head",
+            #     "pre_ln",
+            #     "ln1",
+            #     "ln2",
+            #     "ln_1",
+            #     "ln_2",
+            #     "ln_f",
+            #     "ln_out",
+            #     "input_layernorm",
+            #     "post_attention_layernorm",
+            #     "final_layer_norm",
+            #     "embed_out",
+            # ]
 
         if precision == 4:
             qargs["load_in_4bit"] = True
