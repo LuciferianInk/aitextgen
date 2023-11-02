@@ -35,6 +35,7 @@ class TokenDataset(Dataset):
         from_cache: bool = False,
         cache_destination: str = "dataset_cache.tar.gz",
         compress: bool = True,
+        batch_size: int = 10000,
         block_size: int = 1024,
         stride: int = 0,
         tokenized_texts: bool = False,
@@ -91,6 +92,7 @@ class TokenDataset(Dataset):
             eos_token,
             tokenizer,
             text_delim,
+            batch_size,
             block_size,
             stride,
         )
@@ -134,6 +136,7 @@ class TokenDataset(Dataset):
         eos_token: str,
         tokenizer: PreTrainedTokenizer,
         newline: str,
+        batch_size: int = 10000,
         block_size: int = 256,
         stride: int = 0,
     ) -> List[int]:
@@ -160,18 +163,27 @@ class TokenDataset(Dataset):
             else:
                 content = file.read()
 
-            tokenized = tokenizer(
-                content,
-                max_length=block_size,
-                stride=stride,
-                padding="max_length",
-                return_overflowing_tokens=True,
-                truncation=True,
-                verbose=True,
-                return_tensors="np",
-            )
+            batches = [
+                content[i : i + batch_size] for i in range(0, len(content), batch_size)
+            ]
+            tokenized_batches = []
+            with tqdm(total=len(batches)) as pbar:
+                for batch in batches:
+                    tokenized = tokenizer(
+                        batch,
+                        max_length=block_size,
+                        stride=stride,
+                        padding="max_length",
+                        return_overflowing_tokens=True,
+                        truncation=True,
+                        return_tensors="np",
+                    )
+                    tokenized_batches.append(tokenized["input_ids"])
+                    pbar.update(1)
 
-            return tokenized["input_ids"]
+            tokens = np.concatenate(tokenized_batches)
+
+            return tokens
 
 
 def get_lines_in_file(file_path: str, newline: str = None) -> int:
