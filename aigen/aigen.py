@@ -199,6 +199,7 @@ class aigen:
                 padding=False,
                 truncation=False,
                 add_prefix_space=False,
+                trust_remote_code=True,
             )
 
         if adapters and not petals:

@@ -33,7 +33,8 @@ def reset_seed():
 def model_max_length(config):
     """Returns the maximum generation length for the given model."""
     length = (
-        getattr(config, "n_positions", None)
+        getattr(config, "context_length", None)
+        or getattr(config, "n_positions", None)
         or getattr(config, "max_position_embeddings", None)
         or getattr(config, "hidden_size", 2048)
     )
