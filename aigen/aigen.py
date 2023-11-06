@@ -24,6 +24,7 @@ from tqdm.auto import trange
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
     AutoTokenizer,
     BitsAndBytesConfig,
     GenerationConfig,
@@ -200,10 +201,6 @@ class aigen:
             self.tokenizer = AutoTokenizer.from_pretrained(
                 model,
                 cache_dir=cache_dir,
-                padding_side="left",
-                padding=False,
-                truncation=False,
-                add_prefix_space=False,
                 trust_remote_code=True,
             )
 
@@ -301,9 +298,6 @@ class aigen:
                     eos_token=self.eos_token,
                     unk_token=self.unk_token,
                     pad_token=self.pad_token,
-                    verbose=False,
-                    padding_side="left",
-                    add_prefix_space=False,
                 )
                 if not custom_tokenizer:
                     # https://github.com/huggingface/transformers/issues/10202
@@ -490,6 +484,9 @@ class aigen:
         """
 
         self.petals = petals
+
+        if self.precision in [8]:
+            self.model = prepare_model_for_int8_training(self.model)
 
         if num_layers_freeze is not None:
             freeze_layers = True
