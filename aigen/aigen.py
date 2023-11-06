@@ -91,14 +91,18 @@ class aigen:
         adapter_dir: str = "adapters",
         tuning_mode=None,
         pre_seq_len=24,
+        assistant_model=None,
+        assistant_precision=32,
         **kwargs,
     ) -> None:
         self.mode = "transformer"
         self.memory = None
+        self.assistant = None
         self.precision = precision
         self.petals = petals
 
         qargs = dict(torch_dtype=torch.float32)
+
         if precision in [16, 8, 4]:
             qargs["torch_dtype"] = torch.bfloat16
 
@@ -106,27 +110,28 @@ class aigen:
             qargs["load_in_8bit"] = True
             qargs["llm_int8_has_fp16_weight"] = False
             qargs["llm_int8_threshold"] = 6
-            # qargs["llm_int8_skip_modules"] = [
-            #     "lm_head",
-            #     "head",
-            #     "pre_ln",
-            #     "ln1",
-            #     "ln2",
-            #     "ln_1",
-            #     "ln_2",
-            #     "ln_f",
-            #     "ln_out",
-            #     "input_layernorm",
-            #     "post_attention_layernorm",
-            #     "final_layer_norm",
-            #     "embed_out",
-            # ]
 
         if precision == 4:
             qargs["load_in_4bit"] = True
             qargs["bnb_4bit_quant_type"] = "nf4"
             qargs["bnb_4bit_use_double_quant"] = True
             qargs["bnb_4bit_compute_dtype"] = torch.bfloat16
+
+        aargs = dict(torch_dtype=torch.float32)
+
+        if assistant_precision in [16, 8, 4]:
+            aargs["torch_dtype"] = torch.bfloat16
+
+        if assistant_precision == 8:
+            aargs["load_in_8bit"] = True
+            aargs["llm_int8_has_fp16_weight"] = False
+            aargs["llm_int8_threshold"] = 6
+
+        if assistant_precision == 4:
+            aargs["load_in_4bit"] = True
+            aargs["bnb_4bit_quant_type"] = "nf4"
+            aargs["bnb_4bit_use_double_quant"] = True
+            aargs["bnb_4bit_compute_dtype"] = torch.bfloat16
 
         if config:
             # Manually construct a model from scratch
@@ -201,6 +206,16 @@ class aigen:
                 add_prefix_space=False,
                 trust_remote_code=True,
             )
+
+        if assistant_model is not None:
+            logger.info(f"Loading assistant model: {assistant_model}")
+            self.assistant = AutoModelForCausalLM.from_pretrained(
+                assistant_model,
+                cache_dir=cache_dir,
+                trust_remote_code=True,
+                device_map="auto",
+                **aargs,
+            ).to(self.get_device())
 
         if adapters and not petals:
             for adapter in adapters:
@@ -384,7 +399,9 @@ class aigen:
                 output_hidden_states=False,
                 output_attentions=False,
                 output_scores=False,
+                num_return_sequences=1,
                 state=self.memory,
+                assistant_model=self.assistant,
                 **kwargs,
             )
 
