@@ -190,7 +190,10 @@ class aigen:
                 logger.info(f"Loading adapter: {adapter}")
                 if adapters.index(adapter) == 0:
                     self.model = PeftModel.from_pretrained(
-                        self.model, f"{adapter_dir}/{adapter}", adapter_name=adapter
+                        self.model,
+                        f"{adapter_dir}/{adapter}",
+                        adapter_name=adapter,
+                        device_map="auto",
                     )
                 else:
                     self.model.load_adapter(
