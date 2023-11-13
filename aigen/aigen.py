@@ -92,6 +92,7 @@ class aigen:
         adapter_dir: str = "adapters",
         tuning_mode=None,
         pre_seq_len=24,
+        device_map="auto",
         **kwargs,
     ) -> None:
         self.mode = "transformer"
@@ -120,7 +121,15 @@ class aigen:
             logger.info("Constructing model from provided config.")
             if isinstance(config, str):
                 config = AutoConfig.from_pretrained(config)
-            self.model = AutoModelForCausalLM.from_config(config=config)
+            self.model = AutoModelForCausalLM.from_config(
+                config=config,
+                # cache_dir=cache_dir,
+                # trust_remote_code=True,
+                # local_files_only=True if model_folder else False,
+                # device_map="cuda",
+                # **qargs,
+            )
+            self.model.to(self.get_device())
         else:
             if model_folder:
                 # A folder is provided containing pytorch_model.bin and config.json
@@ -148,7 +157,7 @@ class aigen:
                     pre_seq_len=pre_seq_len,
                     tuning_mode=tuning_mode,
                     cache_dir=cache_dir,
-                    device_map="auto",
+                    device_map=device_map,
                     **qargs,
                 )
                 embeddings_path = embeddings_dir + "/prompts.pt"
@@ -175,15 +184,16 @@ class aigen:
                     cache_dir=cache_dir,
                     trust_remote_code=True,
                     local_files_only=True if model_folder else False,
-                    device_map="auto",
+                    device_map=device_map,
                     **qargs,
                 )
-            logger.info(f"Using the tokenizer for {model}.")
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model,
-                cache_dir=cache_dir,
-                trust_remote_code=True,
-            )
+
+        logger.info(f"Using the tokenizer for {model}.")
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model,
+            cache_dir=cache_dir,
+            trust_remote_code=True,
+        )
 
         if adapters and not petals:
             for adapter in adapters:
@@ -193,7 +203,7 @@ class aigen:
                         self.model,
                         f"{adapter_dir}/{adapter}",
                         adapter_name=adapter,
-                        device_map="auto",
+                        device_map=device_map,
                     )
                 else:
                     self.model.load_adapter(
@@ -557,7 +567,7 @@ class aigen:
 
         # if try to use a GPU but no CUDA, use CPU
         if not is_gpu_used:
-            n_gpu = 0
+            n_gpu = 1
 
         train_params = dict(
             accelerator="auto",
