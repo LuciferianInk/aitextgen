@@ -52,7 +52,6 @@ class AIGTrainer(LightningModule):
         return self.model(**inputs)
 
     def training_step(self, batch, batch_idx):
-        print(batch)
         outputs = self({"input_ids": batch, "labels": batch})
 
         if self.hparams["optimizer"] in self.manual_optimizers:
