@@ -11,9 +11,11 @@ from typing import List, Optional, Union
 
 import torch
 from accelerate import Accelerator
+from datasets import load_dataset
 from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.trainer import Trainer
+from lightning.pytorch.utilities import CombinedLoader
 from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
 from peft.tuners.lora.layer import LoraLayer
 from petals import AutoDistributedModelForCausalLM
@@ -653,10 +655,21 @@ class aigen:
         train_split = data_module.train_dataloader()
         val_split = data_module.val_dataloader()
 
+        # streaming_module = StreamingDataModule(
+        #     self.tokenizer, self.get_device(), hparams
+        # )
+        # streaming_train_split = streaming_module.train_dataloader()
+
+        final_train = train_split
+
+        # final_train = CombinedLoader(
+        #     {"a": train_split, "b": streaming_train_split}, mode="min_size"
+        # )
+
         # Wrap the model in a pytorch-lightning module
         train_model = AIGTrainer(
             self.model,
-            train_split,
+            final_train,
             hparams,
             self.tokenizer,
         )
@@ -664,7 +677,7 @@ class aigen:
         self.model.train()
 
         trainer = Trainer(**train_params)
-        trainer.fit(train_model, train_split, val_split)
+        trainer.fit(train_model, final_train, val_split)
 
         if not petals:
             logger.info(f"Saving trained model pytorch_model.bin to {output_dir}")
@@ -723,3 +736,60 @@ class AIGDataModule(LightningDataModule):
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
         )
+
+
+class StreamingDataModule(LightningDataModule):
+    def __init__(self, tokenizer, device, hparams):
+        super().__init__()
+        self.device = device
+        self.tokenizer = tokenizer
+        self.dataset = load_dataset(
+            "monology/pile-uncopyrighted",
+            "all",
+            split="train",
+            streaming=True,
+            cache_dir="/data/pile",
+        )
+        self.dataset.shuffle(seed=42, buffer_size=100)
+
+        # print(next(iter(dataset)))
+        self.batch_size = hparams["batch_size"]
+        self.pin_memory = hparams["pin_memory"]
+        self.num_workers = hparams["num_workers"]
+        # self.val_split = hparams["val_split"]
+        self.train = None
+        # self.val = None
+
+    # def setup(self):
+    #     train_split = 1.0 - self.val_split
+    #     self.train, self.val = torch.utils.data.random_split(
+    #         self.dataset, [train_split, self.val_split]
+    #     )
+
+    def train_dataloader(self):
+        text = next(iter(self.dataset)).get("text")
+        prompt_tensors = self.tokenizer(
+            text=text,
+            padding="max_length",
+            truncation=True,
+            return_overflowing_tokens=True,
+            return_tensors="np",
+        )
+        print(prompt_tensors)
+        input_ids = prompt_tensors["input_ids"]
+        return DataLoader(
+            input_ids,
+            shuffle=True,
+            batch_size=self.batch_size,
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers,
+        )
+
+    # def val_dataloader(self):
+    #     return DataLoader(
+    #         self.val,
+    #         shuffle=False,
+    #         batch_size=self.batch_size,
+    #         pin_memory=self.pin_memory,
+    #         num_workers=self.num_workers,
+    #     )
