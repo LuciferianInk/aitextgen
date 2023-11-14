@@ -760,6 +760,7 @@ class StreamingDataModule(LightningDataModule):
             cache_dir="/data/pile",
         ).shuffle(seed=random.randint(0, 9), buffer_size=100)
 
+        self.content_key = "raw_content"
         self.val_interval = hparams["val_interval"]
         self.block_size = hparams["block_size"]
         self.batch_size = hparams["batch_size"]
@@ -777,7 +778,8 @@ class StreamingDataModule(LightningDataModule):
 
     def train_dataloader(self):
         texts = [
-            text.get("text") for text in islice(iter(self.dataset), self.val_interval)
+            text.get(self.content_key)
+            for text in islice(iter(self.dataset), self.val_interval)
         ]
         prompt_tensors = self.tokenizer(
             text=texts,
