@@ -673,7 +673,7 @@ class aigen:
         # Wrap the model in a pytorch-lightning module
         train_model = AIGTrainer(
             self.model,
-            final_train,
+            train_split,
             hparams,
             self.tokenizer,
         )

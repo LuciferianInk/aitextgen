@@ -36,7 +36,7 @@ class AIGTrainer(LightningModule):
 
         self.model, self.dataset_len, self.tokenizer = (
             model,
-            len(iter(dataset)),
+            len(dataset),
             tokenizer,
         )
         self.manual_optimizers = ["SophiaH"]
