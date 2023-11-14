@@ -6,6 +6,7 @@ import re
 import shutil
 import sys
 from datetime import datetime
+from itertools import islice
 from random import randint
 from typing import List, Optional, Union
 
@@ -439,6 +440,7 @@ class aigen:
         hivemind: bool = False,
         deepspeed: bool = False,
         target_batch_size: int = 8192,
+        block_size: int = 2048,
         val_split: float = 0.0,
         val_interval: int = 1000,
         **kwargs,
@@ -557,6 +559,8 @@ class aigen:
             hivemind=hivemind,
             deepspeed=deepspeed,
             val_split=val_split,
+            val_interval=val_interval,
+            block_size=block_size,
         )
 
         # Begin training
@@ -655,16 +659,16 @@ class aigen:
         train_split = data_module.train_dataloader()
         val_split = data_module.val_dataloader()
 
-        # streaming_module = StreamingDataModule(
-        #     self.tokenizer, self.get_device(), hparams
-        # )
-        # streaming_train_split = streaming_module.train_dataloader()
+        streaming_module = StreamingDataModule(
+            self.tokenizer, self.get_device(), hparams
+        )
+        streaming_train_split = streaming_module.train_dataloader()
 
-        final_train = train_split
+        # final_train = train_split
 
-        # final_train = CombinedLoader(
-        #     {"a": train_split, "b": streaming_train_split}, mode="min_size"
-        # )
+        final_train = CombinedLoader(
+            [train_split, streaming_train_split], mode="min_size"
+        )
 
         # Wrap the model in a pytorch-lightning module
         train_model = AIGTrainer(
@@ -750,9 +754,10 @@ class StreamingDataModule(LightningDataModule):
             streaming=True,
             cache_dir="/data/pile",
         )
-        self.dataset.shuffle(seed=42, buffer_size=100)
+        self.dataset.shuffle(seed=random.randint(0, 9), buffer_size=100)
 
-        # print(next(iter(dataset)))
+        self.val_interval = hparams["val_interval"]
+        self.block_size = hparams["block_size"]
         self.batch_size = hparams["batch_size"]
         self.pin_memory = hparams["pin_memory"]
         self.num_workers = hparams["num_workers"]
@@ -767,15 +772,17 @@ class StreamingDataModule(LightningDataModule):
     #     )
 
     def train_dataloader(self):
-        text = next(iter(self.dataset)).get("text")
+        texts = [
+            text.get("text") for text in islice(iter(self.dataset), self.val_interval)
+        ]
         prompt_tensors = self.tokenizer(
-            text=text,
+            text=texts,
+            max_length=self.block_size,
             padding="max_length",
             truncation=True,
             return_overflowing_tokens=True,
             return_tensors="np",
         )
-        print(prompt_tensors)
         input_ids = prompt_tensors["input_ids"]
         return DataLoader(
             input_ids,

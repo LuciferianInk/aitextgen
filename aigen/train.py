@@ -52,20 +52,25 @@ class AIGTrainer(LightningModule):
         return self.model(**inputs)
 
     def training_step(self, batch, batch_idx):
-        outputs = self({"input_ids": batch, "labels": batch})
+        loss = []
 
-        if self.hparams["optimizer"] in self.manual_optimizers:
-            opt = self.optimizers()
-            opt.zero_grad()
-            loss = outputs[0].detach()
-            loss.requires_grad = True
-            self.manual_backward(loss, create_graph=True)
-        else:
-            loss = outputs[0]
-            opt = self.lr_schedulers()
-        opt.step()
+        random.shuffle(batch)
 
-        return loss
+        for i, sample in enumerate(batch):
+            outputs = self({"input_ids": sample, "labels": sample})
+
+            if self.hparams["optimizer"] in self.manual_optimizers:
+                opt = self.optimizers()
+                opt.zero_grad()
+                loss.append(outputs[0].detach())
+                loss[i].requires_grad = True
+                self.manual_backward(loss[i], create_graph=True)
+            else:
+                loss.append(outputs[0])
+                opt = self.lr_schedulers()
+            opt.step()
+
+        return sum(loss)
 
     def validation_step(self, batch, batch_idx):
         outputs = self({"input_ids": batch, "labels": batch})
