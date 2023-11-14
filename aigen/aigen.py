@@ -10,9 +10,9 @@ from itertools import islice
 from random import randint
 from typing import List, Optional, Union
 
+import datasets
 import torch
 from accelerate import Accelerator
-from datasets import load_dataset
 from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.trainer import Trainer
@@ -43,6 +43,8 @@ from .utils import model_max_length, reset_seed, set_seed
 
 logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
+
+datasets.logging.set_verbosity_info()
 
 STATIC_PATH = resource_filename(__name__, "static")
 
@@ -639,12 +641,13 @@ class aigen:
         if prune > 0.0:
             train_params["callbacks"].append(
                 ModelPruning(
-                    pruning_fn="l1_unstructured",
+                    pruning_fn="random_unstructured",
                     amount=prune,
                     use_global_unstructured=True,
+                    resample_parameters=False,
                     apply_pruning=True,
                     make_pruning_permanent=True,
-                    use_lottery_ticket_hypothesis=False,
+                    use_lottery_ticket_hypothesis=True,
                 )
             )
 
@@ -684,14 +687,14 @@ class aigen:
         trainer.fit(train_model, final_train, val_split)
 
         if not petals:
-            logger.info(f"Saving trained model pytorch_model.bin to {output_dir}")
-            self.model.save_pretrained(output_dir)
+            self.model.save(output_dir)
 
         if seed:
             reset_seed()
 
     def save(self, target_folder: str = os.getcwd()):
         """Saves the model into the specified directory."""
+        logger.info(f"Saving trained model pytorch_model.bin to {target_folder}")
         self.model.save_pretrained(target_folder)
 
     def get_device(self) -> str:
@@ -748,13 +751,14 @@ class StreamingDataModule(LightningDataModule):
         self.device = device
         self.tokenizer = tokenizer
         self.dataset = load_dataset(
-            "monology/pile-uncopyrighted",
-            "all",
+            "togethercomputer/RedPajama-Data-V2",
+            name="default",
+            snapshots=["2023-14"],
+            # languages=["en"],
             split="train",
             streaming=True,
             cache_dir="/data/pile",
-        )
-        self.dataset.shuffle(seed=random.randint(0, 9), buffer_size=100)
+        ).shuffle(seed=random.randint(0, 9), buffer_size=100)
 
         self.val_interval = hparams["val_interval"]
         self.block_size = hparams["block_size"]
