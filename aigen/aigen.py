@@ -750,7 +750,7 @@ class StreamingDataModule(LightningDataModule):
         super().__init__()
         self.device = device
         self.tokenizer = tokenizer
-        self.dataset = load_dataset(
+        self.dataset = datasets.load_dataset(
             "togethercomputer/RedPajama-Data-V2",
             name="default",
             snapshots=["2023-14"],
