@@ -639,10 +639,20 @@ class aigen:
             train_params["strategy"] = "ddp"
 
         if prune > 0.0:
+            modules_to_prune = []
+            for n, m in self.model.named_modules():
+                if isinstance(m, torch.nn.Linear):
+                    modules_to_prune.append(
+                        (
+                            m,
+                            "weight",
+                        )
+                    )
             train_params["callbacks"].append(
                 ModelPruning(
                     pruning_fn="random_unstructured",
                     amount=prune,
+                    parameters_to_prune=list(set(modules_to_prune)),
                     use_global_unstructured=True,
                     resample_parameters=False,
                     apply_pruning=True,
