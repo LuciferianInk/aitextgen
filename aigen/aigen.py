@@ -778,7 +778,7 @@ class StreamingDataset(torch.utils.data.IterableDataset):
             tokenized = self.tokenizer(
                 text=document.get(self.content_key),
                 max_length=self.params["block_size"],
-                stride=32,
+                stride=self.params["block_size"] - 32,
                 padding=False,
                 truncation=True,
                 return_overflowing_tokens=True,
