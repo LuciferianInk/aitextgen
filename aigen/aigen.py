@@ -25,16 +25,16 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-    GenerationConfig,
-    GPT2Config,
-    GPT2LMHeadModel,
-    GPT2TokenizerFast,
-    PreTrainedTokenizerFast,
+  AutoConfig,
+  AutoModelForCausalLM,
+  AutoModelForSeq2SeqLM,
+  AutoTokenizer,
+  BitsAndBytesConfig,
+  GenerationConfig,
+  GPT2Config,
+  GPT2LMHeadModel,
+  GPT2TokenizerFast,
+  PreTrainedTokenizerFast,
 )
 
 from .TokenDataset import TokenDataset
@@ -585,7 +585,7 @@ class aigen:
             val_check_interval=val_interval,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
-            precision="32-true" if self.precision == 32 else "bf16-mixed",
+            precision="32-true",
             logger=loggers if loggers else False,
             callbacks=[
                 AIGProgressBar(
@@ -652,7 +652,7 @@ class aigen:
                     amount=prune,
                     parameters_to_prune=list(set(modules_to_prune)),
                     use_global_unstructured=True,
-                    resample_parameters=False,
+                    resample_parameters=True,
                     apply_pruning=True,
                     make_pruning_permanent=True,
                     use_lottery_ticket_hypothesis=True,
