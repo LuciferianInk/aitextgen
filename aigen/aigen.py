@@ -10,9 +10,9 @@ from itertools import islice
 from random import randint
 from typing import List, Optional, Union
 
-import datasets
 import torch
 from accelerate import Accelerator
+from datasets import load_dataset
 from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.trainer import Trainer
@@ -43,8 +43,6 @@ from .utils import model_max_length, reset_seed, set_seed
 
 logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
-
-datasets.logging.set_verbosity_info()
 
 STATIC_PATH = resource_filename(__name__, "static")
 
@@ -759,7 +757,7 @@ class StreamingDataset(torch.utils.data.IterableDataset):
         self.tokenizer = tokenizer
         self.content_key = "raw_content"
         self.block_size = hparams["block_size"]
-        self.dataset = datasets.load_dataset(
+        self.dataset = load_dataset(
             "togethercomputer/RedPajama-Data-V2",
             name="default",
             snapshots=["2023-14"],
