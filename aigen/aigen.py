@@ -85,7 +85,7 @@ class aigen:
         schema_return: List[str] = None,
         cache_dir: str = "aigen",
         embeddings_dir: str = "",
-        precision: int = None,
+        precision: int = 32,
         gradient_checkpointing: bool = False,
         petals: bool = False,
         bos_token: str = None,
@@ -129,9 +129,6 @@ class aigen:
             for k, v in qargs.items():
                 setattr(config, k, v)
             self.model = AutoModelForCausalLM.from_config(config)
-            if precision == 16:
-                self.model.half()
-            self.model.to(self.get_device())
         else:
             if model_folder:
                 # A folder is provided containing pytorch_model.bin and config.json
@@ -588,7 +585,7 @@ class aigen:
             val_check_interval=val_interval,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
-            precision="32-true",
+            precision="32-true" if self.precision == 32 else "bf16-mixed",
             logger=loggers if loggers else False,
             callbacks=[
                 AIGProgressBar(
