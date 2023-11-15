@@ -368,6 +368,8 @@ class aigen:
         #     **kwargs,
         # )
 
+        # print(self.model.forward(input_ids))
+
         while True:
             outputs = self.model.generate(
                 inputs=input_ids,
@@ -753,10 +755,10 @@ class AIGDataModule(LightningDataModule):
 
 
 class StreamingDataset(torch.utils.data.IterableDataset):
-    def __init__(self, tokenizer, hparams):
+    def __init__(self, tokenizer, params):
         self.tokenizer = tokenizer
         self.content_key = "raw_content"
-        self.block_size = hparams["block_size"]
+        self.params = params
         self.dataset = load_dataset(
             "togethercomputer/RedPajama-Data-V2",
             name="default",
@@ -775,8 +777,9 @@ class StreamingDataset(torch.utils.data.IterableDataset):
         for document in self.dataset:
             tokenized = self.tokenizer(
                 text=document.get(self.content_key),
-                max_length=self.block_size,
-                padding="max_length",
+                max_length=self.params["block_size"],
+                stride=32,
+                padding=False,
                 truncation=True,
                 return_overflowing_tokens=True,
                 return_tensors="np",
@@ -790,16 +793,13 @@ class StreamingDataModule(LightningDataModule):
         self.iterable = None
         self.tokenizer = tokenizer
         self.params = hparams
-        self.batch_size = hparams["batch_size"]
-        self.pin_memory = hparams["pin_memory"]
-        self.num_workers = hparams["num_workers"]
 
     def setup(self, stage=None):
-        self.iterable = StreamingDataset(tokenizer=self.tokenizer, hparams=self.params)
+        self.iterable = StreamingDataset(tokenizer=self.tokenizer, params=self.params)
 
     def train_dataloader(self):
         return DataLoader(
             self.iterable,
-            batch_size=self.batch_size,
+            batch_size=self.params["batch_size"],
             pin_memory=False,
         )
