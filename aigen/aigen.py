@@ -673,11 +673,10 @@ class aigen:
         train_split = data_module.train_dataloader()
         val_split = data_module.val_dataloader()
 
-        final_train = train_split
+        final_train = [train_split]
         if supplement:
-            streaming_module = StreamingDataModule(
-                self.tokenizer, self.get_device(), hparams
-            )
+            streaming_module = StreamingDataModule(self.tokenizer, hparams)
+            streaming_module.setup()
             streaming_train_split = streaming_module.train_dataloader()
             final_train = CombinedLoader(
                 [train_split, streaming_train_split], mode="min_size"
@@ -697,7 +696,7 @@ class aigen:
         trainer.fit(train_model, final_train, val_split)
 
         if not petals:
-            self.model.save(output_dir)
+            self.save(output_dir)
 
         if seed:
             reset_seed()
@@ -755,11 +754,11 @@ class AIGDataModule(LightningDataModule):
         )
 
 
-class StreamingDataModule(LightningDataModule):
-    def __init__(self, tokenizer, device, hparams):
-        super().__init__()
-        self.device = device
+class StreamingDataset(torch.utils.data.IterableDataset):
+    def __init__(self, tokenizer, hparams):
         self.tokenizer = tokenizer
+        self.content_key = "raw_content"
+        self.block_size = hparams["block_size"]
         self.dataset = datasets.load_dataset(
             "togethercomputer/RedPajama-Data-V2",
             name="default",
@@ -768,51 +767,41 @@ class StreamingDataModule(LightningDataModule):
             split="train",
             streaming=True,
             cache_dir="/data/pile",
-        ).shuffle(seed=random.randint(0, 9), buffer_size=100)
+        )
 
-        self.content_key = "raw_content"
-        self.val_interval = hparams["val_interval"]
-        self.block_size = hparams["block_size"]
+    def __iter__(self):
+        self.dataset = self.dataset.shuffle(
+            seed=random.randint(0, 2**31), buffer_size=100
+        )
+
+        for document in self.dataset:
+            tokenized = self.tokenizer(
+                text=document.get(self.content_key),
+                max_length=self.block_size,
+                padding="max_length",
+                truncation=True,
+                return_overflowing_tokens=True,
+                return_tensors="np",
+            )["input_ids"]
+            yield random.choice(tokenized)
+
+
+class StreamingDataModule(LightningDataModule):
+    def __init__(self, tokenizer, hparams):
+        super().__init__()
+        self.iterable = None
+        self.tokenizer = tokenizer
+        self.params = hparams
         self.batch_size = hparams["batch_size"]
         self.pin_memory = hparams["pin_memory"]
         self.num_workers = hparams["num_workers"]
-        # self.val_split = hparams["val_split"]
-        self.train = None
-        # self.val = None
 
-    # def setup(self):
-    #     train_split = 1.0 - self.val_split
-    #     self.train, self.val = torch.utils.data.random_split(
-    #         self.dataset, [train_split, self.val_split]
-    #     )
+    def setup(self, stage=None):
+        self.iterable = StreamingDataset(tokenizer=self.tokenizer, hparams=self.params)
 
     def train_dataloader(self):
-        texts = [
-            text.get(self.content_key)
-            for text in islice(iter(self.dataset), self.val_interval)
-        ]
-        prompt_tensors = self.tokenizer(
-            text=texts,
-            max_length=self.block_size,
-            padding="max_length",
-            truncation=True,
-            return_overflowing_tokens=True,
-            return_tensors="np",
-        )
-        input_ids = prompt_tensors["input_ids"]
         return DataLoader(
-            input_ids,
-            shuffle=True,
+            self.iterable,
             batch_size=self.batch_size,
-            pin_memory=self.pin_memory,
-            num_workers=self.num_workers,
+            pin_memory=False,
         )
-
-    # def val_dataloader(self):
-    #     return DataLoader(
-    #         self.val,
-    #         shuffle=False,
-    #         batch_size=self.batch_size,
-    #         pin_memory=self.pin_memory,
-    #         num_workers=self.num_workers,
-    #     )

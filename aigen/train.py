@@ -54,8 +54,6 @@ class AIGTrainer(LightningModule):
     def training_step(self, batch, batch_idx):
         loss = []
 
-        random.shuffle(batch)
-
         for i, sample in enumerate(batch):
             outputs = self({"input_ids": sample, "labels": sample})
 
