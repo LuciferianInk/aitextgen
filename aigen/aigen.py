@@ -650,7 +650,7 @@ class aigen:
         if prune > 0.0:
             modules_to_prune = []
             for n, m in self.model.named_modules():
-                if isinstance(m, torch.nn.Linear):
+                if isinstance(m, torch.nn.Embedding) or isinstance(m, torch.nn.Linear):
                     modules_to_prune.append(
                         (
                             m,
@@ -667,6 +667,8 @@ class aigen:
                     apply_pruning=True,
                     make_pruning_permanent=True,
                     use_lottery_ticket_hypothesis=True,
+                    prune_on_train_epoch_end=False,  # Prune on validation epoch end.
+                    verbose=1,  # 0 to disable, 1 to log overall sparsity, 2 to log per-layer sparsity
                 )
             )
 
@@ -717,6 +719,9 @@ class aigen:
     def get_device(self) -> str:
         """Getter for the current device where the model is located."""
         return self.model.device.type
+
+    def get_total_params(self) -> int:
+        return int(sum(p.numel() for p in self.model.parameters()))
 
     # This controls the output of the aigen object, when printed to console.
     def __repr__(self) -> str:
@@ -779,7 +784,7 @@ class StreamingDataset(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(
-            seed=random.randint(0, 2**31), buffer_size=100
+            seed=random.randint(0, 2**31), buffer_size=10_000
         )
 
         for document in shuffled:

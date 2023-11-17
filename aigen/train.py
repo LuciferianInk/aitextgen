@@ -274,7 +274,12 @@ class AIGProgressBar(ProgressBar):
                 self.freeze_layers(lm)
 
         lm.logger.experiment.add_scalars(
-            "vtx", {"train_loss": current_loss, "epoch": current_epoch}, lm.global_step
+            "vtx",
+            {
+                "train_loss": current_loss,
+                "epoch": current_epoch,
+            },
+            lm.global_step,
         )
 
         color = colors.GREEN
