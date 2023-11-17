@@ -768,11 +768,11 @@ class StreamingDataset(torch.utils.data.IterableDataset):
         )
 
     def __iter__(self):
-        self.dataset = self.dataset.shuffle(
+        shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31), buffer_size=100
         )
 
-        for document in self.dataset:
+        for document in shuffled:
             tokenized = self.tokenizer(
                 text=document.get(self.content_key),
                 max_length=self.params["block_size"],
