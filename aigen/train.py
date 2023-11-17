@@ -82,12 +82,7 @@ class AIGTrainer(LightningModule):
         perplexity = torch.exp(loss)
         self.logger.experiment.add_scalars(
             "vtx",
-            {"val_loss": float(loss)},
-            self.global_step,
-        )
-        self.logger.experiment.add_scalars(
-            "vtx",
-            {"val_ppl": float(perplexity)},
+            {"val_loss": float(loss), "val_ppl": float(perplexity)},
             self.global_step,
         )
         return loss
