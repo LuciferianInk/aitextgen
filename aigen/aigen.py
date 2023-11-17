@@ -648,6 +648,15 @@ class aigen:
             train_params["strategy"] = "ddp"
 
         if prune > 0.0:
+            # class CustomPruning(ModelPruning):
+            #     def __init__(self, **kwargs):
+            #         super().__init__(**kwargs)
+
+            #     def apply_pruning(self, amount: Union[int, float]) -> None:
+            #         super().apply_pruning(amount)
+            #         for module, name in self._parameters_to_prune:
+            #             self.make_pruning_permanent(module)
+
             modules_to_prune = []
             for n, m in self.model.named_modules():
                 if isinstance(m, torch.nn.Embedding) or isinstance(m, torch.nn.Linear):
