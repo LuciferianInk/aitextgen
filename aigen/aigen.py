@@ -335,15 +335,19 @@ class aigen:
             prompt_tensors["input_ids"].to(self.get_device()) if prompt else None
         )
 
-        if prepend_bos is None:
-            prepend_bos = getattr(self.model.config, "line_by_line", None)
+        attention_mask = (
+            prompt_tensors["attention_mask"].to(self.get_device()) if prompt else None
+        )
 
-        if prepend_bos:
-            bos = torch.tensor([[self.tokenizer.bos_token_id]]).to(self.get_device())
-            if prompt:
-                input_ids = torch.cat((bos, input_ids), dim=1)
-            else:
-                input_ids = bos
+        # if prepend_bos is None:
+        #     prepend_bos = getattr(self.model.config, "line_by_line", None)
+
+        # if prepend_bos:
+        #     bos = torch.tensor([[self.tokenizer.bos_token_id]]).to(self.get_device())
+        #     if prompt:
+        #         input_ids = torch.cat((bos, input_ids), dim=1)
+        #     else:
+        #         input_ids = bos
 
         if seed:
             set_seed(seed)
@@ -371,6 +375,7 @@ class aigen:
         while True:
             outputs = self.model.generate(
                 inputs=input_ids,
+                attention_mask=attention_mask,
                 # generation_config=config,
                 do_sample=do_sample,
                 max_new_tokens=max_new_tokens,
