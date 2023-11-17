@@ -25,16 +25,16 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers import (
-  AutoConfig,
-  AutoModelForCausalLM,
-  AutoModelForSeq2SeqLM,
-  AutoTokenizer,
-  BitsAndBytesConfig,
-  GenerationConfig,
-  GPT2Config,
-  GPT2LMHeadModel,
-  GPT2TokenizerFast,
-  PreTrainedTokenizerFast,
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+    GenerationConfig,
+    GPT2Config,
+    GPT2LMHeadModel,
+    GPT2TokenizerFast,
+    PreTrainedTokenizerFast,
 )
 
 from .TokenDataset import TokenDataset
@@ -134,13 +134,14 @@ class aigen:
                 # A folder is provided containing pytorch_model.bin and config.json
                 assert os.path.exists(
                     os.path.join(model_folder, "pytorch_model.bin")
-                ), f"There is no pytorch_model.bin in /{model_folder}."
+                ) or os.path.exists(
+                    os.path.join(model_folder, "model.safetensors")
+                ), f"There is no pytorch_model.bin or model.safetensors file found in {model_folder}."
                 assert os.path.exists(
                     os.path.join(model_folder, "config.json")
-                ), f"There is no config.json in /{model_folder}."
-
+                ), f"There is no config.json in {model_folder}."
                 logger.info(
-                    f"Loading model from provided weights and config in /{model_folder}."
+                    f"Loading model from provided weights and config in {model_folder}."
                 )
             else:
                 # Download and cache model from Huggingface
