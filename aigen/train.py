@@ -68,6 +68,12 @@ class AIGTrainer(LightningModule):
                 opt = self.lr_schedulers()
             opt.step()
 
+        self.logger.experiment.add_scalars(
+            "vtx",
+            {"lr": float(self.trainer.optimizers[0].param_groups[0]["lr"])},
+            self.global_step,
+        )
+
         return sum(loss)
 
     def validation_step(self, batch, batch_idx):

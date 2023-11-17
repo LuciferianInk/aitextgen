@@ -13,7 +13,11 @@ from typing import List, Optional, Union
 import torch
 from accelerate import Accelerator
 from datasets import load_dataset
-from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
+from lightning.pytorch.callbacks import (
+    LearningRateMonitor,
+    ModelPruning,
+    StochasticWeightAveraging,
+)
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
@@ -604,7 +608,8 @@ class aigen:
                     num_layers_freeze,
                     petals,
                     hivemind,
-                )
+                ),
+                LearningRateMonitor(logging_interval="step"),
             ],
         )
 
