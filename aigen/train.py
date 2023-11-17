@@ -56,17 +56,20 @@ class AIGTrainer(LightningModule):
 
         for i, sample in enumerate(batch):
             outputs = self({"input_ids": sample, "labels": sample})
+            loss.append(outputs[0])
 
-            if self.hparams["optimizer"] in self.manual_optimizers:
-                opt = self.optimizers()
-                opt.zero_grad()
-                loss.append(outputs[0].detach())
-                loss[i].requires_grad = True
-                self.manual_backward(loss[i], create_graph=True)
-            else:
-                loss.append(outputs[0])
-                opt = self.lr_schedulers()
-            opt.step()
+        total_loss = sum(loss)
+
+        if self.hparams["optimizer"] in self.manual_optimizers:
+            opt = self.optimizers()
+            opt.zero_grad()
+            # loss.append(outputs[0].detach())
+            # loss[i].requires_grad = True
+            self.manual_backward(total_loss, create_graph=True)
+        else:
+            opt = self.lr_schedulers()
+
+        opt.step()
 
         self.logger.experiment.add_scalars(
             "vtx",
@@ -74,7 +77,7 @@ class AIGTrainer(LightningModule):
             self.global_step,
         )
 
-        return sum(loss)
+        return total_loss
 
     def validation_step(self, batch, batch_idx):
         outputs = self({"input_ids": batch, "labels": batch})
