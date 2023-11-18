@@ -442,7 +442,7 @@ class aigen:
         num_workers: int = None,
         benchmark: bool = True,
         num_layers_freeze: int = None,
-        scheduler: str = "get_linear_schedule_with_warmup",
+        scheduler: str = "linear",
         num_cycles=None,
         prune: float = 0.0,
         petals: bool = False,
