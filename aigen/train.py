@@ -170,9 +170,6 @@ class AIGTrainer(LightningModule):
                 num_training_steps=self.hparams["num_steps"],
             )
 
-        print(schedule)
-        print(scheduler)
-
         return [optimizer], [scheduler]
 
 
