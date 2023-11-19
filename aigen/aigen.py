@@ -441,7 +441,7 @@ class aigen:
         batch_size: int = 1,
         num_workers: int = None,
         benchmark: bool = True,
-        num_layers_freeze: int = None,
+        num_layers_freeze: int = 0,
         scheduler: str = "linear",
         num_cycles=None,
         prune: float = 0.0,
@@ -485,9 +485,6 @@ class aigen:
         if self.precision in [8]:
             self.model = prepare_model_for_int8_training(self.model)
 
-        if num_layers_freeze is not None:
-            freeze_layers = True
-
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -521,7 +518,8 @@ class aigen:
 
         setattr(self.model.config, "line_by_line", train_data.line_by_line)
 
-        if freeze_layers:
+        freeze_layers = False
+        if num_layers_freeze > 0:
             logger.info("Layer freezing enabled for model training.")
             freeze_layers = True
             if num_layers_freeze:
