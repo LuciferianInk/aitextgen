@@ -155,19 +155,25 @@ class AIGTrainer(LightningModule):
         optimizer = self.select_optimizer()
 
         schedule = self.hparams.get("scheduler", "linear")
+        num_warmup_steps = (
+            self.hparams.get("warmup_steps", 0) * self.trainer.accumulate_grad_batches
+        )
+        num_training_steps = (
+            self.hparams["num_steps"] * self.trainer.accumulate_grad_batches
+        )
         if schedule in ["cosine_with_restarts"]:
             scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
                 optimizer,
-                num_warmup_steps=self.hparams.get("warmup_steps", 0),
-                num_training_steps=self.hparams["num_steps"],
+                num_warmup_steps=num_warmup_steps,
+                num_training_steps=num_training_steps,
                 num_cycles=self.hparams["num_cycles"],
             )
         else:
             scheduler = get_scheduler(
                 schedule,
                 optimizer,
-                num_warmup_steps=self.hparams.get("warmup_steps", 0),
-                num_training_steps=self.hparams["num_steps"],
+                num_warmup_steps=num_warmup_steps,
+                num_training_steps=num_training_steps,
             )
 
         return [optimizer], [scheduler]
