@@ -131,6 +131,15 @@ class AIGTrainer(LightningModule):
                 use_gc=True,
                 adanorm=True,
             )
+        elif self.hparams["optimizer"] == "AdaBelief":
+            AdaBelief = getattr(pytorch_optimizer, "AdaBelief")
+            optimizer = AdaBelief(
+                optimizer_grouped_parameters,
+                lr=self.hparams["learning_rate"],
+                betas=(0.9, 0.999),
+                r=0.95,
+                adanorm=False,
+            )
         else:
             if self.hparams.get("deepspeed"):
                 from deepspeed.ops.adam import DeepSpeedCPUAdam
