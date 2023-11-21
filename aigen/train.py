@@ -138,7 +138,7 @@ class AIGTrainer(LightningModule):
                 lr=self.hparams["learning_rate"],
                 betas=(0.9, 0.999),
                 r=0.95,
-                adanorm=False,
+                rectify=True,
             )
         else:
             if self.hparams.get("deepspeed"):
