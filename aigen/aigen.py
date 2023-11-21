@@ -725,7 +725,7 @@ class aigen:
 
     def get_device(self) -> str:
         """Getter for the current device where the model is located."""
-        return self.model.device.type
+        return self.model.device
 
     def get_total_params(self) -> int:
         return int(sum(p.numel() for p in self.model.parameters()))
