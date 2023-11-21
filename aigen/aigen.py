@@ -613,8 +613,8 @@ class aigen:
             )
         if strategy is not None:
             train_params["strategy"] = strategy
-        else:
-            train_params["accumulate_grad_batches"] = gradient_accumulation_steps
+
+        train_params["accumulate_grad_batches"] = gradient_accumulation_steps
 
         if optimizer not in ["SophiaH"]:
             train_params["gradient_clip_val"] = gradient_clip_val
@@ -630,8 +630,8 @@ class aigen:
         if is_gpu_used and benchmark:
             train_params["benchmark"] = True
 
-        if n_gpu > 1:
-            train_params["strategy"] = "ddp"
+        # if n_gpu > 1:
+        #     train_params["strategy"] = "ddp"
 
         if prune > 0.0:
             # class CustomPruning(ModelPruning):
@@ -672,7 +672,7 @@ class aigen:
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
 
-        data_module = AIGDataModule(train_data, hparams)
+        data_module = AIGDataModule(self.get_device(), train_data, hparams)
         data_module.setup()
 
         train_split = data_module.train_dataloader()
@@ -727,8 +727,9 @@ class aigen:
 
 
 class AIGDataModule(LightningDataModule):
-    def __init__(self, dataset, hparams):
+    def __init__(self, device, dataset, hparams):
         super().__init__()
+        self.device = device
         self.dataset = dataset
         self.batch_size = hparams["batch_size"]
         self.pin_memory = hparams["pin_memory"]
@@ -742,6 +743,10 @@ class AIGDataModule(LightningDataModule):
         self.train, self.val = torch.utils.data.random_split(
             self.dataset, [train_split, self.val_split]
         )
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        batch = super().transfer_batch_to_device(batch, self.device, dataloader_idx)
+        return batch
 
     def train_dataloader(self):
         return DataLoader(
@@ -804,6 +809,10 @@ class StreamingDataModule(LightningDataModule):
 
     def setup(self, stage=None):
         self.iterable = StreamingDataset(tokenizer=self.tokenizer, params=self.params)
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        batch = super().transfer_batch_to_device(batch, self.device, dataloader_idx)
+        return batch
 
     def train_dataloader(self):
         return DataLoader(
