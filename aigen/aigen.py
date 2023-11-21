@@ -446,13 +446,12 @@ class aigen:
         num_cycles=None,
         prune: float = 0.0,
         petals: bool = False,
-        hivemind: bool = False,
         deepspeed: bool = False,
-        target_batch_size: int = 8192,
         block_size: int = 2048,
         val_split: float = 0.0,
         val_interval: int = 1000,
         supplement: bool = False,
+        strategy=None,
         **kwargs,
     ) -> None:
         """
@@ -564,7 +563,6 @@ class aigen:
             scheduler=scheduler,
             num_cycles=num_cycles,
             petals=petals,
-            hivemind=hivemind,
             deepspeed=deepspeed,
             val_split=val_split,
             val_interval=val_interval,
@@ -575,19 +573,14 @@ class aigen:
         if seed:
             set_seed(seed)
 
-        if os.path.exists(output_dir) and "pytorch_model.bin" in os.listdir(output_dir):
-            logger.warning(
-                f"pytorch_model.bin already exists in /{output_dir} and will be overwritten!"
-            )
-
         # if try to use a GPU but no CUDA, use CPU
-        if not is_gpu_used:
-            n_gpu = 1
+        # if not is_gpu_used:
+        #     n_gpu = 1
 
         train_params = dict(
             accelerator="auto",
             strategy="auto",
-            devices=n_gpu,
+            devices=[self.get_device().index],
             max_steps=num_steps,
             max_epochs=-1,
             val_check_interval=val_interval,
@@ -605,7 +598,6 @@ class aigen:
                     freeze_layers,
                     num_layers_freeze,
                     petals,
-                    hivemind,
                 ),
                 LearningRateMonitor(logging_interval="step"),
             ],
@@ -619,12 +611,8 @@ class aigen:
                 allgather_bucket_size=2e8,
                 reduce_bucket_size=2e8,
             )
-        if hivemind:
-            from lightning_hivemind.strategy import HivemindStrategy
-
-            train_params["strategy"] = HivemindStrategy(
-                target_batch_size=target_batch_size, verbose=True
-            )
+        if strategy is not None:
+            train_params["strategy"] = strategy
         else:
             train_params["accumulate_grad_batches"] = gradient_accumulation_steps
 

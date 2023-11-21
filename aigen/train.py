@@ -201,7 +201,6 @@ class AIGProgressBar(ProgressBar):
         train_transformers_only,
         num_layers_freeze,
         petals,
-        hivemind,
     ):
         super().__init__()
         self.enabled = True
@@ -216,7 +215,6 @@ class AIGProgressBar(ProgressBar):
         self.train_transformers_only = train_transformers_only
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
-        self.hivemind = hivemind
 
     @property
     def save_every_check(self):
@@ -332,7 +330,7 @@ class AIGProgressBar(ProgressBar):
             epoch_string = "{:.3f}".format(current_epoch)
             echo += f" => GPU => {colors.BLUE}{gpus}MB{colors.WHITE} => Epoch => {colors.BLUE}{epoch_string}{colors.WHITE}"
 
-        if self.hivemind:
+        if hasattr(trainer.strategy, "num_peers"):
             num_peers = trainer.strategy.num_peers
             echo = echo + f" => Peers => {colors.BLUE}{num_peers}{colors.WHITE}"
 
