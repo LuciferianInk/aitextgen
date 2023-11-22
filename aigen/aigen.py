@@ -25,16 +25,16 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-    GenerationConfig,
-    GPT2Config,
-    GPT2LMHeadModel,
-    GPT2TokenizerFast,
-    PreTrainedTokenizerFast,
+  AutoConfig,
+  AutoModelForCausalLM,
+  AutoModelForSeq2SeqLM,
+  AutoTokenizer,
+  BitsAndBytesConfig,
+  GenerationConfig,
+  GPT2Config,
+  GPT2LMHeadModel,
+  GPT2TokenizerFast,
+  PreTrainedTokenizerFast,
 )
 
 from .TokenDataset import TokenDataset
