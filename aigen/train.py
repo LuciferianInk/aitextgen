@@ -140,6 +140,14 @@ class AIGTrainer(LightningModule):
                 r=0.95,
                 rectify=True,
             )
+        elif self.hparams["optimizer"] == "Ranger21":
+            Ranger21 = getattr(pytorch_optimizer, "Ranger21")
+            optimizer = Ranger21(
+                optimizer_grouped_parameters,
+                lr=self.hparams["learning_rate"],
+                lookahead_merge_time=5,
+                num_iterations=1,
+            )
         else:
             if self.hparams.get("deepspeed"):
                 from deepspeed.ops.adam import DeepSpeedCPUAdam

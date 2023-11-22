@@ -242,52 +242,52 @@ class aigen:
             self.model.gradient_checkpointing_enable()
             setattr(self.model.config, "use_cache", None if petals else False)
 
-        if self.tokenizer is None:
-            # Update tokenizer settings (if not set already)
-            args = locals()
-            custom_tokenizer = False
-            for attr in [
-                "vocab_file",
-                "merges_file",
-                "tokenizer_file",
-                "bos_token",
-                "eos_token",
-                "unk_token",
-            ]:
-                if args[attr] is not None:
-                    custom_tokenizer = True
-                    setattr(self, attr, args[attr])
+        # if self.tokenizer is None:
+        #     # Update tokenizer settings (if not set already)
+        #     args = locals()
+        #     custom_tokenizer = False
+        #     for attr in [
+        #         "vocab_file",
+        #         "merges_file",
+        #         "tokenizer_file",
+        #         "bos_token",
+        #         "eos_token",
+        #         "unk_token",
+        #     ]:
+        #         if args[attr] is not None:
+        #             custom_tokenizer = True
+        #             setattr(self, attr, args[attr])
 
-            if custom_tokenizer:
-                logger.info("Using a custom tokenizer.")
-            else:
-                logger.info("Using the default tokenizer.")
+        #     if custom_tokenizer:
+        #         logger.info("Using a custom tokenizer.")
+        #     else:
+        #         logger.info("Using the default tokenizer.")
 
-            if tokenizer_file:
-                # load the custom GPT-2 tokenizer from a serialized tokenizer.
-                # GPT-Neo uses the GPT-2 tokenizer.
-                self.tokenizer = PreTrainedTokenizerFast(
-                    tokenizer_file=tokenizer_file,
-                    bos_token=self.bos_token,
-                    eos_token=self.eos_token,
-                    unk_token=self.unk_token,
-                    pad_token=self.pad_token,
-                    padding_side="left",
-                )
-            else:
-                self.tokenizer = GPT2TokenizerFast(
-                    vocab_file=self.vocab_file,
-                    merges_file=self.merges_file,
-                    bos_token=self.bos_token,
-                    eos_token=self.eos_token,
-                    unk_token=self.unk_token,
-                    pad_token=self.pad_token,
-                )
-                if not custom_tokenizer:
-                    # https://github.com/huggingface/transformers/issues/10202
-                    self.tokenizer.add_special_tokens(
-                        {"additional_special_tokens": ["<|endoftext|>"]}
-                    )
+        #     if tokenizer_file:
+        #         # load the custom GPT-2 tokenizer from a serialized tokenizer.
+        #         # GPT-Neo uses the GPT-2 tokenizer.
+        #         self.tokenizer = PreTrainedTokenizerFast(
+        #             tokenizer_file=tokenizer_file,
+        #             bos_token=self.bos_token,
+        #             eos_token=self.eos_token,
+        #             unk_token=self.unk_token,
+        #             pad_token=self.pad_token,
+        #             padding_side="left",
+        #         )
+        #     else:
+        #         self.tokenizer = GPT2TokenizerFast(
+        #             vocab_file=self.vocab_file,
+        #             merges_file=self.merges_file,
+        #             bos_token=self.bos_token,
+        #             eos_token=self.eos_token,
+        #             unk_token=self.unk_token,
+        #             pad_token=self.pad_token,
+        #         )
+        #         if not custom_tokenizer:
+        #             # https://github.com/huggingface/transformers/issues/10202
+        #             self.tokenizer.add_special_tokens(
+        #                 {"additional_special_tokens": ["<|endoftext|>"]}
+        #             )
 
     def generate(
         self,
@@ -769,12 +769,14 @@ class AIGDataModule(LightningDataModule):
 class StreamingDataset(torch.utils.data.IterableDataset):
     def __init__(self, tokenizer, params):
         self.tokenizer = tokenizer
-        self.content_key = "raw_content"
+        # self.content_key = "raw_content"
+        self.content_key = "content"
         self.params = params
         self.dataset = load_dataset(
-            "togethercomputer/RedPajama-Data-V2",
-            name="default",
-            snapshots=["2023-14"],
+            "tiiuae/falcon-refinedweb",
+            # "togethercomputer/RedPajama-Data-V2",
+            # name="default",
+            # snapshots=["2023-14"],
             # languages=["en"],
             split="train",
             streaming=True,
