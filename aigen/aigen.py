@@ -448,6 +448,7 @@ class aigen:
         val_interval: int = 1000,
         supplement: bool = False,
         strategy=None,
+        devices=None,
         **kwargs,
     ) -> None:
         """
@@ -573,10 +574,13 @@ class aigen:
         # if not is_gpu_used:
         #     n_gpu = 1
 
+        if devices is None:
+            devices = [self.get_device().index]
+
         train_params = dict(
             accelerator="auto",
             strategy="auto",
-            devices=[self.get_device().index],
+            devices=devices,
             max_steps=num_steps,
             max_epochs=-1,
             val_check_interval=val_interval,
