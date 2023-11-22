@@ -13,7 +13,7 @@ from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import ProgressBar
 from lightning.pytorch.strategies import DeepSpeedStrategy
-from torch.optim import AdamW
+from torch.optim import AdamW, RMSprop
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import (
@@ -147,6 +147,15 @@ class AIGTrainer(LightningModule):
                 lr=self.hparams["learning_rate"],
                 lookahead_merge_time=5,
                 num_iterations=1,
+            )
+        elif self.hparams["optimizer"] == "RMSProp":
+            optimizer = RMSprop(
+                optimizer_grouped_parameters,
+                lr=self.hparams["learning_rate"],
+                momentum=self.hparams.get("momentum", 0),
+                alpha=0.999,
+                maximize=False,
+                centered=False,
             )
         else:
             if self.hparams.get("deepspeed"):

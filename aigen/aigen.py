@@ -25,16 +25,16 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers import (
-  AutoConfig,
-  AutoModelForCausalLM,
-  AutoModelForSeq2SeqLM,
-  AutoTokenizer,
-  BitsAndBytesConfig,
-  GenerationConfig,
-  GPT2Config,
-  GPT2LMHeadModel,
-  GPT2TokenizerFast,
-  PreTrainedTokenizerFast,
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+    GenerationConfig,
+    GPT2Config,
+    GPT2LMHeadModel,
+    GPT2TokenizerFast,
+    PreTrainedTokenizerFast,
 )
 
 from .TokenDataset import TokenDataset
@@ -424,6 +424,7 @@ class aigen:
         seed: int = None,
         optimizer: str = "AdamW",
         learning_rate: float = 1e-3,
+        momentum: float = 0,
         swa_learning_rate: float = None,
         update_period: int = 10,
         weight_decay: float = 0.05,
@@ -546,6 +547,7 @@ class aigen:
         hparams = dict(
             optimizer=optimizer,
             learning_rate=learning_rate,
+            momentum=momentum,
             update_period=update_period,
             weight_decay=weight_decay,
             adam_epsilon=adam_epsilon,
