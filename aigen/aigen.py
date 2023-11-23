@@ -124,7 +124,7 @@ class aigen:
             # Manually construct a model from scratch
             logger.info("Constructing model from provided config.")
             if isinstance(config, str):
-                config = AutoConfig.from_pretrained(config)
+                config = AutoConfig.from_pretrained(config, low_cpu_mem_usage=True)
             setattr(config, "cache_dir", cache_dir)
             setattr(config, "device_map", device_map)
             for k, v in qargs.items():
@@ -159,6 +159,7 @@ class aigen:
                     tuning_mode=tuning_mode,
                     cache_dir=cache_dir,
                     device_map=device_map,
+                    low_cpu_mem_usage=True,
                     **qargs,
                 )
                 embeddings_path = embeddings_dir + "/prompts.pt"
@@ -186,14 +187,13 @@ class aigen:
                     trust_remote_code=True,
                     local_files_only=True if model_folder else False,
                     device_map=device_map,
+                    low_cpu_mem_usage=True,
                     **qargs,
                 )
 
         logger.info(f"Using the tokenizer for {model}.")
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model,
-            cache_dir=cache_dir,
-            trust_remote_code=True,
+            model, cache_dir=cache_dir, trust_remote_code=True, low_cpu_mem_usage=True
         )
 
         if adapters and not petals:
@@ -204,6 +204,7 @@ class aigen:
                         self.model,
                         f"{adapter_dir}/{adapter}",
                         adapter_name=adapter,
+                        low_cpu_mem_usage=True,
                         device_map=device_map,
                     )
                 else:
