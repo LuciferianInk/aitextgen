@@ -10,6 +10,7 @@ from itertools import islice
 from random import randint
 from typing import List, Optional, Union
 
+import numpy as np
 import torch
 from accelerate import Accelerator
 from datasets import load_dataset
@@ -17,7 +18,7 @@ from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
-from peft import PeftConfig, PeftModel, prepare_model_for_int8_training
+from peft import PeftConfig, PeftModel
 from peft.tuners.lora.layer import LoraLayer
 from petals import AutoDistributedModelForCausalLM
 from pkg_resources import resource_filename
@@ -232,62 +233,15 @@ class aigen:
 
             logger.info(f"Using adapter: {self.model.active_adapter}")
 
-        self.model_max_length = model_max_length(self.model.config)
-
-        self.model = self.model.eval()
-        logger.info(self)
-
         if gradient_checkpointing:
             logger.info("Gradient checkpointing enabled for model training.")
             self.model.gradient_checkpointing_enable()
             setattr(self.model.config, "use_cache", None if petals else False)
 
-        # if self.tokenizer is None:
-        #     # Update tokenizer settings (if not set already)
-        #     args = locals()
-        #     custom_tokenizer = False
-        #     for attr in [
-        #         "vocab_file",
-        #         "merges_file",
-        #         "tokenizer_file",
-        #         "bos_token",
-        #         "eos_token",
-        #         "unk_token",
-        #     ]:
-        #         if args[attr] is not None:
-        #             custom_tokenizer = True
-        #             setattr(self, attr, args[attr])
+        self.model_max_length = model_max_length(self.model.config)
 
-        #     if custom_tokenizer:
-        #         logger.info("Using a custom tokenizer.")
-        #     else:
-        #         logger.info("Using the default tokenizer.")
-
-        #     if tokenizer_file:
-        #         # load the custom GPT-2 tokenizer from a serialized tokenizer.
-        #         # GPT-Neo uses the GPT-2 tokenizer.
-        #         self.tokenizer = PreTrainedTokenizerFast(
-        #             tokenizer_file=tokenizer_file,
-        #             bos_token=self.bos_token,
-        #             eos_token=self.eos_token,
-        #             unk_token=self.unk_token,
-        #             pad_token=self.pad_token,
-        #             padding_side="left",
-        #         )
-        #     else:
-        #         self.tokenizer = GPT2TokenizerFast(
-        #             vocab_file=self.vocab_file,
-        #             merges_file=self.merges_file,
-        #             bos_token=self.bos_token,
-        #             eos_token=self.eos_token,
-        #             unk_token=self.unk_token,
-        #             pad_token=self.pad_token,
-        #         )
-        #         if not custom_tokenizer:
-        #             # https://github.com/huggingface/transformers/issues/10202
-        #             self.tokenizer.add_special_tokens(
-        #                 {"additional_special_tokens": ["<|endoftext|>"]}
-        #             )
+        self.model = self.model.eval()
+        logger.info(self)
 
     def generate(
         self,
@@ -428,7 +382,7 @@ class aigen:
         swa_learning_rate: float = None,
         update_period: int = 10,
         weight_decay: float = 0.05,
-        adam_epsilon: float = 1e-8,
+        eps: float = 1e-8,
         warmup_steps: int = 0,
         num_steps: int = 5000,
         save_every: int = 1000,
@@ -479,24 +433,30 @@ class aigen:
 
         self.petals = petals
 
-        if self.precision in [8]:
-            self.model = prepare_model_for_int8_training(self.model)
+        # if self.precision in [4, 8]:
+        #     self.model = prepare_model_for_kbit_training(
+        #         self.model, use_gradient_checkpointing=self.gradient_checkpointing
+        #     )
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         is_gpu_used = torch.cuda.is_available() and n_gpu != 0
 
-        if hasattr(self.model, "enable_input_require_grads"):
-            self.model.enable_input_require_grads()
-        else:
+        # if hasattr(self.model, "enable_input_require_grads"):
+        #     self.model.enable_input_require_grads()
+        # else:
 
-            def make_inputs_require_grad(module, input, output):
-                output.requires_grad_(True)
+        #     def make_inputs_require_grad(module, input, output):
+        #         output.requires_grad_(True)
 
-            self.model.get_input_embeddings().register_forward_hook(
-                make_inputs_require_grad
-            )
+        #     self.model.get_input_embeddings().register_forward_hook(
+        #         make_inputs_require_grad
+        #     )
+
+        # for name, param in self.model.named_parameters():
+        #     if any(l in name.lower() for l in ["lora", "lokr", "ia3", "base_layer"]):
+        #         param.requires_grad = True
 
         if isinstance(train_data, str):
             block_size = model_max_length(self.model.config)
@@ -550,7 +510,7 @@ class aigen:
             momentum=momentum,
             update_period=update_period,
             weight_decay=weight_decay,
-            adam_epsilon=adam_epsilon,
+            eps=eps,
             warmup_steps=warmup_steps,
             batch_size=batch_size,
             num_steps=num_steps,
@@ -800,7 +760,10 @@ class StreamingDataset(torch.utils.data.IterableDataset):
                 return_overflowing_tokens=True,
                 return_tensors="np",
             )["input_ids"]
-            yield random.choice(tokenized)
+            choice = random.choice(tokenized)
+            if np.size(choice) == 0:
+                continue
+            yield choice
 
 
 class StreamingDataModule(LightningDataModule):

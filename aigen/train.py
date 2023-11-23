@@ -157,6 +157,13 @@ class AIGTrainer(LightningModule):
                 maximize=False,
                 centered=False,
             )
+        elif self.hparams["optimizer"] == "Adan":
+            from pytorch_optimizer import Adan
+
+            optimizer = Adan(
+                optimizer_grouped_parameters,
+                lr=self.hparams["learning_rate"],
+            )
         else:
             if self.hparams.get("deepspeed"):
                 from deepspeed.ops.adam import DeepSpeedCPUAdam
@@ -164,14 +171,14 @@ class AIGTrainer(LightningModule):
                 optimizer = DeepSpeedCPUAdam(
                     optimizer_grouped_parameters,
                     lr=self.hparams["learning_rate"],
-                    eps=self.hparams["adam_epsilon"],
+                    eps=self.hparams.get("eps", 1e-8),
                     adamw_mode=True,
                 )
             else:
                 optimizer = AdamW(
                     optimizer_grouped_parameters,
                     lr=self.hparams["learning_rate"],
-                    eps=self.hparams["adam_epsilon"],
+                    eps=self.hparams.get("eps", 1e-8),
                 )
         return optimizer
 
