@@ -193,7 +193,7 @@ class aigen:
 
         logger.info(f"Using the tokenizer for {model}.")
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model, cache_dir=cache_dir, trust_remote_code=True, low_cpu_mem_usage=True
+            model, cache_dir=cache_dir, trust_remote_code=True
         )
 
         if adapters and not petals:
@@ -204,7 +204,6 @@ class aigen:
                         self.model,
                         f"{adapter_dir}/{adapter}",
                         adapter_name=adapter,
-                        low_cpu_mem_usage=True,
                         device_map=device_map,
                     )
                 else:
