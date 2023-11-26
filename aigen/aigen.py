@@ -78,6 +78,7 @@ class aigen:
         self,
         model: str = None,
         model_folder: str = None,
+        tokenizer_model: str = None,
         config: Union[str, GPT2Config] = None,
         vocab_file: str = None,
         merges_file: str = None,
@@ -154,7 +155,7 @@ class aigen:
             if self.petals:
                 print("loading model from Petals")
                 self.model = AutoDistributedModelForCausalLM.from_pretrained(
-                    model if not model_folder else model,
+                    model if model is not None else model_folder,
                     pre_seq_len=pre_seq_len,
                     tuning_mode=tuning_mode,
                     cache_dir=cache_dir,
@@ -182,7 +183,7 @@ class aigen:
                                     )
             else:
                 self.model = AutoModelForCausalLM.from_pretrained(
-                    model if not model_folder else model,
+                    model if model is not None else model_folder,
                     cache_dir=cache_dir,
                     trust_remote_code=True,
                     local_files_only=True if model_folder else False,
@@ -193,7 +194,9 @@ class aigen:
 
         logger.info(f"Using the tokenizer for {model}.")
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model, cache_dir=cache_dir, trust_remote_code=True
+            model if model is not None else tokenizer_model,
+            cache_dir=cache_dir,
+            trust_remote_code=True,
         )
 
         if adapters and not petals:
