@@ -116,14 +116,14 @@ class AIGTrainer(LightningModule):
 
         if self.hparams["optimizer"] == "SophiaH":
             SophiaH = getattr(pytorch_optimizer, "SophiaH")
-            optimizer = SophiaH(
+            opt = SophiaH(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
                 update_period=self.hparams["update_period"],
             )
         elif self.hparams["optimizer"] == "Lion":
             Lion = getattr(pytorch_optimizer, "Lion")
-            optimizer = Lion(
+            opt = Lion(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
                 betas=(0.9, 0.99),
@@ -133,7 +133,7 @@ class AIGTrainer(LightningModule):
             )
         elif self.hparams["optimizer"] == "AdaBelief":
             AdaBelief = getattr(pytorch_optimizer, "AdaBelief")
-            optimizer = AdaBelief(
+            opt = AdaBelief(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
                 betas=(0.9, 0.999),
@@ -142,14 +142,14 @@ class AIGTrainer(LightningModule):
             )
         elif self.hparams["optimizer"] == "Ranger21":
             Ranger21 = getattr(pytorch_optimizer, "Ranger21")
-            optimizer = Ranger21(
+            opt = Ranger21(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
                 lookahead_merge_time=5,
                 num_iterations=1,
             )
         elif self.hparams["optimizer"] == "RMSProp":
-            optimizer = RMSprop(
+            opt = RMSprop(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
                 momentum=self.hparams.get("momentum", 0),
@@ -160,7 +160,7 @@ class AIGTrainer(LightningModule):
         elif self.hparams["optimizer"] == "Adan":
             from pytorch_optimizer import Adan
 
-            optimizer = Adan(
+            opt = Adan(
                 optimizer_grouped_parameters,
                 lr=self.hparams["learning_rate"],
             )
@@ -168,18 +168,28 @@ class AIGTrainer(LightningModule):
             if self.hparams.get("deepspeed"):
                 from deepspeed.ops.adam import DeepSpeedCPUAdam
 
-                optimizer = DeepSpeedCPUAdam(
+                opt = DeepSpeedCPUAdam(
                     optimizer_grouped_parameters,
                     lr=self.hparams["learning_rate"],
                     eps=self.hparams.get("eps", 1e-8),
                     adamw_mode=True,
                 )
             else:
-                optimizer = AdamW(
+                opt = AdamW(
                     optimizer_grouped_parameters,
                     lr=self.hparams["learning_rate"],
                     eps=self.hparams.get("eps", 1e-8),
                 )
+
+        lookahead_steps = self.hparams.get("lookahead", 0)
+        if lookahead_steps > 0:
+            from pytorch_optimizer import Lookahead
+
+            optimizer = Lookahead(
+                opt, k=lookahead_steps, alpha=0.5, pullback_momentum="none"
+            )
+        else:
+            optimizer = opt
         return optimizer
 
     def configure_optimizers(self):

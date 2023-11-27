@@ -381,6 +381,7 @@ class aigen:
         seed: int = None,
         optimizer: str = "AdamW",
         learning_rate: float = 1e-3,
+        lookahead: int = 0,
         momentum: float = 0,
         swa_learning_rate: float = None,
         update_period: int = 10,
@@ -510,6 +511,7 @@ class aigen:
         hparams = dict(
             optimizer=optimizer,
             learning_rate=learning_rate,
+            lookahead=lookahead,
             momentum=momentum,
             update_period=update_period,
             weight_decay=weight_decay,
