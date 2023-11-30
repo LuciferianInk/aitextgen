@@ -374,6 +374,9 @@ class AIGProgressBar(ProgressBar):
     def generate_sample_text(self, trainer, lm):
         lm.model.eval()
 
+        if hasattr(lm.model, "training"):
+            lm.model.training = False
+
         outputs = lm.model.generate(
             inputs=None,
             do_sample=True,
@@ -385,6 +388,9 @@ class AIGProgressBar(ProgressBar):
             no_repeat_ngram_size=9,
             max_new_tokens=222,
         )
+
+        if hasattr(lm.model, "training"):
+            lm.model.training = True
 
         gen_texts = lm.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
