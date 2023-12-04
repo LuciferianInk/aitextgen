@@ -413,9 +413,11 @@ class AIGProgressBar(ProgressBar):
         elif tpu:
             import torch_xla.core.xla_model as xm
 
-            lm.model.save_pretrained(self.output_dir, save_function=xm.save)
+            lm.model.save_pretrained(
+                self.output_dir, save_function=xm.save, safe_serialization=True
+            )
         else:
-            lm.model.save_pretrained(self.output_dir)
+            lm.model.save_pretrained(self.output_dir, safe_serialization=True)
 
     def average_loss(self, current_loss, prev_avg_loss, smoothing):
         if prev_avg_loss is None:

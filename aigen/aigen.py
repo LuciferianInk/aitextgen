@@ -675,7 +675,7 @@ class aigen:
     def save(self, target_folder: str = os.getcwd()):
         """Saves the model into the specified directory."""
         logger.info(f"Saving trained model pytorch_model.bin to {target_folder}")
-        self.model.save_pretrained(target_folder)
+        self.model.save_pretrained(target_folder, safe_serialization=True)
 
     def get_device(self) -> str:
         """Getter for the current device where the model is located."""
