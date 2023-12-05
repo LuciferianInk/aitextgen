@@ -382,6 +382,7 @@ class AIGProgressBar(ProgressBar):
         outputs = lm.model.generate(
             inputs=None,
             generation_config=self.generation_config,
+            do_sample=True,
             max_new_tokens=222,
             bos_token_id=lm.tokenizer.bos_token_id,
             eos_token_id=lm.tokenizer.eos_token_id,
