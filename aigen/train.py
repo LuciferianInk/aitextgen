@@ -17,8 +17,8 @@ from torch.optim import AdamW, RMSprop
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import (
-    get_cosine_with_hard_restarts_schedule_with_warmup,
-    get_scheduler,
+  get_cosine_with_hard_restarts_schedule_with_warmup,
+  get_scheduler,
 )
 
 from .utils import colors
@@ -379,11 +379,16 @@ class AIGProgressBar(ProgressBar):
         if hasattr(lm.model, "training"):
             lm.model.training = False
 
+        pad_token_id = None
+        if hasattr(lm.tokenizer, "eos_token_id"):
+            pad_token_id = lm.tokenizer.pad_token_id
+
         outputs = lm.model.generate(
             inputs=None,
             generation_config=self.generation_config,
             max_new_tokens=222,
             bos_token_id=lm.tokenizer.bos_token_id,
+            pad_token_id=pad_token_id
         )
 
         if hasattr(lm.model, "training"):
