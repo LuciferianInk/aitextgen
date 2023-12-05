@@ -223,7 +223,7 @@ class aigen:
 
         if gradient_checkpointing:
             logger.info("Gradient checkpointing enabled for model training.")
-            self.model.gradient_checkpointing_enable()
+            self.model.gradient_checkpointing_enable({"use_reentrant": False})
             setattr(self.model.config, "use_cache", None if petals else False)
 
         self.model_max_length = model_max_length(self.model.config)
