@@ -406,13 +406,7 @@ class aigen:
                         num_layers_freeze < self.model.config.num_hidden_layers
                     ), "You are freezing more Transformer layers than in the model."
 
-        if num_workers is None:
-            # Use all CPU cores as workers if not training on CPU
-            if is_gpu_used or tpu_cores > 0:
-                num_workers = os.cpu_count()
-            # If training on the CPU, use half the CPUs
-            else:
-                num_workers = int(os.cpu_count() / 2)
+        num_workers = num_workers if num_workers is None else int(os.cpu_count() / 4)
 
         hparams = dict(
             optimizer=optimizer,
@@ -697,4 +691,5 @@ class StreamingDataModule(LightningDataModule):
             self.iterable,
             batch_size=self.params["batch_size"],
             pin_memory=False,
+            num_workers=self.params["num_workers"]
         )

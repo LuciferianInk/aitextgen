@@ -379,16 +379,13 @@ class AIGProgressBar(ProgressBar):
         if hasattr(lm.model, "training"):
             lm.model.training = False
 
-        pad_token_id = None
-        if hasattr(lm.tokenizer, "eos_token_id"):
-            pad_token_id = lm.tokenizer.pad_token_id
-
         outputs = lm.model.generate(
             inputs=None,
             generation_config=self.generation_config,
             max_new_tokens=222,
             bos_token_id=lm.tokenizer.bos_token_id,
-            pad_token_id=pad_token_id
+            eos_token_id=lm.tokenizer.eos_token_id,
+            pad_token_id=lm.tokenizer.pad_token_id
         )
 
         if hasattr(lm.model, "training"):
