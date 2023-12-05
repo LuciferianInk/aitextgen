@@ -235,6 +235,7 @@ class AIGProgressBar(ProgressBar):
         train_transformers_only,
         num_layers_freeze,
         petals,
+        generation_config,
     ):
         super().__init__()
         self.enabled = True
@@ -249,6 +250,7 @@ class AIGProgressBar(ProgressBar):
         self.train_transformers_only = train_transformers_only
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
+        self.generation_config = generation_config
 
     @property
     def save_every_check(self):
@@ -379,14 +381,9 @@ class AIGProgressBar(ProgressBar):
 
         outputs = lm.model.generate(
             inputs=None,
-            do_sample=True,
-            temperature=0.7,
-            eta_cutoff=0.0003,
-            penalty_alpha=0.6,
-            top_k=4,
-            repetition_penalty=2.3,
-            no_repeat_ngram_size=9,
+            generation_config=self.generation_config,
             max_new_tokens=222,
+            bos_token_id=lm.tokenizer.bos_token_id,
         )
 
         if hasattr(lm.model, "training"):
