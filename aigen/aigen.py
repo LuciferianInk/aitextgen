@@ -406,7 +406,7 @@ class aigen:
                         num_layers_freeze < self.model.config.num_hidden_layers
                     ), "You are freezing more Transformer layers than in the model."
 
-        num_workers = num_workers if num_workers is None else int(os.cpu_count() / 4)
+        num_workers = num_workers if num_workers is not None else int(os.cpu_count() / 4)
 
         hparams = dict(
             optimizer=optimizer,
