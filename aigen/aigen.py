@@ -140,7 +140,7 @@ class aigen:
                 from petals import AutoDistributedModelForCausalLM
 
                 self.model = AutoDistributedModelForCausalLM.from_pretrained(
-                    model if model is not None else model_folder,
+                    model_folder if model_folder is not None else model,
                     pre_seq_len=pre_seq_len,
                     tuning_mode=tuning_mode,
                     cache_dir=cache_dir,
@@ -168,7 +168,7 @@ class aigen:
                                     )
             else:
                 self.model = AutoModelForCausalLM.from_pretrained(
-                    model if model is not None else model_folder,
+                    model_folder if model_folder is not None else model,
                     cache_dir=cache_dir,
                     trust_remote_code=True,
                     local_files_only=True if model_folder else False,
