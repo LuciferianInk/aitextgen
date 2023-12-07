@@ -229,7 +229,10 @@ class aigen:
         self.model_max_length = model_max_length(self.model.config)
 
         if hasattr(self.model, "to_bettertransformer"):
-            self.model.to_bettertransformer()
+            try:
+                self.model.to_bettertransformer()
+            except:
+                pass
 
         self.model.eval()
         logger.info(self)
@@ -365,7 +368,10 @@ class aigen:
         self.petals = petals
 
         if hasattr(self.model, "reverse_bettertransformer"):
-            self.model.reverse_bettertransformer()
+            try:
+                self.model.reverse_bettertransformer()
+            except:
+                pass
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
