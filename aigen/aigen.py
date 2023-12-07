@@ -228,11 +228,12 @@ class aigen:
 
         self.model_max_length = model_max_length(self.model.config)
 
-        # if hasattr(self.model, "to_bettertransformer"):
-        #     try:
-        #         self.model.to_bettertransformer()
-        #     except:
-        #         pass
+        arch = platform.machine()
+        if arch == 'x86_64' and hasattr(self.model, "to_bettertransformer"):
+            try:
+                self.model.to_bettertransformer()
+            except:
+                pass
 
         self.model.eval()
         logger.info(self)
@@ -367,7 +368,8 @@ class aigen:
     ) -> None:
         self.petals = petals
 
-        if hasattr(self.model, "reverse_bettertransformer"):
+        arch = platform.machine()
+        if arch == 'x86_64' and hasattr(self.model, "reverse_bettertransformer"):
             try:
                 self.model.reverse_bettertransformer()
             except:
