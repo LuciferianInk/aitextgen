@@ -358,7 +358,7 @@ class AIGProgressBar(ProgressBar):
             color = colors.RED
 
         bearing = "{:.5f}".format(
-            round((current_loss / avg_loss) if avg_loss != 0 else 0, 5)
+            abs(round((current_loss / avg_loss) if avg_loss != 0 else 0, 5))
         )
 
         c_sym = "+" if current_loss >= 0 else ""
@@ -370,7 +370,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        echo = f"{colors.GREEN}{c_sym}{current_loss:.3f}{colors.WHITE} => Loss => {color}{avg_loss:.3f}{colors.WHITE} => Bearing => {colors.BLUE}{abs(bearing)}{random.randint(0,2)}00{colors.WHITE} => System => {colors.BLUE}{memory.percent}%{colors.WHITE}"
+        echo = f"{colors.GREEN}{c_sym}{current_loss:.3f}{colors.WHITE} => Loss => {color}{avg_loss:.3f}{colors.WHITE} => Bearing => {colors.BLUE}{bearing}{random.randint(0,2)}00{colors.WHITE} => System => {colors.BLUE}{memory.percent}%{colors.WHITE}"
 
         if self.gpu:
             # via pytorch-lightning's get_gpu_memory_map()
