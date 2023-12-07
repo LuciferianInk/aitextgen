@@ -228,7 +228,10 @@ class aigen:
 
         self.model_max_length = model_max_length(self.model.config)
 
-        self.model = self.model.eval()
+        if hasattr(self.model, "to_bettertransformer"):
+            self.model.to_bettertransformer()
+
+        self.model.eval()
         logger.info(self)
 
     def generate(
@@ -238,7 +241,6 @@ class aigen:
         max_new_tokens: int = None,
         seed: int = None,
         schema: str = False,
-        use_cache: bool = True,
         mode: str = "transformer",
         generation_config: dict = None,
         **kwargs,
@@ -288,7 +290,6 @@ class aigen:
                 attention_mask=attention_mask,
                 generation_config=gconfig,
                 max_new_tokens=max_new_tokens,
-                use_cache=use_cache,
                 return_dict_in_generate=True,
                 output_hidden_states=False,
                 output_attentions=False,
@@ -362,6 +363,9 @@ class aigen:
         **kwargs,
     ) -> None:
         self.petals = petals
+
+        if hasattr(self.model, "reverse_bettertransformer"):
+            self.model.reverse_bettertransformer()
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
