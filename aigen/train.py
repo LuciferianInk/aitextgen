@@ -17,8 +17,8 @@ from torch.optim import AdamW, RMSprop
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import (
-  get_cosine_with_hard_restarts_schedule_with_warmup,
-  get_scheduler,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_scheduler,
 )
 
 from .utils import colors
@@ -39,6 +39,7 @@ class AIGTrainer(LightningModule):
             len(dataset),
             tokenizer,
         )
+        self.last_batch = None
         self.manual_optimizers = ["SophiaH"]
 
         if hparams["optimizer"] in self.manual_optimizers:
@@ -52,24 +53,45 @@ class AIGTrainer(LightningModule):
         return self.model(**inputs)
 
     def training_step(self, batch, batch_idx):
-        loss = []
+        logits = []
+        representations = []
+        losses = []
 
         for i, sample in enumerate(batch):
             outputs = self({"input_ids": sample, "labels": sample})
-            loss.append(outputs[0])
+            logits.append(outputs[0])
+            representations.append(outputs[0])
 
-        total_loss = sum(loss)
+        if self.hparams["loss_function"] == "contrastive":
+            current_representations = torch.stack(representations)
 
-        if self.hparams["optimizer"] in self.manual_optimizers:
-            opt = self.optimizers()
-            opt.zero_grad()
-            # loss.append(outputs[0].detach())
-            # loss[i].requires_grad = True
-            self.manual_backward(total_loss, create_graph=True)
+            # Ensure last_batch is initialized
+            if self.last_batch is None:
+                self.last_batch = torch.zeros_like(current_representations)
+
+            for i in range(len(representations)):
+                loss = contrastive_loss(
+                    current_representations[i], self.last_batch[i], logits[i]
+                )
+                losses.append(loss)
+
+            # Update last_batch
+            self.last_batch = current_representations.clone().detach()
+
+            # Always return a valid loss
+            total_loss = torch.stack(losses).mean()
+
         else:
-            opt = self.lr_schedulers()
+            total_loss = sum(logits)
 
-        opt.step()
+        if not total_loss.isnan() and not total_loss.isinf():
+            if self.hparams["optimizer"] in self.manual_optimizers:
+                opt = self.optimizers()
+                opt.zero_grad()
+                self.manual_backward(total_loss)
+            else:
+                opt = self.lr_schedulers()
+            opt.step()
 
         self.logger.experiment.add_scalars(
             "vtx",
@@ -386,7 +408,7 @@ class AIGProgressBar(ProgressBar):
             max_new_tokens=222,
             bos_token_id=lm.tokenizer.bos_token_id,
             eos_token_id=lm.tokenizer.eos_token_id,
-            pad_token_id=lm.tokenizer.pad_token_id
+            pad_token_id=lm.tokenizer.pad_token_id,
         )
 
         if hasattr(lm.model, "training"):
@@ -441,3 +463,18 @@ class AIGProgressBar(ProgressBar):
 
     def unfreeze_layers(self, lm):
         self.modify_layers(lm, True)
+
+
+def contrastive_loss(x1, x2, label, margin: float = 1.0):
+    """
+    Computes Contrastive Loss
+    """
+
+    dist = torch.nn.functional.pairwise_distance(x1, x2)
+
+    loss = (1 - label) * torch.pow(dist, 2) + (label) * torch.pow(
+        torch.clamp(margin - dist, min=0.0), 2
+    )
+    loss = torch.mean(loss)
+
+    return loss

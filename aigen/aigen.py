@@ -25,16 +25,16 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers import (
-  AutoConfig,
-  AutoModelForCausalLM,
-  AutoModelForSeq2SeqLM,
-  AutoTokenizer,
-  BitsAndBytesConfig,
-  GenerationConfig,
-  GPT2Config,
-  GPT2LMHeadModel,
-  GPT2TokenizerFast,
-  PreTrainedTokenizerFast,
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+    GenerationConfig,
+    GPT2Config,
+    GPT2LMHeadModel,
+    GPT2TokenizerFast,
+    PreTrainedTokenizerFast,
 )
 
 from .TokenDataset import TokenDataset
@@ -229,7 +229,7 @@ class aigen:
         self.model_max_length = model_max_length(self.model.config)
 
         arch = platform.machine()
-        if arch == 'x86_64' and hasattr(self.model, "to_bettertransformer"):
+        if arch == "x86_64" and hasattr(self.model, "to_bettertransformer"):
             try:
                 self.model.to_bettertransformer()
             except:
@@ -336,6 +336,7 @@ class aigen:
         gradient_accumulation_steps: int = 1,
         seed: int = None,
         optimizer: str = "AdamW",
+        loss_function: str = "default",
         learning_rate: float = 1e-3,
         lookahead: int = 0,
         momentum: float = 0,
@@ -369,7 +370,7 @@ class aigen:
         self.petals = petals
 
         arch = platform.machine()
-        if arch == 'x86_64' and hasattr(self.model, "reverse_bettertransformer"):
+        if arch == "x86_64" and hasattr(self.model, "reverse_bettertransformer"):
             try:
                 self.model.reverse_bettertransformer()
             except:
@@ -418,10 +419,13 @@ class aigen:
                         num_layers_freeze < self.model.config.num_hidden_layers
                     ), "You are freezing more Transformer layers than in the model."
 
-        num_workers = num_workers if num_workers is not None else int(os.cpu_count() / 4)
+        num_workers = (
+            num_workers if num_workers is not None else int(os.cpu_count() / 4)
+        )
 
         hparams = dict(
             optimizer=optimizer,
+            loss_function=loss_function,
             learning_rate=learning_rate,
             lookahead=lookahead,
             momentum=momentum,
@@ -703,5 +707,5 @@ class StreamingDataModule(LightningDataModule):
             self.iterable,
             batch_size=self.params["batch_size"],
             pin_memory=False,
-            num_workers=self.params["num_workers"]
+            num_workers=self.params["num_workers"],
         )
