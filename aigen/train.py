@@ -71,7 +71,7 @@ class AIGTrainer(LightningModule):
 
             for i in range(len(representations)):
                 loss = contrastive_loss(
-                    current_representations[i], self.last_batch[i], logits[i]
+                    current_representations[i], self.last_batch[i], logits[i], 0.1
                 )
                 losses.append(loss)
 
