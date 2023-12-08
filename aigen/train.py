@@ -40,57 +40,33 @@ class AIGTrainer(LightningModule):
             tokenizer,
         )
         self.last_batch = None
-        self.manual_optimizers = ["SophiaH"]
-
-        if hparams["optimizer"] in self.manual_optimizers:
-            self.automatic_optimization = False
-        else:
-            self.automatic_optimization = True
+        self.automatic_optimization = True
 
         self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
-        return self.model(**inputs)
+        labels = inputs.get("labels")
+        outputs = self.model(**inputs)
+        logits = outputs.get("logits")
+        # if self.hparams["loss_function"] == "crossentropy":
+        #     # loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0, 3.0]))
+        #     # loss = loss_fct(
+        #     #     logits.view(-1, self.model.config.num_labels), labels.view(-1)
+        #     # )
+        #     return loss
+        return outputs
 
     def training_step(self, batch, batch_idx):
-        logits = []
-        representations = []
         losses = []
 
         for i, sample in enumerate(batch):
             outputs = self({"input_ids": sample, "labels": sample})
-            logits.append(outputs[0])
-            representations.append(outputs[0])
+            losses.append(outputs[0])
 
-        if self.hparams["loss_function"] == "contrastive":
-            current_representations = torch.stack(representations)
+        loss = sum(losses)
 
-            # Ensure last_batch is initialized
-            if self.last_batch is None:
-                self.last_batch = torch.zeros_like(current_representations)
-
-            for i in range(len(representations)):
-                loss = contrastive_loss(
-                    current_representations[i], self.last_batch[i], logits[i], 0.1
-                )
-                losses.append(loss)
-
-            # Update last_batch
-            self.last_batch = current_representations.clone().detach()
-
-            # Always return a valid loss
-            total_loss = torch.stack(losses).mean()
-
-        else:
-            total_loss = sum(logits)
-
-        if not total_loss.isnan() and not total_loss.isinf():
-            if self.hparams["optimizer"] in self.manual_optimizers:
-                opt = self.optimizers()
-                opt.zero_grad()
-                self.manual_backward(total_loss)
-            else:
-                opt = self.lr_schedulers()
+        if not loss.isnan() and not loss.isinf():
+            opt = self.lr_schedulers()
             opt.step()
 
         self.logger.experiment.add_scalars(
@@ -99,7 +75,7 @@ class AIGTrainer(LightningModule):
             self.global_step,
         )
 
-        return total_loss
+        return loss
 
     def validation_step(self, batch, batch_idx):
         outputs = self({"input_ids": batch, "labels": batch})
@@ -136,14 +112,7 @@ class AIGTrainer(LightningModule):
             },
         ]
 
-        if self.hparams["optimizer"] == "SophiaH":
-            SophiaH = getattr(pytorch_optimizer, "SophiaH")
-            opt = SophiaH(
-                optimizer_grouped_parameters,
-                lr=self.hparams["learning_rate"],
-                update_period=self.hparams["update_period"],
-            )
-        elif self.hparams["optimizer"] == "Lion":
+        if self.hparams["optimizer"] == "Lion":
             Lion = getattr(pytorch_optimizer, "Lion")
             opt = Lion(
                 optimizer_grouped_parameters,
@@ -466,18 +435,3 @@ class AIGProgressBar(ProgressBar):
 
     def unfreeze_layers(self, lm):
         self.modify_layers(lm, True)
-
-
-def contrastive_loss(x1, x2, label, margin: float = 1.0):
-    """
-    Computes Contrastive Loss
-    """
-
-    dist = torch.nn.functional.pairwise_distance(x1, x2)
-
-    loss = (1 - label) * torch.pow(dist, 2) + (label) * torch.pow(
-        torch.clamp(margin - dist, min=0.0), 2
-    )
-    loss = torch.mean(loss)
-
-    return loss
