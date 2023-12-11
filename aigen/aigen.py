@@ -88,11 +88,8 @@ class aigen:
         self.precision = precision
         self.petals = petals
 
-        try:
-            # Enable tensor cores
-            torch.set_float32_matmul_precision("medium")
-        except Exception as e:
-            logging.error(e)
+        # Enable tensor cores
+        torch.set_float32_matmul_precision("medium")
 
         qargs = dict(torch_dtype=torch.float32)
 
