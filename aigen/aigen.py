@@ -112,8 +112,6 @@ class aigen:
             logger.info("Constructing model from provided config.")
             if isinstance(config, str):
                 config = AutoConfig.from_pretrained(config, low_cpu_mem_usage=True)
-            setattr(config, "cache_dir", cache_dir)
-            setattr(config, "device_map", device_map)
             for k, v in qargs.items():
                 setattr(config, k, v)
             self.model = AutoModelForCausalLM.from_config(config)
