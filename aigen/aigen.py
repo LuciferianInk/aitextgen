@@ -61,7 +61,7 @@ class aigen:
         self,
         model: str = None,
         model_folder: str = None,
-        tokenizer_model: str = None,
+        tokenizer=None,
         config: Union[str, GPT2Config] = None,
         vocab_file: str = None,
         merges_file: str = None,
@@ -179,10 +179,14 @@ class aigen:
                 )
 
         logger.info(f"Using the tokenizer for {model}.")
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model if model is not None else tokenizer_model,
-            cache_dir=cache_dir,
-            trust_remote_code=True,
+        self.tokenizer = (
+            tokenizer
+            if tokenizer is not None
+            else AutoTokenizer.from_pretrained(
+                model,
+                cache_dir=cache_dir,
+                trust_remote_code=True,
+            )
         )
 
         if adapters and not petals:
