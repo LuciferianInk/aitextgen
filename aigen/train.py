@@ -45,8 +45,8 @@ class AIGTrainer(LightningModule):
         self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
-        # labels = inputs.get("labels")
         outputs = self.model(**inputs)
+        # labels = inputs.get("labels")
         # logits = outputs.get("logits")
         return outputs
 
@@ -58,9 +58,6 @@ class AIGTrainer(LightningModule):
             losses.append(outputs[0])
 
         loss = sum(losses) / len(losses)
-
-        if loss.isnan() or loss.isinf():
-            loss = 1.0
 
         opt = self.lr_schedulers()
         opt.step()
