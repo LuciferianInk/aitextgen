@@ -45,15 +45,9 @@ class AIGTrainer(LightningModule):
         self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
-        labels = inputs.get("labels")
+        # labels = inputs.get("labels")
         outputs = self.model(**inputs)
-        logits = outputs.get("logits")
-        # if self.hparams["loss_function"] == "crossentropy":
-        #     # loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0, 3.0]))
-        #     # loss = loss_fct(
-        #     #     logits.view(-1, self.model.config.num_labels), labels.view(-1)
-        #     # )
-        #     return loss
+        # logits = outputs.get("logits")
         return outputs
 
     def training_step(self, batch, batch_idx):
@@ -63,11 +57,13 @@ class AIGTrainer(LightningModule):
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
 
-        loss = sum(losses)
+        loss = sum(losses) / len(losses)
 
-        if not loss.isnan() and not loss.isinf():
-            opt = self.lr_schedulers()
-            opt.step()
+        if loss.isnan() or loss.isinf():
+            loss = 1.0
+
+        opt = self.lr_schedulers()
+        opt.step()
 
         self.logger.experiment.add_scalars(
             "vtx",
