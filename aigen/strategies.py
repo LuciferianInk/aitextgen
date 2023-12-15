@@ -65,7 +65,7 @@ def get_strategy(scheduler, name, hparams, train_params):
             print(f"{color}PIER-{initial_peers.index(peer)}:{colors.WHITE} {peer}")
 
         strategy = HivemindStrategy(
-            run_id="source",
+            run_id="src",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
             initial_peers=initial_peers,
@@ -73,7 +73,13 @@ def get_strategy(scheduler, name, hparams, train_params):
             verbose=False,
             wait_timeout=90,
             bootstrap_timeout=30,
-            scheduler_fn=scheduler,
+            matchmaking_time=30.0,
+            averaging_timeout=90.0,
+            # delay_state_averaging=True,
+            # delay_grad_averaging=True,
+            # delay_optimizer_step=True,
+            # offload_optimizer=True,  # required to delay averaging
+            # scheduler_fn=scheduler,
         )
     else:
         strategy = "auto"
