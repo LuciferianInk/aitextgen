@@ -15,7 +15,6 @@ import torch
 from accelerate import Accelerator
 from datasets import load_dataset
 from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
-from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
 from peft import PeftConfig, PeftModel
@@ -39,6 +38,7 @@ from transformers import (
 
 from .optimizers import get_optimizer
 from .schedulers import get_scheduler
+from .strategies import get_strategy
 from .TokenDataset import TokenDataset
 from .train import AIGProgressBar, AIGTrainer
 from .utils import model_max_length, reset_seed, set_seed
@@ -365,7 +365,6 @@ class aigen:
         num_cycles=None,
         prune: float = 0.0,
         petals: bool = False,
-        deepspeed: bool = False,
         block_size: int = 2048,
         val_split: float = 0.0,
         val_interval: int = 1000,
@@ -452,10 +451,10 @@ class aigen:
             use_tpu=tpu_cores > 0,
             num_cycles=num_cycles,
             petals=petals,
-            deepspeed=deepspeed,
             val_split=val_split,
             val_interval=val_interval,
             block_size=block_size,
+            **kwargs,
         )
 
         # Begin training
@@ -498,17 +497,6 @@ class aigen:
                 ),
             ],
         )
-
-        if deepspeed:
-            train_params["strategy"] = DeepSpeedStrategy(
-                stage=3,
-                offload_optimizer=True,
-                offload_parameters=True,
-                allgather_bucket_size=2e8,
-                reduce_bucket_size=2e8,
-            )
-        if strategy is not None:
-            train_params["strategy"] = strategy
 
         train_params["accumulate_grad_batches"] = gradient_accumulation_steps
 
@@ -592,6 +580,9 @@ class aigen:
 
         o = get_optimizer(self.model, hparams)
         s = get_scheduler(hparams, o)
+
+        if strategy is not None:
+            train_params["strategy"] = get_strategy(s, strategy, hparams, train_params)
 
         # Wrap the model in a pytorch-lightning module
         train_model = AIGTrainer(
