@@ -37,6 +37,8 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
+from .optimizers import get_optimizer
+from .schedulers import get_scheduler
 from .TokenDataset import TokenDataset
 from .train import AIGProgressBar, AIGTrainer
 from .utils import model_max_length, reset_seed, set_seed
@@ -432,6 +434,7 @@ class aigen:
 
         hparams = dict(
             optimizer=optimizer,
+            scheduler=scheduler,
             loss_function=loss_function,
             learning_rate=learning_rate,
             lookahead=lookahead,
@@ -447,7 +450,6 @@ class aigen:
             save_every=save_every,
             generate_every=generate_every,
             use_tpu=tpu_cores > 0,
-            scheduler=scheduler,
             num_cycles=num_cycles,
             petals=petals,
             deepspeed=deepspeed,
@@ -509,6 +511,13 @@ class aigen:
             train_params["strategy"] = strategy
 
         train_params["accumulate_grad_batches"] = gradient_accumulation_steps
+
+        hparams["num_warmup_steps"] = (
+            hparams.get("warmup_steps", 0) * gradient_accumulation_steps
+        )
+        hparams["num_training_steps"] = (
+            hparams["num_steps"] * gradient_accumulation_steps
+        )
 
         if optimizer not in ["SophiaH"]:
             train_params["gradient_clip_val"] = gradient_clip_val
@@ -581,9 +590,14 @@ class aigen:
                 [train_split, streaming_train_split], mode="min_size"
             )
 
+        o = get_optimizer(self.model, hparams)
+        s = get_scheduler(hparams, o)
+
         # Wrap the model in a pytorch-lightning module
         train_model = AIGTrainer(
             self.model,
+            o,
+            s,
             train_split,
             hparams,
             self.tokenizer,

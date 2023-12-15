@@ -6,20 +6,14 @@ import subprocess
 import sys
 
 import psutil
-import pytorch_optimizer
 import torch
 import torchmetrics
 from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import ProgressBar
 from lightning.pytorch.strategies import DeepSpeedStrategy
-from torch.optim import AdamW, RMSprop
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from transformers import (
-    get_cosine_with_hard_restarts_schedule_with_warmup,
-    get_scheduler,
-)
 
 from .utils import colors
 
@@ -31,17 +25,17 @@ class AIGTrainer(LightningModule):
     A training module for aigen.
     """
 
-    def __init__(self, model, dataset, hparams, tokenizer):
+    def __init__(self, model, optimizer, scheduler, dataset, hparams, tokenizer):
         super(AIGTrainer, self).__init__()
 
-        self.model, self.dataset_len, self.tokenizer = (
+        self.model, self.optimizer, self.scheduler, self.dataset_len, self.tokenizer = (
             model,
+            optimizer,
+            scheduler,
             len(dataset),
             tokenizer,
         )
-        self.last_batch = None
         self.automatic_optimization = True
-
         self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
@@ -84,125 +78,10 @@ class AIGTrainer(LightningModule):
     def on_train_epoch_end(self):
         pass
 
-    def select_optimizer(self):
-        no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = []
-
-        for n, p in self.model.named_parameters():
-            if not p.requires_grad:
-                continue
-
-            if any(nd in n for nd in no_decay):
-                weight_decay = 0.0
-            else:
-                weight_decay = self.hparams["weight_decay"]
-
-            optimizer_grouped_parameters.append(
-                {
-                    "params": [p],
-                    "weight_decay": weight_decay,
-                }
-            )
-
-        if self.hparams["optimizer"] == "Lion":
-            Lion = getattr(pytorch_optimizer, "Lion")
-            opt = Lion(
-                optimizer_grouped_parameters,
-                lr=self.hparams["learning_rate"],
-                betas=(0.9, 0.99),
-                r=0.95,
-                use_gc=True,
-                adanorm=True,
-            )
-        elif self.hparams["optimizer"] == "AdaBelief":
-            AdaBelief = getattr(pytorch_optimizer, "AdaBelief")
-            opt = AdaBelief(
-                optimizer_grouped_parameters,
-                lr=self.hparams["learning_rate"],
-                betas=(0.9, 0.999),
-                r=0.95,
-                rectify=True,
-            )
-        elif self.hparams["optimizer"] == "Ranger21":
-            Ranger21 = getattr(pytorch_optimizer, "Ranger21")
-            opt = Ranger21(
-                optimizer_grouped_parameters,
-                lr=self.hparams["learning_rate"],
-                lookahead_merge_time=5,
-                num_iterations=1,
-            )
-        elif self.hparams["optimizer"] == "RMSProp":
-            opt = RMSprop(
-                optimizer_grouped_parameters,
-                lr=self.hparams["learning_rate"],
-                momentum=self.hparams.get("momentum", 0),
-                alpha=0.999,
-                maximize=False,
-                centered=False,
-            )
-        elif self.hparams["optimizer"] == "Adan":
-            from pytorch_optimizer import Adan
-
-            opt = Adan(
-                optimizer_grouped_parameters,
-                lr=self.hparams["learning_rate"],
-            )
-        else:
-            if self.hparams.get("deepspeed"):
-                from deepspeed.ops.adam import DeepSpeedCPUAdam
-
-                opt = DeepSpeedCPUAdam(
-                    optimizer_grouped_parameters,
-                    lr=self.hparams["learning_rate"],
-                    eps=self.hparams.get("eps", 1e-8),
-                    adamw_mode=True,
-                )
-            else:
-                opt = AdamW(
-                    optimizer_grouped_parameters,
-                    lr=self.hparams["learning_rate"],
-                    eps=self.hparams.get("eps", 1e-8),
-                )
-
-        lookahead_steps = self.hparams.get("lookahead", 0)
-        if lookahead_steps > 0:
-            from pytorch_optimizer import Lookahead
-
-            optimizer = Lookahead(
-                opt, k=lookahead_steps, alpha=0.5, pullback_momentum="none"
-            )
-        else:
-            optimizer = opt
-        return optimizer
-
     def configure_optimizers(self):
         "Prepare optimizer"
 
-        optimizer = self.select_optimizer()
-
-        schedule = self.hparams.get("scheduler", "linear")
-        num_warmup_steps = (
-            self.hparams.get("warmup_steps", 0) * self.trainer.accumulate_grad_batches
-        )
-        num_training_steps = (
-            self.hparams["num_steps"] * self.trainer.accumulate_grad_batches
-        )
-        if schedule in ["cosine_with_restarts"]:
-            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
-                optimizer,
-                num_warmup_steps=num_warmup_steps,
-                num_training_steps=num_training_steps,
-                num_cycles=self.hparams["num_cycles"],
-            )
-        else:
-            scheduler = get_scheduler(
-                schedule,
-                optimizer,
-                num_warmup_steps=num_warmup_steps,
-                num_training_steps=num_training_steps,
-            )
-
-        return [optimizer], [scheduler]
+        return [self.optimizer], [self.scheduler]
 
 
 class AIGProgressBar(ProgressBar):
