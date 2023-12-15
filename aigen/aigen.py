@@ -470,7 +470,8 @@ class aigen:
 
         # This is a hack, but prevents HivemindStrategy from placing models
         # onto the wrong device.
-        torch.cuda.set_device(devices[0])
+        if is_gpu_used:
+            torch.cuda.set_device(devices[0])
 
         train_params = dict(
             accelerator="auto",
