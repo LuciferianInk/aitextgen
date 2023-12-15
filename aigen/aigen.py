@@ -467,6 +467,10 @@ class aigen:
         if devices is None:
             devices = [self.get_device().index]
 
+        # This is a hack, but prevents HivemindStrategy from placing models
+        # onto the wrong device.
+        torch.cuda.set_device(devices[0])
+
         train_params = dict(
             accelerator="auto",
             strategy="auto",
