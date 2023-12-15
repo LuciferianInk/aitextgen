@@ -86,24 +86,23 @@ class AIGTrainer(LightningModule):
 
     def select_optimizer(self):
         no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [
-                    p
-                    for n, p in self.model.named_parameters()
-                    if not any(nd in n for nd in no_decay)
-                ],
-                "weight_decay": self.hparams["weight_decay"],
-            },
-            {
-                "params": [
-                    p
-                    for n, p in self.model.named_parameters()
-                    if any(nd in n for nd in no_decay)
-                ],
-                "weight_decay": 0.0,
-            },
-        ]
+        optimizer_grouped_parameters = []
+
+        for n, p in self.model.named_parameters():
+            if not p.requires_grad:
+                continue
+
+            if any(nd in n for nd in no_decay):
+                weight_decay = 0.0
+            else:
+                weight_decay = self.hparams["weight_decay"]
+
+            optimizer_grouped_parameters.append(
+                {
+                    "params": [p],
+                    "weight_decay": weight_decay,
+                }
+            )
 
         if self.hparams["optimizer"] == "Lion":
             Lion = getattr(pytorch_optimizer, "Lion")
