@@ -51,9 +51,12 @@ def get_strategy(scheduler, name, hparams, train_params):
         )
         output, error = process.communicate()
 
-        mine = json.loads(output.decode("utf-8"))
-        craft = f"/p2p/{mine['ID']}"
-        initial_peers.append(craft)
+        try:
+            mine = json.loads(output.decode("utf-8"))
+            craft = f"/p2p/{mine['ID']}"
+            initial_peers.append(craft)
+        except:
+            pass
 
         delay = 1.0
         for peer in initial_peers:
