@@ -472,6 +472,8 @@ class aigen:
         # onto the wrong device.
         if is_gpu_used:
             torch.cuda.set_device(devices[0])
+        else:
+            devices = 2
 
         train_params = dict(
             accelerator="auto",
