@@ -501,14 +501,8 @@ class aigen:
             ],
         )
 
+        hparams["accumulate_grad_batches"] = gradient_accumulation_steps
         train_params["accumulate_grad_batches"] = gradient_accumulation_steps
-
-        hparams["num_warmup_steps"] = (
-            hparams.get("warmup_steps", 0) * gradient_accumulation_steps
-        )
-        hparams["num_training_steps"] = (
-            hparams["num_steps"] * gradient_accumulation_steps
-        )
 
         if optimizer not in ["SophiaH"]:
             train_params["gradient_clip_val"] = gradient_clip_val
