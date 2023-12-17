@@ -68,14 +68,16 @@ def get_strategy(scheduler, name, hparams, train_params):
             print(f"{color}PIER-{initial_peers.index(peer)}:{colors.WHITE} {peer}")
 
         strategy = HivemindStrategy(
-            run_id="src",
+            run_id="sources",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
             # initial_peers=[
             #     "/ip4/193.122.149.226/tcp/4001/p2p/12D3KooWJb6YNtfYpvfL2C7cKfMqHorLFTcPAouY5yHU73R8UhZy"
             # ],
-            # initial_peers=["/p2p/12D3KooWJb6YNtfYpvfL2C7cKfMqHorLFTcPAouY5yHU73R8UhZy"],
-            use_ipfs=True,
+            initial_peers=[
+                "/ip4/193.122.149.226/tcp/4002/p2p/12D3KooWFNck2r5Yu9nHLTAcjXDYBNibwuEVjsSJoLy24KMw855m"
+            ],
+            use_ipfs=False,
             client_mode=False,
             verbose=False,
             wait_timeout=90,
