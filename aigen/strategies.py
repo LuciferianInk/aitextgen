@@ -88,6 +88,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
                 if schedule.current_step >= self.max_steps:
                     print(f"Reached max_steps ({self.max_steps}). Stopping training.")
                     trainer.should_stop = True
+                    trainer.strategy.teardown()
 
         train_params["callbacks"].append(
             MaxStepCallback(max_steps=train_params["max_steps"])

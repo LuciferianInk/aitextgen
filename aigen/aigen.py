@@ -375,6 +375,7 @@ class aigen:
         val_interval: int = 1000,
         supplement: bool = False,
         initial_peers: list = None,
+        target_batch_size: int = None,
         strategy=None,
         devices=None,
         **kwargs,
@@ -461,6 +462,7 @@ class aigen:
             val_interval=val_interval,
             block_size=block_size,
             initial_peers=initial_peers,
+            target_batch_size=target_batch_size,
             **kwargs,
         )
 
@@ -504,6 +506,7 @@ class aigen:
                     num_layers_freeze,
                     petals,
                     GenerationConfig(**generation_config),
+                    hparams["target_batch_size"],
                 ),
             ],
         )

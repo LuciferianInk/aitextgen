@@ -109,6 +109,7 @@ class AIGProgressBar(ProgressBar):
         num_layers_freeze,
         petals,
         generation_config,
+        target_batch_size,
     ):
         super().__init__()
         self.enabled = True
@@ -124,6 +125,7 @@ class AIGProgressBar(ProgressBar):
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
         self.generation_config = generation_config
+        self.target_batch_size = target_batch_size
 
     @property
     def save_every_check(self):
@@ -137,7 +139,7 @@ class AIGProgressBar(ProgressBar):
 
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
-        self.main_progress_bar = tqdm(
+        self.pbar = tqdm(
             total=trainer.max_steps * trainer.accumulate_grad_batches,
             disable=not self.enabled,
             smoothing=0,
@@ -148,7 +150,7 @@ class AIGProgressBar(ProgressBar):
         self.freeze_layers(lm)
 
     def on_train_end(self, trainer, lm):
-        self.main_progress_bar.close()
+        self.pbar.close()
         self.unfreeze_layers(lm)
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
@@ -252,8 +254,17 @@ class AIGProgressBar(ProgressBar):
             num_peers = trainer.strategy.num_peers
             echo = echo + f" => Peers => {colors.BLUE}{num_peers}{colors.WHITE}"
 
-        self.main_progress_bar.update(1)
-        self.main_progress_bar.set_description(echo)
+        if (
+            hasattr(schedule, "current_step")
+            and step != 0
+            and self.pbar.n % self.target_batch_size == 0
+        ):
+            self.pbar.reset(total=trainer.max_steps)
+            for _ in range(step * self.target_batch_size):
+                self.pbar.update(1)
+
+        self.pbar.update(1)
+        self.pbar.set_description(echo)
 
     def generate_sample_text(self, trainer, lm):
         lm.model.eval()
@@ -279,8 +290,8 @@ class AIGProgressBar(ProgressBar):
         lm.model.train()
 
         for text in gen_texts:
-            self.main_progress_bar.write(text)
-            self.main_progress_bar.write(f"={colors.BLUE}=>{colors.WHITE}")
+            self.pbar.write(text)
+            self.pbar.write(f"={colors.BLUE}=>{colors.WHITE}")
 
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
