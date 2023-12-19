@@ -577,11 +577,36 @@ class aigen:
                 [train_split, streaming_train_split], mode="min_size"
             )
 
-        o = get_optimizer(self.model, hparams)
+        def get_params(model):
+            no_decay = ["bias", "LayerNorm.weight"]
+            grouped_parameters = []
+
+            for n, p in model.named_parameters():
+                if not p.requires_grad:
+                    continue
+
+                if any(nd in n for nd in no_decay):
+                    weight_decay = 0.0
+                else:
+                    weight_decay = hparams["weight_decay"]
+
+                grouped_parameters.append(
+                    {
+                        "params": [p],
+                        "weight_decay": weight_decay,
+                    }
+                )
+
+            return grouped_parameters
+
+        params = get_params(self.model)
+        o = get_optimizer(params, hparams)
         s = get_scheduler(hparams, o)
 
         if strategy is not None:
-            train_params["strategy"] = get_strategy(s, strategy, hparams, train_params)
+            train_params["strategy"] = get_strategy(
+                strategy, params, hparams, train_params, s
+            )
 
         # Wrap the model in a pytorch-lightning module
         train_model = AIGTrainer(

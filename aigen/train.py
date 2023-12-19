@@ -56,10 +56,14 @@ class AIGTrainer(LightningModule):
         opt = self.lr_schedulers()
         opt.step()
 
+        step = self.global_step
+        if hasattr(self.trainer.optimizers[0], "local_epoch"):
+            step = self.trainer.optimizers[0].local_epoch
+
         self.logger.experiment.add_scalars(
             "vtx",
             {"lr": float(self.trainer.optimizers[0].param_groups[0]["lr"])},
-            self.global_step,
+            step,
         )
 
         return loss
@@ -68,11 +72,17 @@ class AIGTrainer(LightningModule):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
         perplexity = torch.exp(loss)
+
+        step = self.global_step
+        if hasattr(self.trainer.optimizers[0], "local_epoch"):
+            step = self.trainer.optimizers[0].local_epoch
+
         self.logger.experiment.add_scalars(
             "vtx",
             {"val_loss": float(loss), "val_ppl": float(perplexity)},
-            self.global_step,
+            step,
         )
+
         return loss
 
     def on_train_epoch_end(self):
@@ -182,13 +192,17 @@ class AIGProgressBar(ProgressBar):
             if did_unfreeze:
                 self.freeze_layers(lm)
 
+        step = lm.global_step
+        if hasattr(trainer.optimizers[0], "local_epoch"):
+            step = trainer.optimizers[0].local_epoch
+
         lm.logger.experiment.add_scalars(
             "vtx",
             {
                 "train_loss": current_loss,
                 "epoch": current_epoch,
             },
-            lm.global_step,
+            step,
         )
 
         color = colors.GREEN

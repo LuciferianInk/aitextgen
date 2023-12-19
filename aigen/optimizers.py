@@ -1,28 +1,9 @@
-def get_optimizer(model, hparams):
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = []
-
-    for n, p in model.named_parameters():
-        if not p.requires_grad:
-            continue
-
-        if any(nd in n for nd in no_decay):
-            weight_decay = 0.0
-        else:
-            weight_decay = hparams["weight_decay"]
-
-        optimizer_grouped_parameters.append(
-            {
-                "params": [p],
-                "weight_decay": weight_decay,
-            }
-        )
-
+def get_optimizer(params, hparams):
     if hparams["optimizer"] == "Lion":
         from pytorch_optimizer import Lion
 
         opt = Lion(
-            optimizer_grouped_parameters,
+            params,
             lr=hparams["learning_rate"],
             betas=(0.9, 0.99),
             r=0.95,
@@ -33,7 +14,7 @@ def get_optimizer(model, hparams):
         from pytorch_optimizer import AdaBelief
 
         opt = AdaBelief(
-            optimizer_grouped_parameters,
+            params,
             lr=hparams["learning_rate"],
             betas=(0.9, 0.999),
             r=0.95,
@@ -43,7 +24,7 @@ def get_optimizer(model, hparams):
         from pytorch_optimizer import Ranger21
 
         opt = Ranger21(
-            optimizer_grouped_parameters,
+            params,
             lr=hparams["learning_rate"],
             lookahead_merge_time=5,
             num_iterations=1,
@@ -52,7 +33,7 @@ def get_optimizer(model, hparams):
         from torch.optim import RMSprop
 
         opt = RMSprop(
-            optimizer_grouped_parameters,
+            params,
             lr=hparams["learning_rate"],
             momentum=hparams.get("momentum", 0),
             alpha=0.999,
@@ -63,7 +44,7 @@ def get_optimizer(model, hparams):
         from pytorch_optimizer import Adan
 
         opt = Adan(
-            optimizer_grouped_parameters,
+            params,
             lr=hparams["learning_rate"],
         )
     else:
@@ -71,7 +52,7 @@ def get_optimizer(model, hparams):
             from deepspeed.ops.adam import DeepSpeedCPUAdam
 
             opt = DeepSpeedCPUAdam(
-                optimizer_grouped_parameters,
+                params,
                 lr=hparams["learning_rate"],
                 eps=hparams.get("eps", 1e-8),
                 adamw_mode=True,
@@ -80,7 +61,7 @@ def get_optimizer(model, hparams):
             from torch.optim import AdamW
 
             opt = AdamW(
-                optimizer_grouped_parameters,
+                params,
                 lr=hparams["learning_rate"],
                 eps=hparams.get("eps", 1e-8),
             )

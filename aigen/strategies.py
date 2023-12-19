@@ -5,11 +5,12 @@ import random
 import re
 import subprocess
 import time
+from functools import partial
 
 from .utils import colors
 
 
-def get_strategy(scheduler, name, hparams, train_params):
+def get_strategy(name, params, hparams, train_params, scheduler):
     if name == "deepspeed":
         DeepSpeedStrategy(
             stage=3,
@@ -72,14 +73,21 @@ def get_strategy(scheduler, name, hparams, train_params):
             delay *= 0.75
             print(f"PIER-{initial_peers.index(peer)}: {peer}")
 
-        focus = os.environ["FOCUS"]
+        # focus = os.environ["FOCUS"]
+        focus = "test"
+
+        use_ipfs = True
+
+        from torch.optim import AdamW
+
+        train_params["max_steps"] *= hparams["target_batch_size"]
 
         strategy = HivemindStrategy(
-            run_id=f"src-{focus}",
+            run_id=f"src-vtx-{focus}",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
             initial_peers=initial_peers,
-            use_ipfs=True,
+            use_ipfs=use_ipfs,
             use_relay=True,
             use_auto_relay=True,
             verbose=False,
@@ -91,8 +99,16 @@ def get_strategy(scheduler, name, hparams, train_params):
             # delay_grad_averaging=True,
             # delay_optimizer_step=True,
             # offload_optimizer=True,  # required to delay averaging
-            # scheduler_fn=scheduler,
+            scheduler_fn=scheduler,
+            # scheduler_fn=partial(
+            #     AdamW,
+            #     params=params,
+            #     lr=hparams["learning_rate"],
+            #     eps=hparams.get("eps", 1e-8),
+            # ),
         )
+
+        print(vars(strategy))
 
         visible_addresses = [
             str(a)
@@ -102,9 +118,12 @@ def get_strategy(scheduler, name, hparams, train_params):
 
         my_ids = []
         for peer in list(visible_addresses):
-            match = re.search(pattern, peer)
-            if match:
-                my_ids.append(match.group(1))
+            if use_ipfs:
+                match = re.search(pattern, peer)
+                if match:
+                    my_ids.append(match.group(1))
+            else:
+                my_ids.append(peer)
 
         print(
             f"{colors.BLUE}ONE@SWARM:{colors.WHITE} To join this swarm, use the following `initial_piers`:"
