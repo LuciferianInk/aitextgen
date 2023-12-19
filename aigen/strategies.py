@@ -75,9 +75,6 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             delay *= 0.75
             print(f"PIER-{initial_peers.index(peer)}: {peer}")
 
-        # focus = os.environ["FOCUS"]
-        focus = "test"
-
         class MaxStepCallback(Callback):
             def __init__(self, max_steps):
                 self.max_steps = max_steps
@@ -95,6 +92,8 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         )
 
         train_params["max_steps"] *= hparams["target_batch_size"]
+
+        focus = os.environ["FOCUS"]
 
         strategy = HivemindStrategy(
             run_id=f"src-vtx-{focus}",
