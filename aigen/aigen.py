@@ -369,6 +369,7 @@ class aigen:
         val_split: float = 0.0,
         val_interval: int = 1000,
         supplement: bool = False,
+        initial_peers: list = None,
         strategy=None,
         devices=None,
         **kwargs,
@@ -454,6 +455,7 @@ class aigen:
             val_split=val_split,
             val_interval=val_interval,
             block_size=block_size,
+            initial_peers=initial_peers,
             **kwargs,
         )
 
