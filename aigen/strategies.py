@@ -7,6 +7,8 @@ import subprocess
 import time
 from functools import partial
 
+from lightning.pytorch.callbacks import Callback
+
 from .utils import colors
 
 
@@ -76,9 +78,20 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         # focus = os.environ["FOCUS"]
         focus = "test"
 
-        use_ipfs = True
+        class MaxStepCallback(Callback):
+            def __init__(self, max_steps):
+                self.max_steps = max_steps
 
-        from torch.optim import AdamW
+            def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
+                schedule = lm.lr_schedulers()
+                # trainer.strategy.barrier()
+                if schedule.current_step >= self.max_steps:
+                    print(f"Reached max_steps ({self.max_steps}). Stopping training.")
+                    trainer.should_stop = True
+
+        train_params["callbacks"].append(
+            MaxStepCallback(max_steps=train_params["max_steps"])
+        )
 
         train_params["max_steps"] *= hparams["target_batch_size"]
 
@@ -87,19 +100,18 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
             initial_peers=initial_peers,
-            use_ipfs=use_ipfs,
+            use_ipfs=True,
             use_relay=True,
             use_auto_relay=True,
             verbose=False,
             wait_timeout=90,
             bootstrap_timeout=30,
-            matchmaking_time=90.0,
-            averaging_timeout=180.0,
+            matchmaking_time=15.0,
+            averaging_timeout=45.0,
             # delay_state_averaging=True,
             # delay_grad_averaging=True,
             # delay_optimizer_step=True,
             # offload_optimizer=True,  # required to delay averaging
-            # scheduler_fn=scheduler,
             # scheduler_fn=partial(
             #     AdamW,
             #     # params,
@@ -116,12 +128,9 @@ def get_strategy(name, params, hparams, train_params, scheduler):
 
         my_ids = []
         for peer in list(visible_addresses):
-            if use_ipfs:
-                match = re.search(pattern, peer)
-                if match:
-                    my_ids.append(match.group(1))
-            else:
-                my_ids.append(peer)
+            match = re.search(pattern, peer)
+            if match:
+                my_ids.append(match.group(1))
 
         print(
             f"{colors.BLUE}ONE@SWARM:{colors.WHITE} To join this swarm, use the following `initial_piers`:"

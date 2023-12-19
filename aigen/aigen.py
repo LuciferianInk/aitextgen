@@ -14,7 +14,12 @@ import numpy as np
 import torch
 from accelerate import Accelerator
 from datasets import load_dataset
-from lightning.pytorch.callbacks import ModelPruning, StochasticWeightAveraging
+from lightning.pytorch.callbacks import (
+    Callback,
+    EarlyStopping,
+    ModelPruning,
+    StochasticWeightAveraging,
+)
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
 from peft import PeftConfig, PeftModel
