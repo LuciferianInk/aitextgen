@@ -99,16 +99,14 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             # delay_grad_averaging=True,
             # delay_optimizer_step=True,
             # offload_optimizer=True,  # required to delay averaging
-            scheduler_fn=scheduler,
+            # scheduler_fn=scheduler,
             # scheduler_fn=partial(
             #     AdamW,
-            #     params=params,
+            #     # params,
             #     lr=hparams["learning_rate"],
             #     eps=hparams.get("eps", 1e-8),
             # ),
         )
-
-        print(vars(strategy))
 
         visible_addresses = [
             str(a)

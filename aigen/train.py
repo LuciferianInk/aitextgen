@@ -53,12 +53,12 @@ class AIGTrainer(LightningModule):
 
         loss = sum(losses) / len(losses)
 
-        opt = self.lr_schedulers()
-        opt.step()
+        schedule = self.lr_schedulers()
+        schedule.step()
 
         step = self.global_step
-        if hasattr(self.trainer.optimizers[0], "local_epoch"):
-            step = self.trainer.optimizers[0].local_epoch
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
 
         self.logger.experiment.add_scalars(
             "vtx",
@@ -73,9 +73,10 @@ class AIGTrainer(LightningModule):
         loss = outputs[0]
         perplexity = torch.exp(loss)
 
+        schedule = self.lr_schedulers()
         step = self.global_step
-        if hasattr(self.trainer.optimizers[0], "local_epoch"):
-            step = self.trainer.optimizers[0].local_epoch
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
 
         self.logger.experiment.add_scalars(
             "vtx",
@@ -192,9 +193,11 @@ class AIGProgressBar(ProgressBar):
             if did_unfreeze:
                 self.freeze_layers(lm)
 
+        schedule = lm.lr_schedulers()
         step = lm.global_step
-        if hasattr(trainer.optimizers[0], "local_epoch"):
-            step = trainer.optimizers[0].local_epoch
+
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
 
         lm.logger.experiment.add_scalars(
             "vtx",
