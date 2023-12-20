@@ -97,6 +97,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
 
         strategy = HivemindStrategy(
             run_id=f"src-vtx-{focus}",
+            # run_id="src-vtx-src",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
             initial_peers=initial_peers,
@@ -106,8 +107,8 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             verbose=False,
             wait_timeout=90,
             bootstrap_timeout=30,
-            matchmaking_time=45.0,
-            averaging_timeout=60.0,
+            matchmaking_time=60.0,
+            averaging_timeout=180.0,
             # delay_state_averaging=True,
             # delay_grad_averaging=True,
             # delay_optimizer_step=True,
