@@ -84,8 +84,8 @@ def get_strategy(name, params, hparams, train_params, scheduler):
                 # trainer.strategy.barrier()
                 if schedule.current_step >= self.max_steps:
                     print(f"Reached max_steps ({self.max_steps}). Stopping training.")
-                    trainer.should_stop = True
                     trainer.strategy.teardown()
+                    trainer.should_stop = True
 
         train_params["callbacks"].append(
             MaxStepCallback(max_steps=train_params["max_steps"])
@@ -107,8 +107,8 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             verbose=False,
             wait_timeout=90,
             bootstrap_timeout=30,
-            matchmaking_time=15.0,
-            averaging_timeout=60.0,
+            matchmaking_time=90.0,
+            averaging_timeout=300.0,
             # delay_state_averaging=True,
             # delay_grad_averaging=True,
             # delay_optimizer_step=True,
