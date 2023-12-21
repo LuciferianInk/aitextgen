@@ -1,4 +1,14 @@
+import os
+
 from setuptools import setup
+
+_PATH_ROOT = os.path.dirname(__file__)
+
+
+def _load_requirements(path_dir: str, file_name: str = "requirements.txt") -> list:
+    reqs = parse_requirements(open(os.path.join(path_dir, file_name)).readlines())
+    return list(map(str, reqs))
+
 
 setup(
     name="aigen",
@@ -16,10 +26,5 @@ setup(
     entry_points={"console_scripts": ["aigen=aigen.cli:aigen_cli"]},
     python_requires=">=3.6",
     include_package_data=True,
-    install_requires=[
-        "transformers>=4.5.1",
-        "fire>=0.3.0",
-        "pytorch-lightning>=1.7.0",
-        "torch>=1.6.0",
-    ],
+    install_requires=_load_requirements(_PATH_ROOT),
 )
