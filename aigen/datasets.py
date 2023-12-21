@@ -189,7 +189,7 @@ class TokenDataset(Dataset):
             return tokens
 
 
-class TextDataModule(LightningDataModule):
+class StaticDataModule(LightningDataModule):
     def __init__(self, dataset, hparams):
         super().__init__()
         self.dataset = dataset
@@ -199,6 +199,7 @@ class TextDataModule(LightningDataModule):
         self.val_split = hparams["val_split"]
         self.train = None
         self.val = None
+        self.setup()
 
     def setup(self):
         train_split = 1.0 - self.val_split
@@ -226,17 +227,12 @@ class TextDataModule(LightningDataModule):
 
 
 class StreamingDataset(IterableDataset):
-    def __init__(self, tokenizer, params):
+    def __init__(self, tokenizer, params, config):
         self.tokenizer = tokenizer
-        # self.content_key = "raw_content"
-        self.content_key = "content"
+        self.content_key = config["content_key"]
         self.params = params
         self.dataset = load_dataset(
-            "tiiuae/falcon-refinedweb",
-            # "togethercomputer/RedPajama-Data-V2",
-            # name="default",
-            # snapshots=["2023-14"],
-            # languages=["en"],
+            config["dataset"],
             split="train",
             streaming=True,
             cache_dir="/data/pile",
@@ -264,14 +260,16 @@ class StreamingDataset(IterableDataset):
 
 
 class StreamingDataModule(LightningDataModule):
-    def __init__(self, tokenizer, hparams):
+    def __init__(self, tokenizer, hparams, config):
         super().__init__()
         self.iterable = None
         self.tokenizer = tokenizer
         self.params = hparams
+        self.config = config
+        self.setup()
 
     def setup(self, stage=None):
-        self.iterable = StreamingDataset(tokenizer=self.tokenizer, params=self.params)
+        self.iterable = StreamingDataset(self.tokenizer, self.params, self.config)
 
     def train_dataloader(self):
         return DataLoader(

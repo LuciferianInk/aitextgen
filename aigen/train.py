@@ -25,14 +25,14 @@ class AIGTrainer(LightningModule):
     A training module for aigen.
     """
 
-    def __init__(self, model, optimizer, scheduler, dataset, hparams, tokenizer):
+    def __init__(self, model, optimizer, scheduler, train_len, hparams, tokenizer):
         super(AIGTrainer, self).__init__()
 
-        self.model, self.optimizer, self.scheduler, self.dataset_len, self.tokenizer = (
+        self.model, self.optimizer, self.scheduler, self.train_len, self.tokenizer = (
             model,
             optimizer,
             scheduler,
-            len(dataset),
+            train_len,
             tokenizer,
         )
         self.automatic_optimization = True
@@ -156,13 +156,10 @@ class AIGProgressBar(ProgressBar):
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
-        # clean up the GPU cache used for the benchmark
-        # https://discuss.pytorch.org/t/about-torch-cuda-empty-cache/34232/4
-        if self.steps == 0 and self.gpu:
-            torch.cuda.empty_cache()
-
         current_loss = float(outputs["loss"])
-        current_epoch = trainer.current_epoch + (batch_idx / lm.dataset_len)
+        current_epoch = trainer.current_epoch
+        if lm.train_len > 0:
+            current_epoch += batch_idx / lm.train_len
         self.steps += 1
         avg_loss = 0
         if current_loss == current_loss:  # don't add if current_loss is NaN

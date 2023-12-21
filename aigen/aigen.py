@@ -38,7 +38,7 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
-from .datasets import StreamingDataModule, TextDataModule, TokenDataset
+from .datasets import StaticDataModule, StreamingDataModule, TokenDataset
 from .optimizers import get_optimizer
 from .schedulers import get_scheduler
 from .strategies import get_strategy
@@ -336,7 +336,8 @@ class aigen:
 
     def train(
         self,
-        train_data: Union[str, TokenDataset],
+        static_data: Union[str, TokenDataset],
+        streaming_data: [],
         generation_config: dict = None,
         output_dir: str = "trained_model",
         tpu_cores: int = 0,
@@ -344,6 +345,8 @@ class aigen:
         gradient_accumulation_steps: int = 1,
         seed: int = None,
         optimizer: str = "AdamW",
+        scheduler: str = "linear",
+        num_cycles=None,
         loss_function: str = "default",
         learning_rate: float = 1e-3,
         lookahead: int = 0,
@@ -361,8 +364,6 @@ class aigen:
         batch_size: int = 1,
         num_workers: int = None,
         num_layers_freeze: int = 0,
-        scheduler: str = "linear",
-        num_cycles=None,
         prune: float = 0.0,
         petals: bool = False,
         block_size: int = 2048,
@@ -375,7 +376,10 @@ class aigen:
         devices=None,
         **kwargs,
     ) -> None:
-        self.petals = petals
+        if seed:
+            set_seed(seed)
+
+        os.makedirs(output_dir, exist_ok=True)
 
         # arch = platform.machine()
         # if arch == "x86_64" and hasattr(self.model, "reverse_bettertransformer"):
@@ -386,26 +390,15 @@ class aigen:
         #         logging.error(e)
         #         pass
 
-        os.makedirs(output_dir, exist_ok=True)
-
         is_gpu_used = torch.cuda.is_available()
 
-        if isinstance(train_data, str):
-            block_size = model_max_length(self.model.config)
-            logger.info(
-                f"Loading text from {train_data} with generation length of {block_size}."
-            )
-            train_data = TokenDataset(
-                tokenizer=self.tokenizer,
-                bos_token=self.bos_token,
-                eos_token=self.eos_token,
-                unk_token=self.unk_token,
-                file_path=train_data,
-                block_size=block_size,
-                **kwargs,
-            )
+        if devices is None:
+            devices = [self.get_device().index]
 
-        setattr(self.model.config, "line_by_line", train_data.line_by_line)
+        # This is a hack, but prevents HivemindStrategy from placing models
+        # onto the wrong device.
+        if is_gpu_used:
+            torch.cuda.set_device(devices[0])
 
         freeze_layers = False
         if num_layers_freeze > 0:
@@ -457,22 +450,9 @@ class aigen:
             block_size=block_size,
             initial_peers=initial_peers,
             target_batch_size=target_batch_size,
+            accumulate_grad_batches=gradient_accumulation_steps,
             **kwargs,
         )
-
-        # Begin training
-        if seed:
-            set_seed(seed)
-
-        if devices is None:
-            devices = [self.get_device().index]
-
-        # This is a hack, but prevents HivemindStrategy from placing models
-        # onto the wrong device.
-        if is_gpu_used:
-            torch.cuda.set_device(devices[0])
-        else:
-            devices = 2
 
         train_params = dict(
             accelerator="auto",
@@ -484,6 +464,9 @@ class aigen:
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
             precision="32-true",
+            accumulate_grad_batches=gradient_accumulation_steps,
+            gradient_clip_val=gradient_clip_val,
+            gradient_clip_algorithm="norm",
             logger=loggers if loggers else False,
             benchmark=True,
             callbacks=[
@@ -498,16 +481,9 @@ class aigen:
                     petals,
                     GenerationConfig(**generation_config),
                     hparams["target_batch_size"],
-                ),
+                )
             ],
         )
-
-        hparams["accumulate_grad_batches"] = gradient_accumulation_steps
-        train_params["accumulate_grad_batches"] = gradient_accumulation_steps
-
-        if optimizer not in ["SophiaH"]:
-            train_params["gradient_clip_val"] = gradient_clip_val
-            train_params["gradient_clip_algorithm"] = "norm"
 
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
@@ -543,20 +519,29 @@ class aigen:
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
 
-        data_module = TextDataModule(train_data, hparams)
-        data_module.setup()
+        total_train = []
+        total_val = []
 
-        train_split = data_module.train_dataloader()
-        val_split = data_module.val_dataloader()
+        for dataset in static_data:
+            module = StaticDataModule(dataset, hparams)
+            total_train.append(module.train_dataloader())
+            total_val.append(module.val_dataloader())
 
-        final_train = [train_split]
-        if supplement:
-            streaming_module = StreamingDataModule(self.tokenizer, hparams)
-            streaming_module.setup()
-            streaming_train_split = streaming_module.train_dataloader()
-            final_train = CombinedLoader(
-                [train_split, streaming_train_split], mode="min_size"
-            )
+        static_len = sum(len(dataset) for dataset in total_train)
+
+        for dataset in streaming_data:
+            module = StreamingDataModule(self.tokenizer, hparams, dataset)
+            total_train.append(module.train_dataloader())
+
+        combined_train = total_train
+        if len(total_train) > 1:
+            combined_train = CombinedLoader(total_train, mode="min_size")
+
+        combined_val = None
+        if len(total_val) == 1:
+            combined_val = total_val
+        elif len(total_val) > 1:
+            combined_val = CombinedLoader(total_val, mode="min_size")
 
         def get_params(model):
             no_decay = ["bias", "LayerNorm.weight"]
@@ -581,20 +566,21 @@ class aigen:
             return grouped_parameters
 
         params = get_params(self.model)
-        o = get_optimizer(params, hparams)
-        s = get_scheduler(hparams, o)
+
+        opt = get_optimizer(params, hparams)
+        schedule = get_scheduler(hparams, opt)
 
         if strategy is not None:
             train_params["strategy"] = get_strategy(
-                strategy, params, hparams, train_params, s
+                strategy, params, hparams, train_params, schedule
             )
 
         # Wrap the model in a pytorch-lightning module
         train_model = AIGTrainer(
             self.model,
-            o,
-            s,
-            train_split,
+            opt,
+            schedule,
+            static_len,
             hparams,
             self.tokenizer,
         )
@@ -602,7 +588,7 @@ class aigen:
         self.model.train()
 
         trainer = Trainer(**train_params)
-        trainer.fit(train_model, final_train, val_split)
+        trainer.fit(train_model, combined_train, combined_val)
 
         if not petals:
             self.save(output_dir)
