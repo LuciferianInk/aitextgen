@@ -276,7 +276,7 @@ class StreamingDataModule(LightningDataModule):
         return DataLoader(
             self.iterable,
             batch_size=self.params["batch_size"],
-            pin_memory=False,
+            pin_memory=True,
             num_workers=self.params["num_workers"],
         )
 
