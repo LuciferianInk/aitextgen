@@ -96,8 +96,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         focus = os.environ["FOCUS"]
 
         strategy = HivemindStrategy(
-            # run_id=f"src-vtx-{focus}",
-            run_id="src-vtx-src",
+            run_id=f"src-vtx-{focus}",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
             initial_peers=initial_peers,

@@ -4,13 +4,16 @@ import itertools
 import logging
 import math
 import os
+import random
 from pprint import pprint
 from typing import List
 
 import numpy as np
 import torch
+from datasets import load_dataset
+from lightning.pytorch.core.datamodule import LightningDataModule
 from pkg_resources import resource_filename
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
 
@@ -184,6 +187,99 @@ class TokenDataset(Dataset):
             tokens = np.concatenate(tokenized_batches)
 
             return tokens
+
+
+class TextDataModule(LightningDataModule):
+    def __init__(self, dataset, hparams):
+        super().__init__()
+        self.dataset = dataset
+        self.batch_size = hparams["batch_size"]
+        self.pin_memory = hparams["pin_memory"]
+        self.num_workers = hparams["num_workers"]
+        self.val_split = hparams["val_split"]
+        self.train = None
+        self.val = None
+
+    def setup(self):
+        train_split = 1.0 - self.val_split
+        self.train, self.val = torch.utils.data.random_split(
+            self.dataset, [train_split, self.val_split]
+        )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train,
+            shuffle=True,
+            batch_size=self.batch_size,
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val,
+            shuffle=False,
+            batch_size=self.batch_size,
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers,
+        )
+
+
+class StreamingDataset(IterableDataset):
+    def __init__(self, tokenizer, params):
+        self.tokenizer = tokenizer
+        # self.content_key = "raw_content"
+        self.content_key = "content"
+        self.params = params
+        self.dataset = load_dataset(
+            "tiiuae/falcon-refinedweb",
+            # "togethercomputer/RedPajama-Data-V2",
+            # name="default",
+            # snapshots=["2023-14"],
+            # languages=["en"],
+            split="train",
+            streaming=True,
+            cache_dir="/data/pile",
+        )
+
+    def __iter__(self):
+        shuffled = self.dataset.shuffle(
+            seed=random.randint(0, 2**31), buffer_size=10_000
+        )
+
+        for document in shuffled:
+            tokenized = self.tokenizer(
+                text=document.get(self.content_key),
+                max_length=self.params["block_size"],
+                stride=self.params["block_size"] - 32,
+                padding=False,
+                truncation=True,
+                return_overflowing_tokens=True,
+                return_tensors="np",
+            )["input_ids"]
+            choice = random.choice(tokenized)
+            if np.size(choice) == 0:
+                continue
+            yield choice
+
+
+class StreamingDataModule(LightningDataModule):
+    def __init__(self, tokenizer, hparams):
+        super().__init__()
+        self.iterable = None
+        self.tokenizer = tokenizer
+        self.params = hparams
+
+    def setup(self, stage=None):
+        self.iterable = StreamingDataset(tokenizer=self.tokenizer, params=self.params)
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.iterable,
+            batch_size=self.params["batch_size"],
+            pin_memory=False,
+            num_workers=self.params["num_workers"],
+        )
 
 
 def get_lines_in_file(file_path: str, newline: str = None) -> int:

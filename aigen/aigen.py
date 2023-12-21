@@ -13,7 +13,6 @@ from typing import List, Optional, Union
 import numpy as np
 import torch
 from accelerate import Accelerator
-from datasets import load_dataset
 from lightning.pytorch.callbacks import (
     Callback,
     EarlyStopping,
@@ -25,8 +24,6 @@ from lightning.pytorch.utilities import CombinedLoader
 from peft import PeftConfig, PeftModel
 from peft.tuners.lora.layer import LoraLayer
 from pkg_resources import resource_filename
-from pytorch_lightning.core.datamodule import LightningDataModule
-from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers import (
     AutoConfig,
@@ -41,10 +38,10 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
+from .datasets import StreamingDataModule, TextDataModule, TokenDataset
 from .optimizers import get_optimizer
 from .schedulers import get_scheduler
 from .strategies import get_strategy
-from .TokenDataset import TokenDataset
 from .train import AIGProgressBar, AIGTrainer
 from .utils import model_max_length, reset_seed, set_seed
 
@@ -342,7 +339,6 @@ class aigen:
         train_data: Union[str, TokenDataset],
         generation_config: dict = None,
         output_dir: str = "trained_model",
-        n_gpu: int = -1,
         tpu_cores: int = 0,
         gradient_clip_val: float = 0.5,
         gradient_accumulation_steps: int = 1,
@@ -364,7 +360,6 @@ class aigen:
         loggers: List = None,
         batch_size: int = 1,
         num_workers: int = None,
-        benchmark: bool = True,
         num_layers_freeze: int = 0,
         scheduler: str = "linear",
         num_cycles=None,
@@ -393,7 +388,7 @@ class aigen:
 
         os.makedirs(output_dir, exist_ok=True)
 
-        is_gpu_used = torch.cuda.is_available() and n_gpu != 0
+        is_gpu_used = torch.cuda.is_available()
 
         if isinstance(train_data, str):
             block_size = model_max_length(self.model.config)
@@ -469,10 +464,6 @@ class aigen:
         if seed:
             set_seed(seed)
 
-        # if try to use a GPU but no CUDA, use CPU
-        # if not is_gpu_used:
-        #     n_gpu = 1
-
         if devices is None:
             devices = [self.get_device().index]
 
@@ -494,6 +485,7 @@ class aigen:
             enable_checkpointing=False,
             precision="32-true",
             logger=loggers if loggers else False,
+            benchmark=True,
             callbacks=[
                 AIGProgressBar(
                     save_every,
@@ -520,26 +512,8 @@ class aigen:
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
             train_params["devices"] = 0
-            n_gpu = 0
-
-        # benchmark gives a boost for GPUs if input size is constant,
-        # which will always be the case with aigen training
-        if is_gpu_used and benchmark:
-            train_params["benchmark"] = True
-
-        # if n_gpu > 1:
-        #     train_params["strategy"] = "ddp"
 
         if prune > 0.0:
-            # class CustomPruning(ModelPruning):
-            #     def __init__(self, **kwargs):
-            #         super().__init__(**kwargs)
-
-            #     def apply_pruning(self, amount: Union[int, float]) -> None:
-            #         super().apply_pruning(amount)
-            #         for module, name in self._parameters_to_prune:
-            #             self.make_pruning_permanent(module)
-
             modules_to_prune = []
             for n, m in self.model.named_modules():
                 if isinstance(m, torch.nn.Embedding) or isinstance(m, torch.nn.Linear):
@@ -569,7 +543,7 @@ class aigen:
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
 
-        data_module = AIGDataModule(self.get_device(), train_data, hparams)
+        data_module = TextDataModule(train_data, hparams)
         data_module.setup()
 
         train_split = data_module.train_dataloader()
@@ -651,108 +625,6 @@ class aigen:
     # This controls the output of the aigen object, when printed to console.
     def __repr__(self) -> str:
         # https://discuss.pytorch.org/t/how-do-i-check-the-number-of-parameters-of-a-model/4325/24
-        num_params_m = int(sum(p.numel() for p in self.model.parameters()) / 10**6)
+        num_params_m = int(self.get_total_params() / 10**6)
         model_name = type(self.model.config).__name__.replace("Config", "")
         return f"{model_name} loaded with {num_params_m}M parameters."
-
-
-class AIGDataModule(LightningDataModule):
-    def __init__(self, device, dataset, hparams):
-        super().__init__()
-        self.device = device
-        self.dataset = dataset
-        self.batch_size = hparams["batch_size"]
-        self.pin_memory = hparams["pin_memory"]
-        self.num_workers = hparams["num_workers"]
-        self.val_split = hparams["val_split"]
-        self.train = None
-        self.val = None
-
-    def setup(self):
-        train_split = 1.0 - self.val_split
-        self.train, self.val = torch.utils.data.random_split(
-            self.dataset, [train_split, self.val_split]
-        )
-
-    def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        batch = super().transfer_batch_to_device(batch, self.device, dataloader_idx)
-        return batch
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.train,
-            shuffle=True,
-            batch_size=self.batch_size,
-            pin_memory=self.pin_memory,
-            num_workers=self.num_workers,
-        )
-
-    def val_dataloader(self):
-        return DataLoader(
-            self.val,
-            shuffle=False,
-            batch_size=self.batch_size,
-            pin_memory=self.pin_memory,
-            num_workers=self.num_workers,
-        )
-
-
-class StreamingDataset(torch.utils.data.IterableDataset):
-    def __init__(self, tokenizer, params):
-        self.tokenizer = tokenizer
-        # self.content_key = "raw_content"
-        self.content_key = "content"
-        self.params = params
-        self.dataset = load_dataset(
-            "tiiuae/falcon-refinedweb",
-            # "togethercomputer/RedPajama-Data-V2",
-            # name="default",
-            # snapshots=["2023-14"],
-            # languages=["en"],
-            split="train",
-            streaming=True,
-            cache_dir="/data/pile",
-        )
-
-    def __iter__(self):
-        shuffled = self.dataset.shuffle(
-            seed=random.randint(0, 2**31), buffer_size=10_000
-        )
-
-        for document in shuffled:
-            tokenized = self.tokenizer(
-                text=document.get(self.content_key),
-                max_length=self.params["block_size"],
-                stride=self.params["block_size"] - 32,
-                padding=False,
-                truncation=True,
-                return_overflowing_tokens=True,
-                return_tensors="np",
-            )["input_ids"]
-            choice = random.choice(tokenized)
-            if np.size(choice) == 0:
-                continue
-            yield choice
-
-
-class StreamingDataModule(LightningDataModule):
-    def __init__(self, tokenizer, hparams):
-        super().__init__()
-        self.iterable = None
-        self.tokenizer = tokenizer
-        self.params = hparams
-
-    def setup(self, stage=None):
-        self.iterable = StreamingDataset(tokenizer=self.tokenizer, params=self.params)
-
-    def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        batch = super().transfer_batch_to_device(batch, self.device, dataloader_idx)
-        return batch
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.iterable,
-            batch_size=self.params["batch_size"],
-            pin_memory=False,
-            num_workers=self.params["num_workers"],
-        )
