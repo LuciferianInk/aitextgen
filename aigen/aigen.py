@@ -387,7 +387,10 @@ class aigen:
         is_gpu_used = torch.cuda.is_available()
 
         if devices is None:
-            devices = [self.get_device().index]
+            device = self.get_device().index
+            devices = [device]
+            if device is None:
+                devices = -1
 
         # This is a hack, but prevents HivemindStrategy from placing models
         # onto the wrong device.
