@@ -239,15 +239,16 @@ class aigen:
 
         self.model_max_length = model_max_length(self.model.config)
 
-        # arch = platform.machine()
-        # if arch == "x86_64" and hasattr(self.model, "to_bettertransformer"):
-        #     try:
-        #         self.model.to_bettertransformer()
-        #     except:
-        #         pass
-
         self.model.eval()
         logger.info(self)
+
+    def optimize_for_inference(self):
+        arch = platform.machine()
+        if arch == "x86_64" and hasattr(self.model, "to_bettertransformer"):
+            try:
+                self.model.to_bettertransformer()
+            except Exception as e:
+                logger.warning(e)
 
     def generate(
         self,
