@@ -469,7 +469,7 @@ class aigen:
             gen_config = GenerationConfig(**generation_config)
 
         train_params = dict(
-            accelerator=accelerator,
+            accelerator="auto",
             strategy="auto",
             devices=devices,
             max_steps=num_steps,
