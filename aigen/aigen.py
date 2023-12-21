@@ -336,8 +336,8 @@ class aigen:
 
     def train(
         self,
-        static_data: Union[str, TokenDataset],
-        streaming_data: [],
+        static_data: Union[str, TokenDataset] = [],
+        streaming_data: [] = [],
         generation_config: dict = None,
         output_dir: str = "trained_model",
         tpu_cores: int = 0,
