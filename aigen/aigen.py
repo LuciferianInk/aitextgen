@@ -391,8 +391,7 @@ class aigen:
         #         logging.error(e)
         #         pass
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
         is_gpu_used = torch.cuda.is_available() and n_gpu != 0
 
