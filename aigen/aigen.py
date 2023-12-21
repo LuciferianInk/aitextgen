@@ -12,7 +12,6 @@ from typing import List, Optional, Union
 
 import numpy as np
 import torch
-from accelerate import Accelerator
 from lightning.pytorch.callbacks import (
     Callback,
     EarlyStopping,
@@ -336,6 +335,7 @@ class aigen:
 
     def train(
         self,
+        accelerator: str = "auto",
         static_data: Union[str, TokenDataset] = [],
         streaming_data: [] = [],
         generation_config: dict = None,
@@ -470,7 +470,7 @@ class aigen:
             gen_config = GenerationConfig(**generation_config)
 
         train_params = dict(
-            accelerator="auto",
+            accelerator=accelerator,
             strategy="auto",
             devices=devices,
             max_steps=num_steps,
