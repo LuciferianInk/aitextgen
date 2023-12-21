@@ -244,20 +244,30 @@ class StreamingDataset(IterableDataset):
             seed=random.randint(0, 2**31), buffer_size=10_000
         )
 
+        block_size = self.params["block_size"]
+
+        batch = []
         for document in shuffled:
             tokenized = self.tokenizer(
                 text=document.get(self.content_key),
-                max_length=self.params["block_size"],
-                stride=self.params["block_size"] - 32,
-                padding=self.config.get("padding", False),
+                max_length=block_size,
+                stride=block_size - 32,
+                padding=False,
                 truncation=True,
                 return_overflowing_tokens=True,
                 return_tensors="np",
             )["input_ids"]
             choice = random.choice(tokenized)
-            if np.size(choice) == 0:
+            if len(batch) == 0:
+                batch = choice
+            else:
+                np.append(batch, self.tokenizer.eos_token_id)
+                batch = np.concatenate([batch, choice])
+            if len(batch) >= block_size:
+                yield batch[:block_size]
+                batch = []
+            else:
                 continue
-            yield choice
 
 
 class StreamingDataModule(LightningDataModule):
