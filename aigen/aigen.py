@@ -335,7 +335,6 @@ class aigen:
 
     def train(
         self,
-        accelerator: str = "auto",
         static_data: Union[str, TokenDataset] = [],
         streaming_data: [] = [],
         generation_config: dict = None,
@@ -394,9 +393,6 @@ class aigen:
 
         if devices is None:
             devices = [self.get_device().index]
-
-        if accelerator == "cpu":
-            devices = 1
 
         # This is a hack, but prevents HivemindStrategy from placing models
         # onto the wrong device.
@@ -486,7 +482,7 @@ class aigen:
             gradient_clip_val=gradient_clip_val,
             gradient_clip_algorithm="norm",
             logger=loggers if loggers else False,
-            benchmark=True,
+            benchmark=False,
             callbacks=[
                 AIGProgressBar(
                     save_every,
