@@ -13,13 +13,13 @@ def _load_requirements(path_dir: str, file_name: str = "requirements.txt") -> li
 
 setup(
     name="aigen",
-    packages=["aigen"],  # this must be the same as the name above
-    version="0.6.0",
-    description="A robust Python tool for text-based AI training and generation using GPT-2.",
+    packages=["aigen"],
+    version="0.7.0",
+    description="A robust Python tool for text-based AI training and generation using Huggingface Transformers.",
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    author="Max Woolf",
-    author_email="max@minimaxir.com",
+    author="Ryan Brooks",
+    author_email="LuciferianInk@proton.me",
     url="https://github.com/minimaxir/aigen",
     keywords=["gpt-2", "gpt2", "text generation", "ai"],
     classifiers=[],

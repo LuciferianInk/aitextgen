@@ -454,6 +454,21 @@ class aigen:
             **kwargs,
         )
 
+        gen_config = GenerationConfig(
+            do_sample=True,
+            min_length=1,
+            max_new_tokens=222,
+            temperature=0.9,
+            eta_cutoff=0.0003,
+            penalty_alpha=0.6,
+            top_k=4,
+            repetition_penalty=1.023,
+            no_repeat_ngram_size=13,
+        )
+
+        if generation_config is not None:
+            gen_config = GenerationConfig(**generation_config)
+
         train_params = dict(
             accelerator="auto",
             strategy="auto",
@@ -479,7 +494,7 @@ class aigen:
                     freeze_layers,
                     num_layers_freeze,
                     petals,
-                    GenerationConfig(**generation_config),
+                    gen_config,
                     hparams["target_batch_size"],
                 )
             ],
