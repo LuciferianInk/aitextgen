@@ -13,7 +13,9 @@ from .utils import colors
 
 
 def get_strategy(name, params, hparams, train_params, scheduler):
-    if name == "deepspeed":
+    if name == "ddp":
+        return "ddp"
+    elif name == "deepspeed":
         DeepSpeedStrategy(
             stage=3,
             offload_optimizer=True,
