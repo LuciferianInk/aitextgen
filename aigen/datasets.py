@@ -258,7 +258,9 @@ class StreamingDataset(IterableDataset):
                 return_tensors="np",
             )["input_ids"]
             choice = random.choice(tokenized)
-            if len(batch) == 0:
+            if len(choice) == 0:
+                continue
+            elif len(batch) == 0:
                 batch = choice
             else:
                 np.append(batch, self.tokenizer.eos_token_id)
