@@ -395,6 +395,9 @@ class aigen:
         if devices is None:
             devices = [self.get_device().index]
 
+        if accelerator == "cpu":
+            devices = 1
+
         # This is a hack, but prevents HivemindStrategy from placing models
         # onto the wrong device.
         if is_gpu_used:
