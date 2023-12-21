@@ -384,15 +384,6 @@ class aigen:
 
         os.makedirs(output_dir, exist_ok=True)
 
-        # arch = platform.machine()
-        # if arch == "x86_64" and hasattr(self.model, "reverse_bettertransformer"):
-        #     logging.info("Reversing BetterTransformer optimizations for training.")
-        #     try:
-        #         self.model.reverse_bettertransformer()
-        #     except Exception as e:
-        #         logging.error(e)
-        #         pass
-
         is_gpu_used = torch.cuda.is_available()
 
         if devices is None:
