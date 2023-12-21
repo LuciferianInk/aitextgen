@@ -394,7 +394,7 @@ class aigen:
 
         # This is a hack, but prevents HivemindStrategy from placing models
         # onto the wrong device.
-        if is_gpu_used:
+        if is_gpu_used and strategy == "hivemind":
             torch.cuda.set_device(devices[0])
 
         freeze_layers = False
