@@ -373,7 +373,7 @@ class aigen:
         val_split: float = 0.0,
         val_interval: int = 1000,
         supplement: bool = False,
-        initial_peers: list = None,
+        initial_peers: list = [],
         target_batch_size: int = None,
         strategy=None,
         devices=None,
