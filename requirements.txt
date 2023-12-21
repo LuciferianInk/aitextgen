@@ -1,10 +1,10 @@
-transformers>=4.34.1
+transformers>=4.35.2
 fire>=0.5.0
 lightning>=2.1.0
 torch>=2.1.0
-petals>=2.1.0
 peft>=0.6.2
 accelerate>=0.22.0
 pytorch_optimizer>=2.12.0
 datasets>=2.14.5
 deepspeed>=0.11.1
+git+https://github.com/LuciferianInk/lightning-Hivemind.git@ipfs
