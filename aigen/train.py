@@ -128,6 +128,23 @@ class AIGProgressBar(ProgressBar):
         self.petals = petals
         self.generation_config = generation_config
         self.target_batch_size = target_batch_size
+        try:
+            from IPython.display import display
+
+            self.is_notebook = True
+        except ImportError:
+            self.is_notebook = False
+
+        if self.is_notebook:
+            self.blue = ""
+            self.red = ""
+            self.green = ""
+            self.white = ""
+        else:
+            self.blue = colors.BLUE
+            self.red = colors.RED
+            self.green = colors.GREEN
+            self.white = colors.WHITE
 
     @property
     def save_every_check(self):
@@ -210,11 +227,11 @@ class AIGProgressBar(ProgressBar):
                 step,
             )
 
-        color = colors.GREEN
+        color = self.green
         if current_loss < avg_loss:
-            color = colors.BLUE
+            color = self.blue
         elif current_loss > avg_loss:
-            color = colors.RED
+            color = self.red
 
         bearing = "{:.5f}".format(
             abs(round((current_loss / avg_loss) if avg_loss != 0 else 0, 5))
@@ -230,7 +247,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        echo = f"{colors.GREEN}{c_sym}{current_loss:.3f}{colors.WHITE} => Loss => {color}{a_sym}{avg_loss:.3f}{colors.WHITE} => Bearing => {colors.BLUE}{bearing}{random.randint(0,2)}00{colors.WHITE} => System => {colors.BLUE}{memory.percent}%{colors.WHITE}"
+        echo = f"{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {self.blue}{bearing}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
 
         if self.gpu:
             # via pytorch-lightning's get_gpu_memory_map()
@@ -246,13 +263,13 @@ class AIGProgressBar(ProgressBar):
                 check=True,
             )
             gpu_memory = result.stdout.strip().split(os.linesep)
-            gpus = f"MB{colors.WHITE} => {colors.BLUE}".join(gpu_memory)
+            gpus = f"MB{self.white} => {self.blue}".join(gpu_memory)
             epoch_string = "{:.3f}".format(current_epoch)
-            echo += f" => GPU => {colors.BLUE}{gpus}MB{colors.WHITE} => Epoch => {colors.BLUE}{epoch_string}{colors.WHITE}"
+            echo += f" => GPU => {self.blue}{gpus}MB{self.white} => Epoch => {self.blue}{epoch_string}{self.white}"
 
         if hasattr(trainer.strategy, "num_peers"):
             num_peers = trainer.strategy.num_peers
-            echo = echo + f" => Peers => {colors.BLUE}{num_peers}{colors.WHITE}"
+            echo = echo + f" => Peers => {self.blue}{num_peers}{self.white}"
 
         if (
             hasattr(schedule, "current_step")
@@ -291,7 +308,7 @@ class AIGProgressBar(ProgressBar):
 
         for text in gen_texts:
             self.pbar.write(text)
-            self.pbar.write(f"={colors.BLUE}=>{colors.WHITE}")
+            self.pbar.write(f"={self.blue}=>{self.white}")
 
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
