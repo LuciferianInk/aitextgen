@@ -60,11 +60,12 @@ class AIGTrainer(LightningModule):
         if hasattr(schedule, "current_step"):
             step = schedule.current_step
 
-        self.logger.experiment.add_scalars(
-            "vtx",
-            {"lr": float(self.trainer.optimizers[0].param_groups[0]["lr"])},
-            step,
-        )
+        if self.logger:
+            self.logger.experiment.add_scalars(
+                "vtx",
+                {"lr": float(self.trainer.optimizers[0].param_groups[0]["lr"])},
+                step,
+            )
 
         return loss
 
@@ -78,11 +79,12 @@ class AIGTrainer(LightningModule):
         if hasattr(schedule, "current_step"):
             step = schedule.current_step
 
-        self.logger.experiment.add_scalars(
-            "vtx",
-            {"val_loss": float(loss), "val_ppl": float(perplexity)},
-            step,
-        )
+        if self.logger:
+            self.logger.experiment.add_scalars(
+                "vtx",
+                {"val_loss": float(loss), "val_ppl": float(perplexity)},
+                step,
+            )
 
         return loss
 
@@ -198,14 +200,15 @@ class AIGProgressBar(ProgressBar):
         if hasattr(schedule, "current_step"):
             step = schedule.current_step
 
-        lm.logger.experiment.add_scalars(
-            "vtx",
-            {
-                "train_loss": current_loss,
-                "epoch": current_epoch,
-            },
-            step,
-        )
+        if lm.logger:
+            lm.logger.experiment.add_scalars(
+                "vtx",
+                {
+                    "train_loss": current_loss,
+                    "epoch": current_epoch,
+                },
+                step,
+            )
 
         color = colors.GREEN
         if current_loss < avg_loss:

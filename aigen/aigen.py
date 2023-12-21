@@ -192,6 +192,9 @@ class aigen:
             )
         )
 
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
         if adapters and not petals:
             for adapter in adapters:
                 logger.info(f"Loading adapter: {adapter}")
