@@ -237,6 +237,7 @@ class StreamingDataset(IterableDataset):
             streaming=True,
             cache_dir="/data/pile",
         )
+        self.config = config
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(
@@ -248,7 +249,7 @@ class StreamingDataset(IterableDataset):
                 text=document.get(self.content_key),
                 max_length=self.params["block_size"],
                 stride=self.params["block_size"] - 32,
-                padding=False,
+                padding=self.config.get("padding", False),
                 truncation=True,
                 return_overflowing_tokens=True,
                 return_tensors="np",
