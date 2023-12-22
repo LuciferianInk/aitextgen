@@ -231,17 +231,23 @@ class StreamingDataset(IterableDataset):
         self.tokenizer = tokenizer
         self.content_key = config["content_key"]
         self.params = params
+        kwargs = {}
+        for k, v in config.items():
+            if k in ["snapshots", "name", "languages"]:
+                kwargs[k] = v
         self.dataset = load_dataset(
-            config["dataset"],
+            config["repo"],
             split="train",
             streaming=True,
             cache_dir="/data/pile",
+            **kwargs,
         )
         self.config = config
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(
-            seed=random.randint(0, 2**31), buffer_size=10_000
+            seed=random.randint(0, 2**31),
+            buffer_size=self.config.get("sample_size", 10_000),
         )
 
         block_size = self.params["block_size"]
@@ -278,11 +284,10 @@ class StreamingDataModule(LightningDataModule):
         self.iterable = None
         self.tokenizer = tokenizer
         self.params = hparams
-        self.config = config
-        self.setup()
+        self.setup(config)
 
-    def setup(self, stage=None):
-        self.iterable = StreamingDataset(self.tokenizer, self.params, self.config)
+    def setup(self, config):
+        self.iterable = StreamingDataset(self.tokenizer, self.params, config)
 
     def train_dataloader(self):
         return DataLoader(
