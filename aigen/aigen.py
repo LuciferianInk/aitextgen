@@ -560,8 +560,8 @@ class aigen:
             grouped_parameters = []
 
             for n, p in model.named_parameters():
-                if not p.requires_grad:
-                    continue
+                # if not p.requires_grad:
+                #     continue
 
                 if any(nd in n for nd in no_decay):
                     weight_decay = 0.0
