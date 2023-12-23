@@ -558,7 +558,7 @@ class aigen:
         elif len(total_val) > 1:
             combined_val = CombinedLoader(total_val, mode="min_size")
 
-        def get_params(model):
+        def _get_params(model):
             no_decay = ["bias", "LayerNorm.weight"]
             grouped_parameters = []
 
@@ -580,7 +580,7 @@ class aigen:
 
             return grouped_parameters
 
-        params = get_params(self.model)
+        params = _get_params(self.model)
 
         opt = get_optimizer(params, hparams)
         schedule = get_scheduler(hparams, opt)
