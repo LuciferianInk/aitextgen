@@ -392,6 +392,9 @@ class aigen:
             if device is None:
                 devices = -1
 
+        if os.environ.get("DEVICE", "auto") == "cpu":
+            devices = 1
+
         # This is a hack, but prevents HivemindStrategy from placing models
         # onto the wrong device.
         if is_gpu_used and strategy == "hivemind":
