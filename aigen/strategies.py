@@ -93,7 +93,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             MaxStepCallback(max_steps=train_params["max_steps"])
         )
 
-        train_params["max_steps"] *= hparams["target_batch_size"]
+        # train_params["max_steps"] *= hparams["target_batch_size"]
 
         focus = os.environ["FOCUS"]
 
