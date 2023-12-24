@@ -119,6 +119,7 @@ class AIGProgressBar(ProgressBar):
         self.output_dir = output_dir
         self.gpu = gpu
         self.steps = 0
+        self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
         self.train_transformers_only = train_transformers_only
@@ -157,7 +158,7 @@ class AIGProgressBar(ProgressBar):
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
         self.pbar = tqdm(
-            total=trainer.max_steps * trainer.accumulate_grad_batches,
+            total=trainer.max_steps,
             disable=not self.enabled,
             smoothing=0,
             leave=True,
@@ -165,6 +166,12 @@ class AIGProgressBar(ProgressBar):
             file=sys.stdout,
         )
         self.freeze_layers(lm)
+
+        # If training resumes from checkpoint, move the progress
+        # bar to the correct step.
+        schedule = lm.lr_schedulers()
+        step = lm.global_step
+        self.pbar.update(step)
 
     def on_train_end(self, trainer, lm):
         self.pbar.close()
@@ -269,16 +276,9 @@ class AIGProgressBar(ProgressBar):
             num_peers = trainer.strategy.num_peers
             echo = echo + f" => Peers => {self.blue}{num_peers}{self.white}"
 
-        if (
-            hasattr(schedule, "current_step")
-            and step != 0
-            and self.pbar.n % self.target_batch_size == 0
-        ):
-            self.pbar.reset(total=trainer.max_steps)
-            for _ in range(step * self.target_batch_size):
-                self.pbar.update(1)
-
-        self.pbar.update(1)
+        if step != self.last_step:
+            self.pbar.update(1)
+            self.last_step = step
         self.pbar.set_description(echo)
 
     def generate_sample_text(self, trainer, lm):
