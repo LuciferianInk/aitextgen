@@ -43,6 +43,8 @@ logger.setLevel(logging.INFO)
 
 STATIC_PATH = resource_filename(__name__, "static")
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 
 class aigen:
     # default values for GPT2Tokenizer
@@ -235,6 +237,31 @@ class aigen:
 
         self.model.eval()
         logger.info(self)
+
+    def attach_adapter(self, adapter_dir, kwargs):
+        from peft import PeftModel, get_peft_model, prepare_model_for_kbit_training
+
+        from .adapters import get_peft_config
+
+        if kwargs.get("resume") == True:
+            self.model = PeftModel.from_pretrained(
+                self.model,
+                adapter_dir,
+                # device_map=device_map,
+                is_trainable=True,
+            )
+            setattr(self.model.config, "is_prompt_learning", False)
+        else:
+            peft_config = get_peft_config(
+                peft_type=kwargs.get("type", "lora"),
+                kwargs=kwargs,
+            )
+
+            self.model = prepare_model_for_kbit_training(
+                self.model,
+                use_gradient_checkpointing=kwargs.get("gradient_checkpointing", False),
+            )
+            self.model = get_peft_model(self.model, peft_config)
 
     def optimize_for_inference(self):
         arch = platform.machine()
