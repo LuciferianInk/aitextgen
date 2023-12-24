@@ -57,40 +57,18 @@ class AIGTrainer(LightningModule):
         schedule = self.lr_schedulers()
         schedule.step()
 
-        step = self.global_step
-        if hasattr(schedule, "current_step"):
-            step = schedule.current_step
-
-        if self.logger:
-            self.logger.experiment.add_scalars(
-                "vtx",
-                {"lr": float(self.trainer.optimizers[0].param_groups[0]["lr"])},
-                step,
-            )
+        self.log("train_loss", float(loss), on_step=True, on_epoch=True)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
-        perplexity = torch.exp(loss)
 
-        schedule = self.lr_schedulers()
-        step = self.global_step
-        if hasattr(schedule, "current_step"):
-            step = schedule.current_step
-
-        if self.logger:
-            self.logger.experiment.add_scalars(
-                "vtx",
-                {"val_loss": float(loss), "val_ppl": float(perplexity)},
-                step,
-            )
+        self.log("val_loss", float(loss), on_step=False, on_epoch=True)
+        self.log("val_ppl", float(torch.exp(loss)), on_step=False, on_epoch=True)
 
         return loss
-
-    def on_train_epoch_end(self):
-        pass
 
     def configure_optimizers(self):
         "Prepare optimizer"
@@ -203,16 +181,6 @@ class AIGProgressBar(ProgressBar):
 
         if did_unfreeze:
             self.freeze_layers(lm)
-
-        if lm.logger:
-            lm.logger.experiment.add_scalars(
-                "vtx",
-                {
-                    "train_loss": current_loss,
-                    "epoch": current_epoch,
-                },
-                step,
-            )
 
         color = self.green
         if current_loss < avg_loss:
@@ -347,3 +315,57 @@ class AIGSampleGenerator(Callback):
         lm.model.train()
 
         print(output[0])
+
+
+class AIGMetricsLogger(Callback):
+    """Save metrics callback."""
+
+    def __init__(self):
+        super().__init__()
+
+    def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
+        super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
+
+        if not lm.logger:
+            return
+
+        schedule = lm.lr_schedulers()
+        step = lm.global_step
+
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
+
+        current_epoch = trainer.current_epoch
+        if lm.train_len > 0:
+            current_epoch += batch_idx / lm.train_len
+
+        lm.logger.experiment.add_scalars(
+            "vtx",
+            {
+                "train_loss": trainer.callback_metrics["train_loss"],
+                "epoch": current_epoch,
+                "lr": float(trainer.optimizers[0].param_groups[0]["lr"]),
+            },
+            step,
+        )
+
+    def on_validation_epoch_end(self, trainer, lm):
+        super().on_validation_epoch_end(trainer, lm)
+
+        if not lm.logger:
+            return
+
+        schedule = lm.lr_schedulers()
+        step = lm.global_step
+
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
+
+        lm.logger.experiment.add_scalars(
+            "vtx",
+            {
+                "val_loss": trainer.callback_metrics["val_loss"],
+                "val_ppl": trainer.callback_metrics["val_ppl"],
+            },
+            step,
+        )
