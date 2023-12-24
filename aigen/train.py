@@ -127,6 +127,7 @@ class AIGProgressBar(ProgressBar):
         self.petals = petals
         self.generation_config = generation_config
         self.target_batch_size = target_batch_size
+        self.is_synced = False
         try:
             from IPython.display import display
 
@@ -167,18 +168,24 @@ class AIGProgressBar(ProgressBar):
         )
         self.freeze_layers(lm)
 
-        # If training resumes from checkpoint, move the progress
-        # bar to the correct step.
-        schedule = lm.lr_schedulers()
-        step = lm.global_step
-        self.pbar.update(step)
-
     def on_train_end(self, trainer, lm):
         self.pbar.close()
         self.unfreeze_layers(lm)
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
+
+        schedule = lm.lr_schedulers()
+        step = lm.global_step
+
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
+
+        if not self.is_synced:
+            print(step)
+            # If training resumes from a checkpoint, set progress bar to the correct step.
+            self.pbar.update(step)
+            self.is_synced = True
 
         current_loss = float(outputs["loss"])
         current_epoch = trainer.current_epoch
@@ -215,12 +222,6 @@ class AIGProgressBar(ProgressBar):
 
             if did_unfreeze:
                 self.freeze_layers(lm)
-
-        schedule = lm.lr_schedulers()
-        step = lm.global_step
-
-        if hasattr(schedule, "current_step"):
-            step = schedule.current_step
 
         if lm.logger:
             lm.logger.experiment.add_scalars(
