@@ -12,8 +12,6 @@ import torchmetrics
 from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import Callback, ProgressBar
-from lightning.pytorch.strategies import DeepSpeedStrategy
-from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from .utils import colors
@@ -23,7 +21,7 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 
 class AIGTrainer(LightningModule):
     """
-    A training module for aigen.
+    A training module for AIGen.
     """
 
     def __init__(self, model, optimizer, scheduler, train_len, hparams, tokenizer):
@@ -55,9 +53,15 @@ class AIGTrainer(LightningModule):
         loss = sum(losses) / len(losses)
 
         schedule = self.lr_schedulers()
-        schedule.step()
+        step = self.global_step
 
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
+
+        self.log("step", int(step), on_step=True, on_epoch=True)
         self.log("train_loss", float(loss), on_step=True, on_epoch=True)
+
+        schedule.step()
 
         return loss
 
@@ -85,8 +89,6 @@ class AIGProgressBar(ProgressBar):
         save_every,
         output_dir,
         gpu,
-        train_transformers_only,
-        num_layers_freeze,
         petals,
     ):
         super().__init__()
@@ -98,8 +100,6 @@ class AIGProgressBar(ProgressBar):
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
-        self.train_transformers_only = train_transformers_only
-        self.num_layers_freeze = num_layers_freeze
         self.petals = petals
         self.is_synced = False
         try:
@@ -133,25 +133,12 @@ class AIGProgressBar(ProgressBar):
             dynamic_ncols=True,
             file=sys.stdout,
         )
-        self.freeze_layers(lm)
 
     def on_train_end(self, trainer, lm):
         self.pbar.close()
-        self.unfreeze_layers(lm)
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
-
-        schedule = lm.lr_schedulers()
-        step = lm.global_step
-
-        if hasattr(schedule, "current_step"):
-            step = schedule.current_step
-
-        if not self.is_synced:
-            # If training resumes from a checkpoint, set progress bar to the correct step.
-            self.pbar.update(step)
-            self.is_synced = True
 
         current_loss = float(outputs["loss"])
         current_epoch = trainer.current_epoch
@@ -166,21 +153,10 @@ class AIGProgressBar(ProgressBar):
             self.prev_avg_loss = avg_loss
 
         if TPUAccelerator.is_available() and self.save_every_check:
-            did_unfreeze = False
-            self.unfreeze_layers(lm)
-            did_unfreeze = True
             self.save_pytorch_model(trainer, lm, tpu=True)
-            if did_unfreeze:
-                self.freeze_layers(lm)
 
-        did_unfreeze = False
         if not TPUAccelerator.is_available() and self.save_every_check:
-            self.unfreeze_layers(lm)
             self.save_pytorch_model(trainer, lm)
-            did_unfreeze = True
-
-        if did_unfreeze:
-            self.freeze_layers(lm)
 
         color = self.green
         if current_loss < avg_loss:
@@ -226,9 +202,18 @@ class AIGProgressBar(ProgressBar):
             num_peers = trainer.strategy.num_peers
             echo = echo + f" => Peers => {self.blue}{num_peers}{self.white}"
 
-        if step != self.last_step:
+        step = int(trainer.callback_metrics["step"])
+
+        if step != 0 and not self.is_synced:
+            # If training resumes from a checkpoint, set progress bar to the correct step.
+            self.pbar.update(step)
+
+        self.is_synced = True
+
+        if step != 0 and step != self.last_step:
             self.pbar.update(1)
             self.last_step = step
+
         self.pbar.set_description(echo)
 
     def save_pytorch_model(self, trainer, lm, tpu=False):
@@ -255,23 +240,6 @@ class AIGProgressBar(ProgressBar):
             return current_loss
         else:
             return (smoothing * current_loss) + (1 - smoothing) * prev_avg_loss
-
-    def modify_layers(self, lm, unfreeze):
-        if self.train_transformers_only:
-            for name, param in lm.model.named_parameters():
-                if self.num_layers_freeze:
-                    layer_num = int(name.split(".")[2]) if ".h." in name else None
-                    to_freeze = layer_num and layer_num < self.num_layers_freeze
-                else:
-                    to_freeze = False
-                if name == "transformer.wte.weight" or to_freeze:
-                    param.requires_grad = unfreeze
-
-    def freeze_layers(self, lm):
-        self.modify_layers(lm, False)
-
-    def unfreeze_layers(self, lm):
-        self.modify_layers(lm, True)
 
 
 class AIGSampleGenerator(Callback):
@@ -329,15 +297,11 @@ class AIGMetricsLogger(Callback):
         if not lm.logger:
             return
 
-        schedule = lm.lr_schedulers()
-        step = lm.global_step
-
-        if hasattr(schedule, "current_step"):
-            step = schedule.current_step
-
         current_epoch = trainer.current_epoch
         if lm.train_len > 0:
             current_epoch += batch_idx / lm.train_len
+
+        step = trainer.callback_metrics["step"]
 
         lm.logger.experiment.add_scalars(
             "vtx",
@@ -349,17 +313,21 @@ class AIGMetricsLogger(Callback):
             step,
         )
 
+    def on_validation_start(self, trainer, lm):
+        super().on_validation_start(trainer, lm)
+
+        if trainer.state.stage in ["sanity_check"]:
+            return
+
+        logging.warning("Calculating validation metrics. Please wait.")
+
     def on_validation_epoch_end(self, trainer, lm):
         super().on_validation_epoch_end(trainer, lm)
 
-        if not lm.logger:
+        if not lm.logger or trainer.state.stage in ["sanity_check"]:
             return
 
-        schedule = lm.lr_schedulers()
-        step = lm.global_step
-
-        if hasattr(schedule, "current_step"):
-            step = schedule.current_step
+        step = trainer.callback_metrics["step"]
 
         lm.logger.experiment.add_scalars(
             "vtx",

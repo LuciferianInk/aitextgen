@@ -365,7 +365,6 @@ class aigen:
         loggers: List = None,
         batch_size: int = 1,
         num_workers: int = None,
-        num_layers_freeze: int = 0,
         prune: float = 0.0,
         petals: bool = False,
         block_size: int = 2048,
@@ -376,6 +375,7 @@ class aigen:
         target_batch_size: int = None,
         strategy=None,
         devices=None,
+        finetune=False,
         **kwargs,
     ) -> None:
         if seed:
@@ -398,27 +398,6 @@ class aigen:
         # onto the wrong device.
         if is_gpu_used and strategy == "hivemind":
             torch.cuda.set_device(devices[0])
-
-        freeze_layers = False
-        if num_layers_freeze > 0:
-            logger.info("Layer freezing enabled for model training.")
-            freeze_layers = True
-            if num_layers_freeze:
-                # For GPT-2
-                if hasattr(self.model.config, "n_layer"):
-                    assert (
-                        num_layers_freeze < self.model.config.n_layer
-                    ), "You are freezing more Transformer layers than in the model."
-                # For GPT-Neo
-                elif hasattr(self.model.config, "num_layers"):
-                    assert (
-                        num_layers_freeze < self.model.config.num_layers
-                    ), "You are freezing more Transformer layers than in the model."
-                # For RWKV
-                elif hasattr(self.model.config, "num_hidden_layers"):
-                    assert (
-                        num_layers_freeze < self.model.config.num_hidden_layers
-                    ), "You are freezing more Transformer layers than in the model."
 
         num_workers = (
             num_workers if num_workers is not None else int(os.cpu_count() / 4)
@@ -445,7 +424,6 @@ class aigen:
             num_cycles=num_cycles,
             petals=petals,
             val_split=val_split,
-            val_interval=val_interval,
             block_size=block_size,
             initial_peers=initial_peers,
             target_batch_size=target_batch_size,
@@ -468,13 +446,15 @@ class aigen:
         if generation_config is not None:
             gen_config = GenerationConfig(**generation_config)
 
+        val_check_interval = val_interval * gradient_accumulation_steps
+
         train_params = dict(
             accelerator="auto",
             strategy="auto",
             devices=devices,
             max_steps=num_steps,
             max_epochs=-1,
-            val_check_interval=val_interval,
+            val_check_interval=val_check_interval,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=False,
             precision="32-true",
@@ -489,14 +469,19 @@ class aigen:
                     save_every,
                     output_dir,
                     is_gpu_used,
-                    freeze_layers,
-                    num_layers_freeze,
                     petals,
                 ),
                 AIGSampleGenerator(generate_every, gen_config),
                 AIGMetricsLogger(),
             ],
         )
+
+        if finetune:
+            from finetuning_scheduler import FinetuningScheduler
+
+            train_params["callbacks"].append(FinetuningScheduler())
+
+            logging.info(f"Using a naive finetuning schedule.")
 
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
