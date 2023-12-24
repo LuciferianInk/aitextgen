@@ -3,11 +3,6 @@ import os
 import platform
 import random
 import re
-import shutil
-import sys
-from datetime import datetime
-from itertools import islice
-from random import randint
 from typing import List, Optional, Union
 
 import numpy as np
@@ -15,26 +10,19 @@ import torch
 from lightning.pytorch.callbacks import (
     Callback,
     EarlyStopping,
+    ModelCheckpoint,
     ModelPruning,
     StochasticWeightAveraging,
 )
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
-from peft import PeftConfig, PeftModel
-from peft.tuners.lora.layer import LoraLayer
+from peft import PeftModel
 from pkg_resources import resource_filename
-from tqdm.auto import trange
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
     AutoTokenizer,
-    BitsAndBytesConfig,
     GenerationConfig,
-    GPT2Config,
-    GPT2LMHeadModel,
-    GPT2TokenizerFast,
-    PreTrainedTokenizerFast,
 )
 
 from .datasets import StaticDataModule, StreamingDataModule, TokenDataset
@@ -71,7 +59,7 @@ class aigen:
         model: str = None,
         model_folder: str = None,
         tokenizer=None,
-        config: Union[str, GPT2Config] = None,
+        config: Union[str, AutoConfig] = None,
         vocab_file: str = None,
         merges_file: str = None,
         tokenizer_file: str = None,
@@ -382,6 +370,7 @@ class aigen:
         strategy=None,
         devices=None,
         finetune=False,
+        checkpoint=False,
         **kwargs,
     ) -> None:
         if seed:
@@ -462,7 +451,7 @@ class aigen:
             max_epochs=-1,
             val_check_interval=val_check_interval,
             reload_dataloaders_every_n_epochs=1,
-            enable_checkpointing=False,
+            enable_checkpointing=checkpoint,
             precision="32-true",
             accumulate_grad_batches=gradient_accumulation_steps,
             gradient_clip_val=gradient_clip_val,
@@ -483,6 +472,19 @@ class aigen:
                 ),
             ],
         )
+
+        if checkpoint:
+            checkpoint_callback = ModelCheckpoint(
+                save_top_k=3,
+                monitor="val_loss",
+                mode="min",
+                dirpath=output_dir,
+                filename="model-{step}-{val_loss}.ckpt",
+            )
+
+            train_params["callbacks"].append(checkpoint_callback)
+
+            logging.info(f"Model checkpointing enabled.")
 
         if finetune:
             from finetuning_scheduler import FinetuningScheduler
