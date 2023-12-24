@@ -105,7 +105,6 @@ class AIGProgressBar(ProgressBar):
         save_every,
         generate_every,
         output_dir,
-        n_generate,
         gpu,
         train_transformers_only,
         num_layers_freeze,
@@ -118,7 +117,6 @@ class AIGProgressBar(ProgressBar):
         self.save_every = save_every
         self.generate_every = generate_every
         self.output_dir = output_dir
-        self.n_generate = n_generate
         self.gpu = gpu
         self.steps = 0
         self.prev_avg_loss = None
