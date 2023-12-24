@@ -1,11 +1,7 @@
-import os
 import random
 
 import numpy as np
-import requests
 import torch
-from tqdm.auto import tqdm
-from transformers import GPT2Config, GPTNeoConfig
 
 
 def set_seed(seed: int):

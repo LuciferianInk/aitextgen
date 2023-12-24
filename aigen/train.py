@@ -4,6 +4,7 @@ import random
 import shutil
 import subprocess
 import sys
+from math import isnan
 
 import psutil
 import torch
@@ -102,6 +103,7 @@ class AIGProgressBar(ProgressBar):
 
     def __init__(
         self,
+        num_steps,
         save_every,
         generate_every,
         output_dir,
@@ -110,10 +112,9 @@ class AIGProgressBar(ProgressBar):
         num_layers_freeze,
         petals,
         generation_config,
-        target_batch_size,
     ):
         super().__init__()
-        self.enabled = True
+        self.total_steps = num_steps
         self.save_every = save_every
         self.generate_every = generate_every
         self.output_dir = output_dir
@@ -126,7 +127,6 @@ class AIGProgressBar(ProgressBar):
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
         self.generation_config = generation_config
-        self.target_batch_size = target_batch_size
         self.is_synced = False
         try:
             from IPython.display import display
@@ -150,17 +150,10 @@ class AIGProgressBar(ProgressBar):
     def save_every_check(self):
         return self.save_every > 0 and self.steps % self.save_every == 0
 
-    def enabled(self):
-        self.enabled = True
-
-    def disable(self):
-        self.enabled = False
-
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
         self.pbar = tqdm(
-            total=trainer.max_steps,
-            disable=not self.enabled,
+            total=self.total_steps,
             smoothing=0,
             leave=True,
             dynamic_ncols=True,
@@ -182,7 +175,6 @@ class AIGProgressBar(ProgressBar):
             step = schedule.current_step
 
         if not self.is_synced:
-            print(step)
             # If training resumes from a checkpoint, set progress bar to the correct step.
             self.pbar.update(step)
             self.is_synced = True
@@ -193,7 +185,7 @@ class AIGProgressBar(ProgressBar):
             current_epoch += batch_idx / lm.train_len
         self.steps += 1
         avg_loss = 0
-        if current_loss == current_loss:  # don't add if current_loss is NaN
+        if not isnan(current_loss):
             avg_loss = self.average_loss(
                 current_loss, self.prev_avg_loss, self.smoothing
             )
@@ -201,27 +193,25 @@ class AIGProgressBar(ProgressBar):
 
         if TPUAccelerator.is_available() and self.save_every_check:
             did_unfreeze = False
-            if self.enabled:
-                self.unfreeze_layers(lm)
-                did_unfreeze = True
+            self.unfreeze_layers(lm)
+            did_unfreeze = True
             self.save_pytorch_model(trainer, lm, tpu=True)
             if did_unfreeze:
                 self.freeze_layers(lm)
 
-        if self.enabled:
-            did_unfreeze = False
-            if not TPUAccelerator.is_available() and self.save_every_check:
-                self.unfreeze_layers(lm)
-                self.save_pytorch_model(trainer, lm)
-                did_unfreeze = True
+        did_unfreeze = False
+        if not TPUAccelerator.is_available() and self.save_every_check:
+            self.unfreeze_layers(lm)
+            self.save_pytorch_model(trainer, lm)
+            did_unfreeze = True
 
-            if self.generate_every > 0 and self.steps % self.generate_every == 0:
-                self.unfreeze_layers(lm)
-                self.generate_sample_text(trainer, lm)
-                did_unfreeze = True
+        if self.generate_every > 0 and self.steps % self.generate_every == 0:
+            self.unfreeze_layers(lm)
+            self.generate_sample_text(trainer, lm)
+            did_unfreeze = True
 
-            if did_unfreeze:
-                self.freeze_layers(lm)
+        if did_unfreeze:
+            self.freeze_layers(lm)
 
         if lm.logger:
             lm.logger.experiment.add_scalars(

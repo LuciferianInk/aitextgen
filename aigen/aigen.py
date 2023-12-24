@@ -485,6 +485,7 @@ class aigen:
             benchmark=False,
             callbacks=[
                 AIGProgressBar(
+                    num_steps,
                     save_every,
                     generate_every,
                     output_dir,
@@ -493,7 +494,6 @@ class aigen:
                     num_layers_freeze,
                     petals,
                     gen_config,
-                    hparams["target_batch_size"],
                 )
             ],
         )
