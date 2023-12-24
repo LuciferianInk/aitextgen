@@ -1,16 +1,7 @@
-from peft import (
-    AdaLoraConfig,
-    IA3Config,
-    LoHaConfig,
-    LoKrConfig,
-    LoraConfig,
-    PrefixTuningConfig,
-    PromptTuningConfig,
-)
-
-
 def get_peft_config(peft_type, kwargs):
     if peft_type == "lora":
+        from peft import LoraConfig
+
         peft_config = LoraConfig(
             task_type="CAUSAL_LM",
             r=kwargs.get("r", 4),
@@ -23,6 +14,8 @@ def get_peft_config(peft_type, kwargs):
             modules_to_save=kwargs.get("modules_to_save", None),
         )
     elif peft_type == "adalora":
+        from peft import AdaLoraConfig
+
         peft_config = AdaLoraConfig(
             task_type="CAUSAL_LM",
             r=kwargs.get("r", 4),
@@ -37,12 +30,16 @@ def get_peft_config(peft_type, kwargs):
             modules_to_save=kwargs.get("modules_to_save", None),
         )
     elif peft_type == "ia3":
+        from peft import IA3Config
+
         peft_config = IA3Config(
             task_type="CAUSAL_LM",
             target_modules=kwargs.get("target_modules", None),
             feedforward_modules=kwargs.get("feedforward_modules", None),
         )
     elif peft_type == "loha":
+        from peft import LoHaConfig
+
         peft_config = LoHaConfig(
             task_type="CAUSAL_LM",
             r=kwargs.get("r", 8),
@@ -56,6 +53,8 @@ def get_peft_config(peft_type, kwargs):
             modules_to_save=kwargs.get("modules_to_save", None),
         )
     elif peft_type == "lokr":
+        from peft import LoKrConfig
+
         peft_config = LoKrConfig(
             task_type="CAUSAL_LM",
             r=kwargs.get("r", 8),
@@ -76,6 +75,8 @@ def get_peft_config(peft_type, kwargs):
         #     pre_seq_len = kwargs.get("num_virtual_tokens")
         #     output_dir = "/data/embeddings/" + focus
         # else:
+        from peft import PromptTuningConfig
+
         peft_config = PromptTuningConfig(
             task_type="CAUSAL_LM",
             num_virtual_tokens=kwargs.get("num_virtual_tokens", 24),
@@ -86,12 +87,11 @@ def get_peft_config(peft_type, kwargs):
         #     pre_seq_len = kwargs.get("num_virtual_tokens")
         #     output_dir = "/data/embeddings/" + focus
         # else:
+        from peft import PrefixTuningConfig
+
         peft_config = PrefixTuningConfig(
             task_type="CAUSAL_LM",
             num_virtual_tokens=kwargs.get("num_virtual_tokens", 24),
         )
-    else:
-        pass
-    #     output_dir = "/data/models/" + focus
 
     return peft_config
