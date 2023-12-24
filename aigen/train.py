@@ -86,21 +86,14 @@ class AIGProgressBar(ProgressBar):
     def __init__(
         self,
         num_steps,
-        save_every,
-        output_dir,
         gpu,
-        petals,
     ):
         super().__init__()
         self.total_steps = num_steps
-        self.save_every = save_every
-        self.output_dir = output_dir
         self.gpu = gpu
-        self.steps = 0
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
-        self.petals = petals
         self.is_synced = False
         try:
             from IPython.display import display
@@ -119,10 +112,6 @@ class AIGProgressBar(ProgressBar):
             self.red = colors.RED
             self.green = colors.GREEN
             self.white = colors.WHITE
-
-    @property
-    def save_every_check(self):
-        return self.save_every > 0 and self.steps % self.save_every == 0
 
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
@@ -144,19 +133,13 @@ class AIGProgressBar(ProgressBar):
         current_epoch = trainer.current_epoch
         if lm.train_len > 0:
             current_epoch += batch_idx / lm.train_len
-        self.steps += 1
+
         avg_loss = 0
         if not isnan(current_loss):
             avg_loss = self.average_loss(
                 current_loss, self.prev_avg_loss, self.smoothing
             )
             self.prev_avg_loss = avg_loss
-
-        if TPUAccelerator.is_available() and self.save_every_check:
-            self.save_pytorch_model(trainer, lm, tpu=True)
-
-        if not TPUAccelerator.is_available() and self.save_every_check:
-            self.save_pytorch_model(trainer, lm)
 
         color = self.green
         if current_loss < avg_loss:
@@ -216,6 +199,43 @@ class AIGProgressBar(ProgressBar):
 
         self.pbar.set_description(echo)
 
+    def average_loss(self, current_loss, prev_avg_loss, smoothing):
+        if prev_avg_loss is None:
+            return current_loss
+        else:
+            return (smoothing * current_loss) + (1 - smoothing) * prev_avg_loss
+
+
+class AIGModelSaver(Callback):
+    """Periodically model during training."""
+
+    def __init__(
+        self,
+        save_every,
+        output_dir,
+        petals,
+    ):
+        super().__init__()
+        self.steps = 0
+        self.save_every = save_every
+        self.output_dir = output_dir
+        self.petals = petals
+
+    @property
+    def save_every_check(self):
+        return self.save_every > 0 and self.steps % self.save_every == 0
+
+    def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
+        super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
+
+        self.steps += 1
+
+        if TPUAccelerator.is_available() and self.save_every_check:
+            self.save_pytorch_model(trainer, lm, tpu=True)
+
+        if not TPUAccelerator.is_available() and self.save_every_check:
+            self.save_pytorch_model(trainer, lm)
+
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
             with open(os.path.join(self.output_dir, "prompts.pt"), "wb") as f:
@@ -234,12 +254,6 @@ class AIGProgressBar(ProgressBar):
             )
         else:
             lm.model.save_pretrained(self.output_dir, safe_serialization=True)
-
-    def average_loss(self, current_loss, prev_avg_loss, smoothing):
-        if prev_avg_loss is None:
-            return current_loss
-        else:
-            return (smoothing * current_loss) + (1 - smoothing) * prev_avg_loss
 
 
 class AIGSampleGenerator(Callback):

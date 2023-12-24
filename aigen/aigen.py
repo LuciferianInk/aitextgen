@@ -41,7 +41,13 @@ from .datasets import StaticDataModule, StreamingDataModule, TokenDataset
 from .optimizers import get_optimizer
 from .schedulers import get_scheduler
 from .strategies import get_strategy
-from .train import AIGMetricsLogger, AIGProgressBar, AIGSampleGenerator, AIGTrainer
+from .train import (
+    AIGMetricsLogger,
+    AIGModelSaver,
+    AIGProgressBar,
+    AIGSampleGenerator,
+    AIGTrainer,
+)
 from .utils import model_max_length, reset_seed, set_seed
 
 logger = logging.getLogger("aigen")
@@ -466,13 +472,15 @@ class aigen:
             callbacks=[
                 AIGProgressBar(
                     num_steps,
-                    save_every,
-                    output_dir,
                     is_gpu_used,
-                    petals,
                 ),
                 AIGSampleGenerator(generate_every, gen_config),
                 AIGMetricsLogger(),
+                AIGModelSaver(
+                    save_every,
+                    output_dir,
+                    petals,
+                ),
             ],
         )
 
