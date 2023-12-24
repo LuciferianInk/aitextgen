@@ -11,7 +11,7 @@ import torch
 import torchmetrics
 from lightning.pytorch import LightningModule
 from lightning.pytorch.accelerators import TPUAccelerator
-from lightning.pytorch.callbacks import ProgressBar
+from lightning.pytorch.callbacks import Callback, ProgressBar
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -105,18 +105,15 @@ class AIGProgressBar(ProgressBar):
         self,
         num_steps,
         save_every,
-        generate_every,
         output_dir,
         gpu,
         train_transformers_only,
         num_layers_freeze,
         petals,
-        generation_config,
     ):
         super().__init__()
         self.total_steps = num_steps
         self.save_every = save_every
-        self.generate_every = generate_every
         self.output_dir = output_dir
         self.gpu = gpu
         self.steps = 0
@@ -126,7 +123,6 @@ class AIGProgressBar(ProgressBar):
         self.train_transformers_only = train_transformers_only
         self.num_layers_freeze = num_layers_freeze
         self.petals = petals
-        self.generation_config = generation_config
         self.is_synced = False
         try:
             from IPython.display import display
@@ -205,11 +201,6 @@ class AIGProgressBar(ProgressBar):
             self.save_pytorch_model(trainer, lm)
             did_unfreeze = True
 
-        if self.generate_every > 0 and self.steps % self.generate_every == 0:
-            self.unfreeze_layers(lm)
-            self.generate_sample_text(trainer, lm)
-            did_unfreeze = True
-
         if did_unfreeze:
             self.freeze_layers(lm)
 
@@ -272,33 +263,6 @@ class AIGProgressBar(ProgressBar):
             self.last_step = step
         self.pbar.set_description(echo)
 
-    def generate_sample_text(self, trainer, lm):
-        lm.model.eval()
-
-        if hasattr(lm.model, "training"):
-            lm.model.training = False
-
-        outputs = lm.model.generate(
-            inputs=None,
-            generation_config=self.generation_config,
-            do_sample=True,
-            max_new_tokens=222,
-            bos_token_id=lm.tokenizer.bos_token_id,
-            eos_token_id=lm.tokenizer.eos_token_id,
-            pad_token_id=lm.tokenizer.pad_token_id,
-        )
-
-        if hasattr(lm.model, "training"):
-            lm.model.training = True
-
-        gen_texts = lm.tokenizer.batch_decode(outputs, skip_special_tokens=True)
-
-        lm.model.train()
-
-        for text in gen_texts:
-            self.pbar.write(text)
-            self.pbar.write(f"={self.blue}=>{self.white}")
-
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
             with open(os.path.join(self.output_dir, "prompts.pt"), "wb") as f:
@@ -340,3 +304,46 @@ class AIGProgressBar(ProgressBar):
 
     def unfreeze_layers(self, lm):
         self.modify_layers(lm, True)
+
+
+class AIGSampleGenerator(Callback):
+    """Periodically print samples to the console."""
+
+    def __init__(self, generate_every, generation_config):
+        super().__init__()
+        self.steps = 0
+        self.generate_every = generate_every
+        self.generation_config = generation_config
+
+    def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
+        super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
+
+        self.steps += 1
+
+        if self.generate_every > 0 and self.steps % self.generate_every == 0:
+            self.generate_sample_text(trainer, lm)
+
+    def generate_sample_text(self, trainer, lm):
+        lm.model.eval()
+
+        if hasattr(lm.model, "training"):
+            lm.model.training = False
+
+        outputs = lm.model.generate(
+            inputs=None,
+            generation_config=self.generation_config,
+            do_sample=True,
+            max_new_tokens=222,
+            bos_token_id=lm.tokenizer.bos_token_id,
+            eos_token_id=lm.tokenizer.eos_token_id,
+            pad_token_id=lm.tokenizer.pad_token_id,
+        )
+
+        if hasattr(lm.model, "training"):
+            lm.model.training = True
+
+        output = lm.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
+        lm.model.train()
+
+        print(output[0])
