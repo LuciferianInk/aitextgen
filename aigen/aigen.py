@@ -61,22 +61,19 @@ class aigen:
         self,
         model: str = None,
         model_folder: str = None,
-        tokenizer=None,
+        tokenizer: AutoTokenizer = None,
         config: Union[str, AutoConfig] = None,
         vocab_file: str = None,
         merges_file: str = None,
         tokenizer_file: str = None,
-        schema_tokens: List[str] = None,
-        schema_return: List[str] = None,
-        cache_dir: str = "aigen",
         embeddings_dir: str = "",
         precision: int = 32,
-        gradient_checkpointing: bool = False,
         petals: bool = False,
         bos_token: str = None,
         eos_token: str = None,
         unk_token: str = None,
         adapters=None,
+        cache_dir: str = "models",
         adapter_dir: str = "adapters",
         tuning_mode=None,
         pre_seq_len=24,
@@ -229,11 +226,6 @@ class aigen:
 
             logger.info(f"Using adapter: {self.model.active_adapter}")
 
-        if gradient_checkpointing:
-            logger.info("Gradient checkpointing enabled for model training.")
-            self.model.gradient_checkpointing_enable({"use_reentrant": False})
-            setattr(self.model.config, "use_cache", None if petals else False)
-
         self.model_max_length = model_max_length(self.model.config)
 
         self.model.eval()
@@ -370,6 +362,7 @@ class aigen:
         tpu_cores: int = 0,
         gradient_clip_val: float = 1.0,
         gradient_accumulation_steps: int = 1,
+        gradient_checkpointing: bool = False,
         seed: int = None,
         optimizer: str = "AdamW",
         scheduler: str = "cosine",
@@ -429,6 +422,11 @@ class aigen:
         num_workers = (
             num_workers if num_workers is not None else int(os.cpu_count() / 4)
         )
+
+        if gradient_checkpointing:
+            logger.info("Gradient checkpointing enabled for model training.")
+            self.model.gradient_checkpointing_enable({"use_reentrant": False})
+            setattr(self.model.config, "use_cache", None if petals else False)
 
         hparams = dict(
             optimizer=optimizer,
