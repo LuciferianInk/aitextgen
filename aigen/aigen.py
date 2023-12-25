@@ -487,7 +487,7 @@ class aigen:
             gradient_clip_val=gradient_clip_val,
             gradient_clip_algorithm="norm",
             logger=loggers if loggers else False,
-            benchmark=False,
+            benchmark=True,
             callbacks=[
                 AIGProgressBar(
                     num_steps,
