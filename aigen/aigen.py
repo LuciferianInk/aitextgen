@@ -508,6 +508,7 @@ class aigen:
                 save_top_k=1,
                 monitor="val_loss",
                 mode="min",
+                every_n_train_steps=save_every,
                 dirpath=output_dir,
                 filename="model",
             )
