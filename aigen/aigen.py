@@ -505,7 +505,7 @@ class aigen:
 
         if checkpoint:
             checkpoint_callback = ModelCheckpoint(
-                save_top_k=3,
+                save_top_k=1,
                 monitor="val_loss",
                 mode="min",
                 dirpath=output_dir,
