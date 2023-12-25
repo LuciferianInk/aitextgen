@@ -509,7 +509,8 @@ class aigen:
                 monitor="val_loss",
                 mode="min",
                 dirpath=output_dir,
-                filename="model-{step}-{val_loss:.2f}",
+                filename="model-{step}",
+                # filename="model-{step}-{val_loss:.2f}",
             )
 
             train_params["callbacks"].append(checkpoint_callback)
