@@ -102,7 +102,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             run_id=f"src-vtx-{focus}",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
-            initial_piers=initial_piers,
+            initial_peers=initial_piers,
             use_ipfs=True,
             use_relay=True,
             use_auto_relay=True,
