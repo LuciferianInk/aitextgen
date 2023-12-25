@@ -40,8 +40,8 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         pattern = r"(/p2p/.*)"
 
         # Start with bootstrap peers
-        initial_peers = hparams.get("initial_peers", [])
-        # initial_peers.append(random.choice(bootstrap_peers))
+        initial_piers = hparams.get("initial_piers", [])
+        # initial_piers.append(random.choice(bootstrap_peers))
 
         # # Get my local peers
         # command = "docker exec vtx-fil-1 ipfs swarm peers"
@@ -55,7 +55,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         # for peer in peers:
         #     match = re.search(pattern, peer)
         #     if match:
-        #         initial_peers.append(match.group(1))
+        #         initial_piers.append(match.group(1))
 
         # # Get my own peer ID
         # command = "docker exec vtx-fil-1 ipfs id"
@@ -67,15 +67,15 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         # try:
         #     mine = json.loads(output.decode("utf-8"))
         #     craft = f"/p2p/{mine['ID']}"
-        #     initial_peers.append(craft)
+        #     initial_piers.append(craft)
         # except:
         #     pass
 
         delay = 1.0
-        for peer in initial_peers:
+        for peer in initial_piers:
             time.sleep(delay)
             delay *= 0.75
-            print(f"PIER-{initial_peers.index(peer)}: {peer}")
+            print(f"PIER-{initial_piers.index(peer)}: {peer}")
 
         class MaxStepCallback(Callback):
             def __init__(self, max_steps):
@@ -102,7 +102,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             run_id=f"src-vtx-{focus}",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
-            initial_peers=initial_peers,
+            initial_piers=initial_piers,
             use_ipfs=True,
             use_relay=True,
             use_auto_relay=True,
@@ -140,7 +140,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         )
         for peer in list(set(my_ids)):
             print(
-                f"{colors.GREEN}PIER-{len(initial_peers) + list(set(my_ids)).index(peer)}:{colors.WHITE} {peer}"
+                f"{colors.GREEN}PIER-{len(initial_piers) + list(set(my_ids)).index(peer)}:{colors.WHITE} {peer}"
             )
     else:
         strategy = "auto"
