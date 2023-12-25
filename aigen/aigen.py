@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 import platform
 import random
@@ -36,7 +37,7 @@ from .train import (
     AIGSampleGenerator,
     AIGTrainer,
 )
-from .utils import model_max_length, reset_seed, set_seed
+from .utils import colors, model_max_length, reset_seed, set_seed
 
 logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
@@ -402,6 +403,9 @@ class aigen:
         checkpoint=False,
         **kwargs,
     ) -> None:
+        if hasattr(self.model, "training"):
+            self.model.training = True
+
         if seed:
             set_seed(seed)
 
@@ -623,6 +627,20 @@ class aigen:
         )
 
         self.model.train()
+
+        print(self.model)
+
+        if hasattr(self.model, "print_trainable_parameters"):
+            self.model.print_trainable_parameters()
+
+        if static_len > 0:
+            total_batches = sum(len(ds) for ds in total_train)
+            print(
+                f"Training data:\n{colors.GREEN}{total_batches}{colors.WHITE} batches, {colors.GREEN}{total_batches * block_size}{colors.WHITE} tokens"
+            )
+
+            while train_params["val_check_interval"] > len(total_train[0]):
+                train_params["val_check_interval"] = math.floor(len(total_train[0]) / 2)
 
         trainer = Trainer(**train_params)
         trainer.fit(train_model, combined_train, combined_val)
