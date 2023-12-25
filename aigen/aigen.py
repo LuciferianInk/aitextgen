@@ -391,7 +391,7 @@ class aigen:
         target_batch_size: int = 8192,
         strategy: str = "auto",
         finetune: bool = False,
-        checkpoint: bool = False,
+        checkpoint: int = 0,
         resume: bool = False,
         devices=None,
         **kwargs,
@@ -481,7 +481,7 @@ class aigen:
             max_epochs=-1,
             val_check_interval=val_check_interval,
             reload_dataloaders_every_n_epochs=1,
-            enable_checkpointing=checkpoint,
+            enable_checkpointing=True if checkpoint > 0 else False,
             precision="32-true",
             accumulate_grad_batches=gradient_accumulation_steps,
             gradient_clip_val=gradient_clip_val,
@@ -503,12 +503,12 @@ class aigen:
             ],
         )
 
-        if checkpoint:
+        if checkpoint > 0:
             checkpoint_callback = ModelCheckpoint(
                 save_top_k=1,
-                monitor="val_loss",
+                monitor="train_loss",
                 mode="min",
-                every_n_train_steps=save_every,
+                every_n_train_steps=checkpoint,
                 dirpath=output_dir,
                 filename="model",
             )
@@ -517,8 +517,8 @@ class aigen:
             print(f"Model checkpointing enabled.")
 
         latest_checkpoint = None
-        if resume and checkpoint:
-            latest_checkpoint = f"{output_dir}/model.ckpt"
+        if resume and checkpoint > 0:
+            latest_checkpoint = f"{output_dir}/model-v1.ckpt"
             print(f"Resuming training from: {latest_checkpoint}")
 
         if finetune:
