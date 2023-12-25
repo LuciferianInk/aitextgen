@@ -26,7 +26,7 @@ logger.setLevel(logging.INFO)
 STATIC_PATH = resource_filename(__name__, "static")
 
 
-class TokenDataset(Dataset):
+class StaticDataset(Dataset):
     def __init__(
         self,
         file_path: str = None,
@@ -70,7 +70,7 @@ class TokenDataset(Dataset):
             self.block_size = block_size
             self.line_by_line = line_by_line
 
-            logger.info(f"TokenDataset containing {len(self.tokens)} batches loaded.")
+            logger.info(f"StaticDataset containing {len(self.tokens)} batches loaded.")
             return
 
         assert tokenizer, "A tokenizer must be specified."
@@ -132,7 +132,7 @@ class TokenDataset(Dataset):
         return self.file_path if self.file_path is not None else "loaded dataset"
 
     def __repr__(self) -> str:
-        return f"TokenDataset containing {len(self.tokens)} batches loaded."
+        return f"StaticDataset containing {len(self.tokens)} batches loaded."
 
     def encode_tokens(
         self,
@@ -147,9 +147,6 @@ class TokenDataset(Dataset):
         """
         Retrieve texts from a newline-delimited file.
         """
-
-        num_texts = get_lines_in_file(file_path, newline)
-        logger.info(f"Encoding {num_texts:,} lines of text from {file_path}.")
 
         with open(file_path, "r", encoding="utf-8", newline=newline) as file:
             if file_path.endswith(".csv"):
@@ -227,6 +224,31 @@ class StaticDataModule(LightningDataModule):
         )
 
 
+class StreamingDataModule(LightningDataModule):
+    def __init__(self, tokenizer, hparams, config):
+        super().__init__()
+        self.iterable = None
+        self.tokenizer = tokenizer
+        self.params = hparams
+        self.setup(config)
+
+    def setup(self, config):
+        if config.get("sequential", False):
+            self.iterable = SequentialStreamingDataset(
+                self.tokenizer, self.params, config
+            )
+        else:
+            self.iterable = StreamingDataset(self.tokenizer, self.params, config)
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.iterable,
+            batch_size=self.params["batch_size"],
+            pin_memory=True,
+            num_workers=self.params["num_workers"],
+        )
+
+
 class StreamingDataset(IterableDataset):
     def __init__(self, tokenizer, params, config):
         self.tokenizer = tokenizer
@@ -279,42 +301,64 @@ class StreamingDataset(IterableDataset):
                 continue
 
 
-class StreamingDataModule(LightningDataModule):
-    def __init__(self, tokenizer, hparams, config):
-        super().__init__()
-        self.iterable = None
-        self.tokenizer = tokenizer
-        self.params = hparams
-        self.setup(config)
-
-    def setup(self, config):
-        self.iterable = StreamingDataset(self.tokenizer, self.params, config)
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.iterable,
-            batch_size=self.params["batch_size"],
-            pin_memory=True,
-            num_workers=self.params["num_workers"],
+class SequentialStreamingDataset(StreamingDataset):
+    def __iter__(self):
+        shuffled = self.dataset.shuffle(
+            seed=random.randint(0, 2**31),
+            buffer_size=self.config.get("sample_size", 10_000),
         )
 
+        block_size = self.params["block_size"]
 
-def get_lines_in_file(file_path: str, newline: str = None) -> int:
+        assert block_size % 2 == 0, "`block_size` must be divisible by 2."
+
+        half_block = int(block_size / 2)
+
+        last_batch = []
+        batch = np.array([])
+        for document in shuffled:
+            tokens = self.tokenizer(
+                text=document.get(self.content_key),
+                max_length=block_size,
+                padding=False,
+                truncation=True,
+                return_overflowing_tokens=True,
+                return_tensors="np",
+            )["input_ids"]
+
+            if len(tokens) == 0:
+                continue
+
+            for block in tokens:
+                batch = np.concatenate([batch, block])
+
+            if len(batch) < block_size:
+                np.append(batch, self.tokenizer.eos_token_id)
+                continue
+
+            while len(batch) >= block_size:
+                selection = batch[:block_size]
+                batch = batch[half_block:]
+
+                # gen_texts = self.tokenizer.batch_decode(
+                #     selection.astype("int64"), skip_special_tokens=False
+                # )
+                # print("----------")
+                # print("".join(gen_texts))
+
+                # print(len(batch))
+                # print(len(selection))
+                yield selection.astype("int64")
+
+
+def merge_datasets(
+    datasets: List[StaticDataset], equalize: bool = True
+) -> StaticDataset:
     """
-    Returns the number of lines in a file to build progress bar.
-    c.f. https://stackoverflow.com/a/16108605/9314418
-    """
+    Merges multiple StaticDatasets into a single StaticDataset.
+    This assumes that you are using the same tokenizer for all StaticDatasets.
 
-    with open(file_path, "r", encoding="utf-8", newline=newline) as f:
-        return sum(1 for row in f)
-
-
-def merge_datasets(datasets: List[TokenDataset], equalize: bool = True) -> TokenDataset:
-    """
-    Merges multiple TokenDatasets into a single TokenDataset.
-    This assumes that you are using the same tokenizer for all TokenDatasets.
-
-    :param datasets: A list of TokenDatasets.
+    :param datasets: A list of StaticDatasets.
     :param equalize: Whether to take an equal amount of samples from all
     input datasets (by taking random samples from
     each dataset equal to the smallest dataset)
@@ -323,7 +367,7 @@ def merge_datasets(datasets: List[TokenDataset], equalize: bool = True) -> Token
 
     assert (
         isinstance(datasets, list) and len(datasets) > 1
-    ), "datasets must be a list of multiple TokenDatasets."
+    ), "datasets must be a list of multiple StaticDatasets."
 
     len_smallest = min([len(dataset) for dataset in datasets])
     block_size = datasets[0].block_size
@@ -339,4 +383,4 @@ def merge_datasets(datasets: List[TokenDataset], equalize: bool = True) -> Token
         else:
             tokenized_texts.extend(dataset.tokens)
 
-    return TokenDataset(tokenized_texts=tokenized_texts, block_size=block_size)
+    return StaticDataset(tokenized_texts=tokenized_texts, block_size=block_size)

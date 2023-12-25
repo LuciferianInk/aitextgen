@@ -27,7 +27,7 @@ from transformers import (
     GenerationConfig,
 )
 
-from .datasets import StaticDataModule, StreamingDataModule, TokenDataset
+from .datasets import StaticDataModule, StaticDataset, StreamingDataModule
 from .optimizers import get_optimizer
 from .schedulers import get_scheduler
 from .strategies import get_strategy
@@ -356,7 +356,7 @@ class aigen:
 
     def train(
         self,
-        static_data: Union[str, TokenDataset] = [],
+        static_data: Union[str, StaticDataset] = [],
         streaming_data: [] = [],
         generation_config: dict = None,
         output_dir: str = "trained_model",
@@ -509,8 +509,7 @@ class aigen:
                 monitor="val_loss",
                 mode="min",
                 dirpath=output_dir,
-                filename="model-{step}",
-                # filename="model-{step}-{val_loss:.2f}",
+                filename="model",
             )
 
             train_params["callbacks"].append(checkpoint_callback)
@@ -518,13 +517,7 @@ class aigen:
 
         latest_checkpoint = None
         if resume and checkpoint:
-            latest_checkpoint = (
-                output_dir
-                + "/"
-                + [file for file in os.listdir(output_dir) if file.endswith(".ckpt")][
-                    -1
-                ]
-            )
+            latest_checkpoint = f"{output_dir}/model.ckpt"
             print(f"Resuming training from: {latest_checkpoint}")
 
         if finetune:
