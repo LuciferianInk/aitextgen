@@ -263,6 +263,7 @@ class StreamingDataset(IterableDataset):
             split="train",
             streaming=True,
             cache_dir="/data/pile",
+            trust_remote_code=True,
             **kwargs,
         )
         self.config = config
