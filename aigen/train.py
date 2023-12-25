@@ -341,7 +341,10 @@ class AIGMetricsLogger(Callback):
         if not lm.logger or trainer.state.stage in ["sanity_check"]:
             return
 
-        step = trainer.callback_metrics["step"]
+        step = trainer.callback_metrics.get("step", 0)
+
+        if step == 0:
+            return
 
         lm.logger.experiment.add_scalars(
             "vtx",

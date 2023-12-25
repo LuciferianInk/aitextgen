@@ -4,6 +4,7 @@ import os
 import platform
 import random
 import re
+import time
 from typing import List, Optional, Union
 
 import numpy as np
@@ -386,12 +387,12 @@ class aigen:
         block_size: int = 2048,
         val_split: float = 0.0,
         val_interval: int = 1000,
-        supplement: bool = False,
         initial_piers: list = [],
         target_batch_size: int = 8192,
         strategy: str = "auto",
         finetune: bool = False,
         checkpoint: bool = False,
+        resume: bool = False,
         devices=None,
         **kwargs,
     ) -> None:
@@ -512,8 +513,18 @@ class aigen:
             )
 
             train_params["callbacks"].append(checkpoint_callback)
+            print(f"Model checkpointing enabled.")
 
-            logging.info(f"Model checkpointing enabled.")
+        latest_checkpoint = None
+        if resume and checkpoint:
+            latest_checkpoint = (
+                output_dir
+                + "/"
+                + [file for file in os.listdir(output_dir) if file.endswith(".ckpt")][
+                    -1
+                ]
+            )
+            print(f"Resuming training from: {latest_checkpoint}")
 
         if finetune:
             from finetuning_scheduler import FinetuningScheduler
@@ -521,6 +532,8 @@ class aigen:
             train_params["callbacks"].append(FinetuningScheduler())
 
             logging.info(f"Using a naive finetuning schedule.")
+
+        time.sleep(3)
 
         if tpu_cores > 0:
             train_params["tpu_cores"] = tpu_cores
@@ -639,7 +652,9 @@ class aigen:
                 train_params["val_check_interval"] = math.floor(len(total_train[0]) / 2)
 
         trainer = Trainer(**train_params)
-        trainer.fit(train_model, combined_train, combined_val)
+        trainer.fit(
+            train_model, combined_train, combined_val, ckpt_path=latest_checkpoint
+        )
 
         if not petals:
             self.save(output_dir)
