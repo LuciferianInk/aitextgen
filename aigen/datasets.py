@@ -314,7 +314,6 @@ class SequentialStreamingDataset(StreamingDataset):
 
         half_block = int(block_size / 2)
 
-        last_batch = []
         batch = np.array([])
         for document in shuffled:
             tokens = self.tokenizer(
