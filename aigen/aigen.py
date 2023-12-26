@@ -519,18 +519,18 @@ class aigen:
                 )
             )
 
-            if checkpoint > 0:
-                checkpoint_callback = ModelCheckpoint(
-                    save_top_k=1,
-                    monitor="train_loss",
-                    mode="min",
-                    every_n_train_steps=checkpoint,
-                    dirpath=output_dir,
-                    filename="model",
-                )
+        if checkpoint > 0:
+            checkpoint_callback = ModelCheckpoint(
+                save_top_k=1,
+                monitor="train_loss",
+                mode="min",
+                every_n_train_steps=checkpoint,
+                dirpath=output_dir,
+                filename="model",
+            )
 
-                train_params["callbacks"].append(checkpoint_callback)
-                print(f"Model checkpointing enabled.")
+            train_params["callbacks"].append(checkpoint_callback)
+            print(f"Model checkpointing enabled.")
 
         latest_checkpoint = None
         if resume and checkpoint > 0:
