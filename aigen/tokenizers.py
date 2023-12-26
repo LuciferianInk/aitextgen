@@ -56,11 +56,7 @@ def train_tokenizer(
 
     os.makedirs(f"{save_path}/{prefix}", exist_ok=True)
 
-    # tokenizer.save_pretrained(f"{save_path}/{prefix}")
-
-    tokenizer.save(f"{save_path}/{prefix}/tokenizer.json")
-
-    # if serialize:
-    #     tokenizer.save(f"{save_path}/{prefix}/tokenizer.json")
-    # else:
-    #     tokenizer.save_model(save_path, prefix)
+    if serialize:
+        tokenizer.save(f"{save_path}/{prefix}/tokenizer.json")
+    else:
+        tokenizer.save_model(save_path, prefix)
