@@ -1,3 +1,4 @@
+import os
 from typing import List, Union
 
 from tokenizers import ByteLevelBPETokenizer
@@ -53,7 +54,13 @@ def train_tokenizer(
         special_tokens=[bos_token, eos_token, unk_token] + added_tokens,
     )
 
-    if serialize:
-        tokenizer.save(f"{prefix}.tokenizer.json")
-    else:
-        tokenizer.save_model(save_path, prefix)
+    os.makedirs(f"{save_path}/{prefix}", exist_ok=True)
+
+    # tokenizer.save_pretrained(f"{save_path}/{prefix}")
+
+    tokenizer.save(f"{save_path}/{prefix}/tokenizer.json")
+
+    # if serialize:
+    #     tokenizer.save(f"{save_path}/{prefix}/tokenizer.json")
+    # else:
+    #     tokenizer.save_model(save_path, prefix)
