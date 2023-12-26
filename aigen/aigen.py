@@ -489,33 +489,48 @@ class aigen:
             gradient_clip_algorithm="norm",
             logger=loggers if loggers else False,
             benchmark=True,
-            callbacks=[
+            callbacks=[],
+        )
+
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        world_rank = int(os.environ.get("WORLD_RANK", 0))
+
+        print(f"Local rank: {local_rank}, World rank: {world_rank}")
+        import time
+
+        time.sleep(2)
+
+        if local_rank == 0:
+            train_params["callbacks"].append(
                 AIGProgressBar(
                     num_steps,
                     is_gpu_used,
-                ),
-                AIGSampleGenerator(generate_every, gen_config),
-                AIGMetricsLogger(),
+                )
+            )
+            train_params["callbacks"].append(
+                AIGSampleGenerator(generate_every, gen_config)
+            )
+            train_params["callbacks"].append(AIGMetricsLogger())
+            train_params["callbacks"].append(
                 AIGModelSaver(
                     save_every,
                     output_dir,
                     petals,
-                ),
-            ],
-        )
-
-        if checkpoint > 0:
-            checkpoint_callback = ModelCheckpoint(
-                save_top_k=1,
-                monitor="train_loss",
-                mode="min",
-                every_n_train_steps=checkpoint,
-                dirpath=output_dir,
-                filename="model",
+                )
             )
 
-            train_params["callbacks"].append(checkpoint_callback)
-            print(f"Model checkpointing enabled.")
+            if checkpoint > 0:
+                checkpoint_callback = ModelCheckpoint(
+                    save_top_k=1,
+                    monitor="train_loss",
+                    mode="min",
+                    every_n_train_steps=checkpoint,
+                    dirpath=output_dir,
+                    filename="model",
+                )
+
+                train_params["callbacks"].append(checkpoint_callback)
+                print(f"Model checkpointing enabled.")
 
         latest_checkpoint = None
         if resume and checkpoint > 0:

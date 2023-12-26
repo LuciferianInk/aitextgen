@@ -15,6 +15,8 @@ from .utils import colors
 def get_strategy(name, params, hparams, train_params, scheduler):
     if name == "ddp":
         return "ddp"
+    elif name == "ddp_spawn":
+        return "ddp_spawn"
     elif name == "deepspeed":
         DeepSpeedStrategy(
             stage=3,
