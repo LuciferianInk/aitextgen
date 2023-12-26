@@ -46,7 +46,7 @@ class AIGTrainer(LightningModule):
     def training_step(self, batch, batch_idx):
         losses = []
 
-        for i, sample in enumerate(batch):
+        for sample in batch:
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
 
@@ -129,10 +129,7 @@ class AIGProgressBar(ProgressBar):
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
-        current_loss = float(outputs["loss"])
-
-        # metrics = self.get_metrics(trainer, lm)
-        # current_loss = float(metrics["loss"])
+        current_loss = float(trainer.callback_metrics["train_loss"])
 
         current_epoch = trainer.current_epoch
         if lm.train_len > 0:
