@@ -130,6 +130,10 @@ class AIGProgressBar(ProgressBar):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
         current_loss = float(outputs["loss"])
+
+        # metrics = self.get_metrics(trainer, lm)
+        # current_loss = float(metrics["loss"])
+
         current_epoch = trainer.current_epoch
         if lm.train_len > 0:
             current_epoch += batch_idx / lm.train_len

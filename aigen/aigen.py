@@ -257,6 +257,7 @@ class aigen:
             self.model,
             use_gradient_checkpointing=kwargs.get("gradient_checkpointing", False),
         )
+
         self.model = get_peft_model(self.model, peft_config)
 
     def optimize_for_inference(self):

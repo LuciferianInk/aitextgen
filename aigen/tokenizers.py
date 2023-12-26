@@ -54,9 +54,11 @@ def train_tokenizer(
         special_tokens=[bos_token, eos_token, unk_token] + added_tokens,
     )
 
-    os.makedirs(f"{save_path}/{prefix}", exist_ok=True)
+    output_dir = f"{save_path}/{prefix}"
+
+    os.makedirs(output_dir, exist_ok=True)
 
     if serialize:
-        tokenizer.save(f"{save_path}/{prefix}/tokenizer.json")
+        tokenizer.save(f"{output_dir}/tokenizer.json")
     else:
-        tokenizer.save_model(save_path, prefix)
+        tokenizer.save_model(output_dir)
