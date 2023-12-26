@@ -187,8 +187,8 @@ class aigen:
             )
         )
 
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
+        if hasattr(self.tokenizer, "pad_token") and self.tokenizer.pad_token is None:
+            setattr(self.tokenizer, "pad_token", self.tokenizer.eos_token)
 
         if adapters and not petals:
             for adapter in adapters:
