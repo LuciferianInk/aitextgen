@@ -34,6 +34,8 @@ class AIGTrainer(LightningModule):
             train_len,
             tokenizer,
         )
+        self.total_tokens = 0
+        self.block_size = hparams["block_size"]
         self.automatic_optimization = True
         self.save_hyperparameters(hparams)
 
@@ -46,20 +48,22 @@ class AIGTrainer(LightningModule):
     def training_step(self, batch, batch_idx):
         losses = []
 
-        for sample in batch:
-            outputs = self({"input_ids": sample, "labels": sample})
-            losses.append(outputs[0])
-
-        loss = sum(losses) / len(losses)
-
         schedule = self.lr_schedulers()
         step = self.global_step
 
         if hasattr(schedule, "current_step"):
             step = schedule.current_step
 
+        for sample in batch:
+            outputs = self({"input_ids": sample, "labels": sample})
+            losses.append(outputs[0])
+            self.total_tokens += int(self.block_size)
+
+        loss = sum(losses) / len(losses)
+
         self.log("step", int(step), on_step=True, on_epoch=True)
         self.log("train_loss", float(loss), on_step=True, on_epoch=True)
+        self.log("total_tokens", int(self.total_tokens), on_step=True, on_epoch=True)
 
         schedule.step()
 
@@ -330,6 +334,7 @@ class AIGMetricsLogger(Callback):
         metrics = {
             "train_loss": trainer.callback_metrics["train_loss"],
             "lr": float(trainer.optimizers[0].param_groups[0]["lr"]),
+            "tokens": int(trainer.callback_metrics["total_tokens"]),
         }
 
         if current_epoch > 0:
