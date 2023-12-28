@@ -343,7 +343,7 @@ class aigen:
 
             return gen_texts[0]
 
-    def _get_params(model):
+    def _get_params(self, model, hparams):
         no_decay = ["bias", "LayerNorm.weight"]
         grouped_parameters = []
 
@@ -406,7 +406,6 @@ class aigen:
         optimizer: str = "AdamW",
         scheduler: str = "cosine",
         num_cycles: int = None,
-        loss_function: str = "default",
         learning_rate: float = 1e-3,
         lookahead: int = 0,
         momentum: float = 0,
@@ -431,7 +430,9 @@ class aigen:
         finetune: bool = False,
         checkpoint: int = 0,
         resume: bool = False,
+        tune: bool = False,
         devices=None,
+        callbacks=[],
         **kwargs,
     ) -> None:
         if hasattr(self.model, "training"):
@@ -439,8 +440,6 @@ class aigen:
 
         if seed:
             set_seed(seed)
-
-        os.makedirs(output_dir, exist_ok=True)
 
         is_gpu_used = torch.cuda.is_available()
 
@@ -470,7 +469,6 @@ class aigen:
         hparams = dict(
             optimizer=optimizer,
             scheduler=scheduler,
-            loss_function=loss_function,
             learning_rate=learning_rate,
             lookahead=lookahead,
             momentum=momentum,
@@ -508,7 +506,7 @@ class aigen:
             gradient_clip_algorithm="norm",
             logger=loggers if loggers else False,
             benchmark=True,
-            callbacks=[],
+            callbacks=callbacks,
         )
 
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
@@ -516,32 +514,39 @@ class aigen:
 
         print(f"Local rank: {local_rank}, World rank: {world_rank}")
 
-        if local_rank == 0:
-            train_params["callbacks"] = [
-                AIGProgressBar(
-                    num_steps,
-                ),
-                AIGSampleGenerator(generate_every),
-                AIGMetricsLogger(),
-                AIGModelSaver(
-                    save_every,
-                    output_dir,
-                    petals,
-                ),
-            ]
+        if tune:
+            train_params["enable_checkpointing"] = False
+            if local_rank == 0:
+                train_params["callbacks"].append(AIGMetricsLogger())
 
-        if checkpoint > 0:
-            checkpoint_callback = ModelCheckpoint(
-                save_top_k=1,
-                monitor="train_loss",
-                mode="min",
-                every_n_train_steps=checkpoint,
-                dirpath=output_dir,
-                filename="model",
-            )
+        if not tune:
+            if local_rank == 0:
+                os.makedirs(output_dir, exist_ok=True)
+                train_params["callbacks"] = [
+                    AIGProgressBar(
+                        num_steps,
+                    ),
+                    AIGSampleGenerator(generate_every),
+                    AIGMetricsLogger(),
+                    AIGModelSaver(
+                        save_every,
+                        output_dir,
+                        petals,
+                    ),
+                ]
 
-            train_params["callbacks"].append(checkpoint_callback)
-            print(f"Model checkpointing enabled.")
+            if checkpoint > 0:
+                checkpoint_callback = ModelCheckpoint(
+                    save_top_k=1,
+                    monitor="train_loss",
+                    mode="min",
+                    every_n_train_steps=checkpoint,
+                    dirpath=output_dir,
+                    filename="model",
+                )
+
+                train_params["callbacks"].append(checkpoint_callback)
+                print(f"Model checkpointing enabled.")
 
         latest_checkpoint = None
         if resume and checkpoint > 0:
@@ -589,7 +594,7 @@ class aigen:
 
         self.prepare_datasets(hparams, static_data, streaming_data)
 
-        params = self._get_params(self.model)
+        params = self._get_params(self.model, hparams)
 
         opt = get_optimizer(params, hparams)
         schedule = get_schedule(hparams, opt)
@@ -634,11 +639,13 @@ class aigen:
             ckpt_path=latest_checkpoint,
         )
 
-        if not petals:
+        if save_every > 0 and not tune and not petals:
             self.save(output_dir)
 
         if seed:
             reset_seed()
+
+        return trainer.callback_metrics["train_loss"].item()
 
     def save(self, target_folder: str = os.getcwd()):
         """Saves the model into the specified directory."""
