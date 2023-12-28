@@ -327,13 +327,17 @@ class AIGMetricsLogger(Callback):
 
         step = trainer.callback_metrics["step"]
 
+        metrics = {
+            "train_loss": trainer.callback_metrics["train_loss"],
+            "lr": float(trainer.optimizers[0].param_groups[0]["lr"]),
+        }
+
+        if current_epoch > 0:
+            metrics["epoch"] = current_epoch
+
         lm.logger.experiment.add_scalars(
             "vtx",
-            {
-                "train_loss": trainer.callback_metrics["train_loss"],
-                "epoch": current_epoch,
-                "lr": float(trainer.optimizers[0].param_groups[0]["lr"]),
-            },
+            metrics,
             step,
         )
 

@@ -26,8 +26,7 @@ class Objective:
 
         self.train_config = train_config
 
-        self.train_config["num_steps"] = 1000
-        self.train_config["warmup_steps"] = 10
+        self.train_config["num_steps"] = 100
 
         self.max_batch_size = (
             self.train_config.get("batch_size", 1)
@@ -36,7 +35,7 @@ class Objective:
         )
 
     def __call__(self, trial: optuna.trial.Trial):
-        self.train_config["warmup_steps"] = trial.suggest_int("warmup_steps", 0, 100)
+        self.train_config["warmup_steps"] = trial.suggest_int("warmup_steps", 0, 10)
         self.train_config["learning_rate"] = trial.suggest_float(
             "learning_rate", 0.0001, 0.1, log=True
         )
@@ -47,6 +46,7 @@ class Objective:
         self.train_config["weight_decay"] = trial.suggest_float(
             "weight_decay", 0.0001, 0.1, log=True
         )
+        self.train_config["dropout"] = trial.suggest_float("dropout", 0, 0.5)
 
         pprint(self.train_config)
 
@@ -72,7 +72,7 @@ def optimize_hparams(init_kwargs, train_config):
     study = optuna.create_study(
         direction="minimize", pruner=optuna.pruners.MedianPruner()
     )
-    study.optimize(Objective(init_kwargs, train_config), n_trials=100, timeout=600)
+    study.optimize(Objective(init_kwargs, train_config), n_trials=100, timeout=3600)
 
     print("Number of finished trials: {}".format(len(study.trials)))
 
