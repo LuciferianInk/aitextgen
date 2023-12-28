@@ -32,6 +32,9 @@ class Objective:
         )
 
     def __call__(self, trial: optuna.trial.Trial):
+        self.train_config["optimizer"] = trial.suggest_categorical(
+            "optimizer", ["AdamW", "Lion"]
+        )
         self.train_config["warmup_steps"] = trial.suggest_int("warmup_steps", 0, 10)
         self.train_config["learning_rate"] = trial.suggest_float(
             "learning_rate", 0.0001, 0.1, log=True
@@ -53,7 +56,15 @@ class Objective:
             log_path, name="tune", default_hp_metric=True
         )
 
-        if self.train_config.get("type") not in ["standard", "pretrain"]:
+        train_type = self.train_config.get("type", "standard")
+        if train_type in ["lora"]:
+            self.train_config["r"] = trial.suggest_int("r", 1, 64)
+            self.train_config["alpha"] = trial.suggest_int("alpha", 1, 32)
+            self.train_config["bias"] = trial.suggest_categorical(
+                "bias", ["none", "all", "lora_only"]
+            )
+
+        if train_type not in ["standard", "pretrain"]:
             self.prototype.create_adapter(self.train_config)
 
         train_loss = self.prototype.train(
@@ -67,9 +78,12 @@ class Objective:
 
 def optimize_hparams(init_kwargs, train_config):
     study = optuna.create_study(
-        direction="minimize", pruner=optuna.pruners.MedianPruner()
+        direction="minimize",
+        sampler=optuna.samplers.TPESampler(),
+        pruner=optuna.pruners.SuccessiveHalvingPruner(),
     )
-    study.optimize(Objective(init_kwargs, train_config), n_trials=100, timeout=3600)
+
+    study.optimize(Objective(init_kwargs, train_config), n_trials=100, timeout=10800)
 
     print("Number of finished trials: {}".format(len(study.trials)))
 
