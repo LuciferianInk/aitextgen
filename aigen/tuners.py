@@ -21,9 +21,6 @@ class Objective:
     def __init__(self, init_kwargs, train_config):
         self.prototype = aigen(**init_kwargs)
 
-        if train_config.get("type") not in ["standard", "pretrain"]:
-            self.prototype.create_adapter(train_config)
-
         self.train_config = train_config
 
         self.train_config["num_steps"] = 100
@@ -56,8 +53,8 @@ class Objective:
             log_path, name="tune", default_hp_metric=True
         )
 
-        # hyperparameters = dict(self.train_config)
-        # logger.log_hyperparams(hyperparameters)
+        if self.train_config.get("type") not in ["standard", "pretrain"]:
+            self.prototype.create_adapter(self.train_config)
 
         train_loss = self.prototype.train(
             loggers=[logger],
