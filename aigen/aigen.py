@@ -550,7 +550,7 @@ class aigen:
 
         latest_checkpoint = None
         if resume and checkpoint > 0:
-            latest_checkpoint = f"{output_dir}/model-v1.ckpt"
+            latest_checkpoint = f"{output_dir}/model.ckpt"
             print(f"Resuming training from: {latest_checkpoint}")
 
         if finetune:

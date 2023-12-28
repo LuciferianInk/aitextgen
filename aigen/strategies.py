@@ -32,7 +32,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
 
         # bootstrap_peers = [
         #     "/p2p/QmVtpsm7b91S5pYcjsreHKxoHU6wThBn6RFHPrUWXCBrzo",  # 59.src.eco
-        #     "/p2p/12D3KooWE6YAK8nte7Wky13WDMwxSmfgRecPystnxxcp793trVd2",  # 95.src.eco
+        #     "/p2p/QmVQE44X5wPo5LNheJCBMVRUTRsceJNxVowjxerPUCCZmY",  # 95.src.eco
         # ]
 
         pattern = r"(/p2p/.*)"

@@ -75,6 +75,7 @@ class AIGTrainer(LightningModule):
 
         self.log("val_loss", float(loss), on_step=False, on_epoch=True)
         self.log("val_ppl", float(torch.exp(loss)), on_step=False, on_epoch=True)
+        self.log("hp_metric", loss, on_step=False, on_epoch=True)
 
         return loss
 
@@ -346,13 +347,13 @@ class AIGMetricsLogger(Callback):
             step,
         )
 
-    def on_validation_start(self, trainer, lm):
-        super().on_validation_start(trainer, lm)
+    # def on_validation_start(self, trainer, lm):
+    #     super().on_validation_start(trainer, lm)
 
-        if trainer.state.stage in ["sanity_check"]:
-            return
+    #     if trainer.state.stage in ["sanity_check"]:
+    #         return
 
-        logging.warning("Calculating validation metrics. Please wait.")
+    #     logging.warning("Calculating validation metrics. Please wait.")
 
     def on_validation_epoch_end(self, trainer, lm):
         super().on_validation_epoch_end(trainer, lm)

@@ -23,17 +23,19 @@ class Objective:
         self.init_kwargs = init_kwargs
         self.train_config = train_config
 
-        self.train_config["num_steps"] = 100
+        self.train_config["num_steps"] = 250
 
         self.max_batch_size = (
             self.train_config.get("batch_size", 1)
             * self.train_config.get("gradient_accumulation_steps", 1)
-            * self.train_config.get("target_batch_size", 1)
+            # * self.train_config.get("target_batch_size", 1)
         )
 
         self.train_config["batch_size"] = 1
 
     def __call__(self, trial: optuna.trial.Trial):
+        train_type = self.train_config.get("type", "standard")
+
         if train_type in ["pretrain"]:
             setattr(
                 self.init_kwargs["config"], "n_head", trial.suggest_int("n_head", 1, 4)
@@ -107,13 +109,12 @@ class Objective:
             "learning_rate", 0.0001, 0.1, log=True
         )
         self.train_config["gradient_accumulation_steps"] = trial.suggest_int(
-            "gradient_accumulation_steps", 128, self.max_batch_size, step=128
+            "gradient_accumulation_steps", 2, self.max_batch_size
         )
         self.train_config["weight_decay"] = trial.suggest_float(
             "weight_decay", 0.0001, 0.1, log=True
         )
 
-        train_type = self.train_config.get("type", "standard")
         if train_type in ["lora"]:
             self.train_config["r"] = trial.suggest_int("r", 1, 64)
             self.train_config["alpha"] = trial.suggest_int("alpha", 1, 32)
@@ -150,7 +151,8 @@ def optimize_hparams(init_kwargs, train_config):
     study = optuna.create_study(
         direction="minimize",
         sampler=optuna.samplers.TPESampler(),
-        pruner=optuna.pruners.SuccessiveHalvingPruner(),
+        # pruner=optuna.pruners.SuccessiveHalvingPruner(),
+        pruner=optuna.pruners.MedianPruner(),
     )
 
     study.optimize(
