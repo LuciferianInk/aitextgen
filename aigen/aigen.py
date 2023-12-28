@@ -49,15 +49,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class aigen:
-    # default values for GPT2Tokenizer
-    tokenizer = None
-    vocab_file = os.path.join(STATIC_PATH, "gpt2_vocab.json")
-    merges_file = os.path.join(STATIC_PATH, "gpt2_merges.txt")
-    bos_token = "<|endoftext|>"
-    eos_token = "<|endoftext|>"
-    unk_token = "<|endoftext|>"
-    pad_token = "<|endoftext|>"
-
     def __init__(
         self,
         model: str = None,
@@ -70,9 +61,6 @@ class aigen:
         embeddings_dir: str = "",
         precision: int = 32,
         petals: bool = False,
-        bos_token: str = None,
-        eos_token: str = None,
-        unk_token: str = None,
         adapters=None,
         cache_dir: str = "models",
         adapter_dir: str = "adapters",
@@ -496,28 +484,23 @@ class aigen:
         world_rank = int(os.environ.get("WORLD_RANK", 0))
 
         print(f"Local rank: {local_rank}, World rank: {world_rank}")
-        import time
 
         time.sleep(2)
 
         if local_rank == 0:
-            train_params["callbacks"].append(
+            train_params["callbacks"] = [
                 AIGProgressBar(
                     num_steps,
                     is_gpu_used,
-                )
-            )
-            train_params["callbacks"].append(
-                AIGSampleGenerator(generate_every, gen_config)
-            )
-            train_params["callbacks"].append(AIGMetricsLogger())
-            train_params["callbacks"].append(
+                ),
+                AIGSampleGenerator(generate_every, gen_config),
+                AIGMetricsLogger(),
                 AIGModelSaver(
                     save_every,
                     output_dir,
                     petals,
-                )
-            )
+                ),
+            ]
 
         if checkpoint > 0:
             checkpoint_callback = ModelCheckpoint(

@@ -4,6 +4,7 @@ deepspeed>=0.11.1
 fire>=0.5.0
 lightning>=2.1.0
 lightning_hivemind@git+https://github.com/LuciferianInk/lightning-Hivemind.git@ipfs
+optuna>=3.5.0
 peft>=0.6.2
 pytorch_optimizer>=2.12.0
 torch
