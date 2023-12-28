@@ -343,6 +343,34 @@ class aigen:
 
             return gen_texts[0]
 
+    def prepare_datasets(self, static_data, streaming_data):
+        self.total_train = []
+        self.total_val = []
+
+        for dataset in static_data:
+            module = StaticDataModule(dataset, hparams)
+            self.total_train.append(module.train_dataloader())
+            self.total_val.append(module.val_dataloader())
+
+        self.static_len = sum(len(dataset) for dataset in self.total_train)
+
+        for dataset in streaming_data:
+            module = StreamingDataModule(self.tokenizer, hparams, dataset)
+            self.total_train.append(module.train_dataloader())
+
+        self.combined_train = total_train
+        if len(self.total_train) > 1:
+            self.combined_train = CombinedLoader(self.total_train, mode="min_size")
+
+        self.combined_val = None
+        if len(self.total_val) == 1:
+            self.combined_val = self.total_val
+        elif len(self.total_val) > 1:
+            self.combined_val = CombinedLoader(self.total_val, mode="min_size")
+
+        if self.static_len > 0:
+            self.total_batches = sum(len(ds) for ds in self.total_train)
+
     def train(
         self,
         static_data: Union[str, StaticDataset] = [],
@@ -563,29 +591,7 @@ class aigen:
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
 
-        total_train = []
-        total_val = []
-
-        for dataset in static_data:
-            module = StaticDataModule(dataset, hparams)
-            total_train.append(module.train_dataloader())
-            total_val.append(module.val_dataloader())
-
-        static_len = sum(len(dataset) for dataset in total_train)
-
-        for dataset in streaming_data:
-            module = StreamingDataModule(self.tokenizer, hparams, dataset)
-            total_train.append(module.train_dataloader())
-
-        combined_train = total_train
-        if len(total_train) > 1:
-            combined_train = CombinedLoader(total_train, mode="min_size")
-
-        combined_val = None
-        if len(total_val) == 1:
-            combined_val = total_val
-        elif len(total_val) > 1:
-            combined_val = CombinedLoader(total_val, mode="min_size")
+        self.prepare_datasets(static_data, streaming_data)
 
         def _get_params(model):
             no_decay = ["bias", "LayerNorm.weight"]
@@ -624,7 +630,7 @@ class aigen:
             self.model,
             opt,
             schedule,
-            static_len,
+            self.static_len,
             hparams,
             self.tokenizer,
         )
@@ -636,18 +642,22 @@ class aigen:
         if hasattr(self.model, "print_trainable_parameters"):
             self.model.print_trainable_parameters()
 
-        if static_len > 0:
-            total_batches = sum(len(ds) for ds in total_train)
+        if self.static_len > 0:
             print(
-                f"Training data:\n{colors.GREEN}{total_batches}{colors.WHITE} batches, {colors.GREEN}{total_batches * block_size}{colors.WHITE} tokens"
+                f"Training data:\n{colors.GREEN}{self.total_batches}{colors.WHITE} batches, {colors.GREEN}{self.total_batches * block_size}{colors.WHITE} tokens"
             )
 
-            while train_params["val_check_interval"] > len(total_train[0]):
-                train_params["val_check_interval"] = math.floor(len(total_train[0]) / 2)
+            while train_params["val_check_interval"] > len(self.total_train[0]):
+                train_params["val_check_interval"] = math.floor(
+                    len(self.total_train[0]) / 2
+                )
 
         trainer = Trainer(**train_params)
         trainer.fit(
-            train_model, combined_train, combined_val, ckpt_path=latest_checkpoint
+            train_model,
+            self.combined_train,
+            self.combined_val,
+            ckpt_path=latest_checkpoint,
         )
 
         if not petals:
