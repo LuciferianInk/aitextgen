@@ -29,7 +29,7 @@ from transformers import (
 
 from .datasets import StaticDataModule, StaticDataset, StreamingDataModule
 from .optimizers import get_optimizer
-from .schedulers import get_scheduler
+from .schedulers import get_schedule
 from .strategies import get_strategy
 from .train import (
     AIGMetricsLogger,
@@ -343,7 +343,7 @@ class aigen:
 
             return gen_texts[0]
 
-    def prepare_datasets(self, static_data, streaming_data):
+    def prepare_datasets(self, hparams, static_data, streaming_data):
         self.total_train = []
         self.total_val = []
 
@@ -358,7 +358,7 @@ class aigen:
             module = StreamingDataModule(self.tokenizer, hparams, dataset)
             self.total_train.append(module.train_dataloader())
 
-        self.combined_train = total_train
+        self.combined_train = self.total_train
         if len(self.total_train) > 1:
             self.combined_train = CombinedLoader(self.total_train, mode="min_size")
 
@@ -519,7 +519,6 @@ class aigen:
             train_params["callbacks"] = [
                 AIGProgressBar(
                     num_steps,
-                    is_gpu_used,
                 ),
                 AIGSampleGenerator(generate_every, gen_config),
                 AIGMetricsLogger(),
@@ -591,7 +590,7 @@ class aigen:
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
 
-        self.prepare_datasets(static_data, streaming_data)
+        self.prepare_datasets(hparams, static_data, streaming_data)
 
         def _get_params(model):
             no_decay = ["bias", "LayerNorm.weight"]
@@ -618,7 +617,7 @@ class aigen:
         params = _get_params(self.model)
 
         opt = get_optimizer(params, hparams)
-        schedule = get_scheduler(hparams, opt)
+        schedule = get_schedule(hparams, opt)
 
         if strategy is not None:
             train_params["strategy"] = get_strategy(

@@ -86,11 +86,9 @@ class AIGProgressBar(ProgressBar):
     def __init__(
         self,
         num_steps,
-        gpu,
     ):
         super().__init__()
         self.total_steps = num_steps
-        self.gpu = gpu
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
@@ -164,8 +162,9 @@ class AIGProgressBar(ProgressBar):
 
         echo = f"{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {self.blue}{bearing}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
 
-        if self.gpu:
+        if lm.on_gpu:
             # via pytorch-lightning's get_gpu_memory_map()
+            # print(trainer.callback_metrics["device_stats"])
             result = subprocess.run(
                 [
                     shutil.which("nvidia-smi"),
