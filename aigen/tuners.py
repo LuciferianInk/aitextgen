@@ -31,6 +31,8 @@ class Objective:
             * self.train_config.get("target_batch_size", 1)
         )
 
+        self.train_config["batch_size"] = 1
+
     def __call__(self, trial: optuna.trial.Trial):
         if train_type in ["pretrain"]:
             setattr(
@@ -65,12 +67,12 @@ class Objective:
             setattr(
                 self.init_kwargs["config"],
                 "history_length",
-                trial.suggest_int("history_length", 256, 512, step=64),
+                trial.suggest_int("history_length", 128, 512, step=128),
             )
             setattr(
                 self.init_kwargs["config"],
                 "aux_loss_weight",
-                trial.suggest_float("aux_loss_weight", 0.001, 0.1),
+                trial.suggest_float("aux_loss_weight", 0.0001, 0.1),
             )
             setattr(
                 self.init_kwargs["config"],
@@ -104,19 +106,18 @@ class Objective:
         self.train_config["learning_rate"] = trial.suggest_float(
             "learning_rate", 0.0001, 0.1, log=True
         )
-        self.train_config["batch_size"] = 1
         self.train_config["gradient_accumulation_steps"] = trial.suggest_int(
-            "gradient_accumulation_steps", 2, self.max_batch_size
+            "gradient_accumulation_steps", 128, self.max_batch_size, step=128
         )
         self.train_config["weight_decay"] = trial.suggest_float(
             "weight_decay", 0.0001, 0.1, log=True
         )
-        self.train_config["dropout"] = trial.suggest_float("dropout", 0, 0.5)
 
         train_type = self.train_config.get("type", "standard")
         if train_type in ["lora"]:
             self.train_config["r"] = trial.suggest_int("r", 1, 64)
             self.train_config["alpha"] = trial.suggest_int("alpha", 1, 32)
+            self.train_config["dropout"] = trial.suggest_float("dropout", 0, 0.5)
             self.train_config["bias"] = trial.suggest_categorical(
                 "bias", ["none", "all", "lora_only"]
             )
@@ -152,7 +153,9 @@ def optimize_hparams(init_kwargs, train_config):
         pruner=optuna.pruners.SuccessiveHalvingPruner(),
     )
 
-    study.optimize(Objective(init_kwargs, train_config), n_trials=100, timeout=10800)
+    study.optimize(
+        Objective(init_kwargs, train_config), n_trials=100, timeout=60 * 60 * 24
+    )
 
     print("Number of finished trials: {}".format(len(study.trials)))
 

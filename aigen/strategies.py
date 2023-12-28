@@ -31,7 +31,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         ), "Gradient accumulation is not supported by HivemindStrategy. Use `target_batch_size` instead."
 
         # bootstrap_peers = [
-        #     "/p2p/12D3KooWJb6YNtfYpvfL2C7cKfMqHorLFTcPAouY5yHU73R8UhZy",  # 59.src.eco
+        #     "/p2p/QmVtpsm7b91S5pYcjsreHKxoHU6wThBn6RFHPrUWXCBrzo",  # 59.src.eco
         #     "/p2p/12D3KooWE6YAK8nte7Wky13WDMwxSmfgRecPystnxxcp793trVd2",  # 95.src.eco
         # ]
 

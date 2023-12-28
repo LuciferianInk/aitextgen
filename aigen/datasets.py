@@ -256,7 +256,9 @@ class StreamingDataset(IterableDataset):
         self.params = params
         kwargs = {}
         for k, v in config.items():
-            if k in ["snapshots", "name", "languages"]:
+            if k in ["snapshots", "subset", "languages"]:
+                if k == "subset":
+                    k = "name"
                 kwargs[k] = v
         self.dataset = load_dataset(
             config["repo"],
