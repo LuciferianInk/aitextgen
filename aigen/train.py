@@ -163,8 +163,6 @@ class AIGProgressBar(ProgressBar):
         echo = f"{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {self.blue}{bearing}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
 
         if lm.on_gpu:
-            # via pytorch-lightning's get_gpu_memory_map()
-            # print(trainer.callback_metrics["device_stats"])
             result = subprocess.run(
                 [
                     shutil.which("nvidia-smi"),
@@ -259,11 +257,23 @@ class AIGModelSaver(Callback):
 class AIGSampleGenerator(Callback):
     """Periodically print samples to the console."""
 
-    def __init__(self, generate_every, generation_config):
+    def __init__(self, generate_every):
         super().__init__()
+        from transformers import GenerationConfig
+
         self.steps = 0
         self.generate_every = generate_every
-        self.generation_config = generation_config
+        self.generation_config = GenerationConfig(
+            do_sample=True,
+            min_length=1,
+            max_new_tokens=222,
+            temperature=0.9,
+            eta_cutoff=0.0003,
+            penalty_alpha=0.6,
+            top_k=4,
+            repetition_penalty=1.023,
+            no_repeat_ngram_size=13,
+        )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)

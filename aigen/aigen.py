@@ -343,6 +343,28 @@ class aigen:
 
             return gen_texts[0]
 
+    def _get_params(model):
+        no_decay = ["bias", "LayerNorm.weight"]
+        grouped_parameters = []
+
+        for n, p in model.named_parameters():
+            if not p.requires_grad:
+                continue
+
+            if any(nd in n for nd in no_decay):
+                weight_decay = 0.0
+            else:
+                weight_decay = hparams["weight_decay"]
+
+            grouped_parameters.append(
+                {
+                    "params": [p],
+                    "weight_decay": weight_decay,
+                }
+            )
+
+        return grouped_parameters
+
     def prepare_datasets(self, hparams, static_data, streaming_data):
         self.total_train = []
         self.total_val = []
@@ -377,7 +399,6 @@ class aigen:
         streaming_data: [] = [],
         generation_config: dict = None,
         output_dir: str = "trained_model",
-        tpu_cores: int = 0,
         gradient_clip_val: float = 1.0,
         gradient_accumulation_steps: int = 1,
         gradient_checkpointing: bool = False,
@@ -462,7 +483,6 @@ class aigen:
             num_workers=num_workers,
             save_every=save_every,
             generate_every=generate_every,
-            use_tpu=tpu_cores > 0,
             num_cycles=num_cycles,
             petals=petals,
             val_split=val_split,
@@ -473,30 +493,13 @@ class aigen:
             **kwargs,
         )
 
-        gen_config = GenerationConfig(
-            do_sample=True,
-            min_length=1,
-            max_new_tokens=222,
-            temperature=0.9,
-            eta_cutoff=0.0003,
-            penalty_alpha=0.6,
-            top_k=4,
-            repetition_penalty=1.023,
-            no_repeat_ngram_size=13,
-        )
-
-        if generation_config is not None:
-            gen_config = GenerationConfig(**generation_config)
-
-        val_check_interval = val_interval * gradient_accumulation_steps
-
         train_params = dict(
             accelerator="auto",
             strategy="auto",
             devices=devices,
             max_steps=num_steps,
             max_epochs=-1,
-            val_check_interval=val_check_interval,
+            val_check_interval=val_interval * gradient_accumulation_steps,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=True if checkpoint > 0 else False,
             precision="32-true",
@@ -513,14 +516,12 @@ class aigen:
 
         print(f"Local rank: {local_rank}, World rank: {world_rank}")
 
-        time.sleep(2)
-
         if local_rank == 0:
             train_params["callbacks"] = [
                 AIGProgressBar(
                     num_steps,
                 ),
-                AIGSampleGenerator(generate_every, gen_config),
+                AIGSampleGenerator(generate_every),
                 AIGMetricsLogger(),
                 AIGModelSaver(
                     save_every,
@@ -556,10 +557,6 @@ class aigen:
 
         time.sleep(3)
 
-        if tpu_cores > 0:
-            train_params["tpu_cores"] = tpu_cores
-            train_params["devices"] = 0
-
         if prune > 0.0:
             modules_to_prune = []
             for n, m in self.model.named_modules():
@@ -592,29 +589,7 @@ class aigen:
 
         self.prepare_datasets(hparams, static_data, streaming_data)
 
-        def _get_params(model):
-            no_decay = ["bias", "LayerNorm.weight"]
-            grouped_parameters = []
-
-            for n, p in model.named_parameters():
-                if not p.requires_grad:
-                    continue
-
-                if any(nd in n for nd in no_decay):
-                    weight_decay = 0.0
-                else:
-                    weight_decay = hparams["weight_decay"]
-
-                grouped_parameters.append(
-                    {
-                        "params": [p],
-                        "weight_decay": weight_decay,
-                    }
-                )
-
-            return grouped_parameters
-
-        params = _get_params(self.model)
+        params = self._get_params(self.model)
 
         opt = get_optimizer(params, hparams)
         schedule = get_schedule(hparams, opt)
