@@ -13,11 +13,7 @@ from .utils import colors
 
 
 def get_strategy(name, params, hparams, train_params, scheduler):
-    if name == "ddp":
-        return "ddp"
-    elif name == "ddp_spawn":
-        return "ddp_spawn"
-    elif name == "deepspeed":
+    if name == "deepspeed":
         DeepSpeedStrategy(
             stage=3,
             offload_optimizer=True,
@@ -145,6 +141,6 @@ def get_strategy(name, params, hparams, train_params, scheduler):
                 f"{colors.GREEN}PIER-{len(initial_piers) + list(set(my_ids)).index(peer)}:{colors.WHITE} {peer}"
             )
     else:
-        strategy = "auto"
+        strategy = name
 
     return strategy
