@@ -74,7 +74,7 @@ class Objective:
             setattr(
                 self.init_kwargs["config"],
                 "aux_loss_weight",
-                trial.suggest_float("aux_loss_weight", 0.0001, 0.1),
+                trial.suggest_float("aux_loss_weight", 0.00001, 0.1),
             )
             setattr(
                 self.init_kwargs["config"],
@@ -106,13 +106,13 @@ class Objective:
         )
         self.train_config["warmup_steps"] = trial.suggest_int("warmup_steps", 0, 10)
         self.train_config["learning_rate"] = trial.suggest_float(
-            "learning_rate", 0.0001, 0.1, log=True
+            "learning_rate", 0.00001, 0.1, log=True
         )
         self.train_config["gradient_accumulation_steps"] = trial.suggest_int(
             "gradient_accumulation_steps", 2, self.max_batch_size
         )
         self.train_config["weight_decay"] = trial.suggest_float(
-            "weight_decay", 0.0001, 0.1, log=True
+            "weight_decay", 0.00001, 0.1, log=True
         )
 
         if train_type in ["lora"]:
@@ -141,6 +141,7 @@ class Objective:
         train_loss = self.prototype.train(
             loggers=[logger],
             callbacks=[CustomPruningCallback(trial, monitor="train_loss")],
+            verbose=False,
             **self.train_config,
         )
 
@@ -226,8 +227,7 @@ def optimize_hparams(init_kwargs, train_config):
     study = optuna.create_study(
         direction="minimize",
         sampler=optuna.samplers.TPESampler(),
-        pruner=optuna.pruners.SuccessiveHalvingPruner(),
-        # pruner=optuna.pruners.MedianPruner(),
+        pruner=optuna.pruners.SuccessiveHalvingPruner(min_resource=25),
     )
 
     study.optimize(
