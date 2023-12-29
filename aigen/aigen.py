@@ -382,12 +382,7 @@ class aigen:
             if dataset.get("val_samples"):
                 self.total_val.append(module.val_dataloader())
 
-        self.combined_train = self.total_train
-        if len(self.total_train) > 1:
-            self.combined_train = CombinedLoader(self.total_train, mode="min_size")
-
-        # self.combined_val = None
-        # if len(self.total_val) > 0:
+        self.combined_train = CombinedLoader(self.total_train, mode="min_size")
         self.combined_val = CombinedLoader(self.total_val, mode="min_size")
 
     def train(
