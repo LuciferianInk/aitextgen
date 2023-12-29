@@ -28,7 +28,7 @@ class Objective:
         self.max_batch_size = (
             self.train_config.get("batch_size", 1)
             * self.train_config.get("gradient_accumulation_steps", 1)
-            # * self.train_config.get("target_batch_size", 1)
+            * self.train_config.get("target_batch_size", 1)
         )
 
         self.train_config["batch_size"] = 1
@@ -140,19 +140,94 @@ class Objective:
 
         train_loss = self.prototype.train(
             loggers=[logger],
-            callbacks=[PyTorchLightningPruningCallback(trial, monitor="train_loss")],
+            callbacks=[CustomPruningCallback(trial, monitor="train_loss")],
             **self.train_config,
         )
 
         return train_loss
 
 
+_EPOCH_KEY = "ddp_pl:epoch"
+_INTERMEDIATE_VALUE = "ddp_pl:intermediate_value"
+_PRUNED_KEY = "ddp_pl:pruned"
+
+
+class CustomPruningCallback(PyTorchLightningPruningCallback):
+    """Check pruning on training step."""
+
+    def __init__(self, trial: optuna.trial.Trial, monitor: str) -> None:
+        super().__init__(trial, monitor)
+
+        self.current_step = 0
+
+    def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
+        super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
+
+        if trainer.sanity_checking:
+            return
+
+        step = int(trainer.callback_metrics["step"])
+
+        if self.current_step == step:
+            return
+
+        self.current_step = step
+
+        current_score = trainer.callback_metrics.get(self.monitor)
+        # if current_score is None:
+        #     message = (
+        #         f"The metric '{self.monitor}' is not in the evaluation logs for pruning. "
+        #         "Please make sure you set the correct metric name."
+        #     )
+        #     warnings.warn(message)
+        #     return
+
+        should_stop = False
+
+        # Determine if the trial should be terminated in a single process.
+        if not self.is_ddp_backend:
+            self._trial.report(current_score.item(), step=step)
+            if not self._trial.should_prune():
+                return
+            raise optuna.TrialPruned(f"Trial was pruned at step {step}.")
+
+        # Determine if the trial should be terminated in a DDP.
+        if trainer.is_global_zero:
+            self._trial.report(current_score.item(), step=step)
+            should_stop = self._trial.should_prune()
+
+            # Update intermediate value in the storage.
+            _trial_id = self._trial._trial_id
+            _study = self._trial.study
+            _trial_system_attrs = _study._storage.get_trial_system_attrs(_trial_id)
+            intermediate_values = _trial_system_attrs.get(_INTERMEDIATE_VALUE)
+            intermediate_values[step] = current_score.item()  # type: ignore[index]
+            self._trial.storage.set_trial_system_attr(
+                self._trial._trial_id, _INTERMEDIATE_VALUE, intermediate_values
+            )
+
+        # Terminate every process if any world process decides to stop.
+        should_stop = trainer.strategy.broadcast(should_stop)
+        trainer.should_stop = trainer.should_stop or should_stop
+        if not should_stop:
+            return
+
+        if trainer.is_global_zero:
+            # Update system_attr from global zero process.
+            self._trial.storage.set_trial_system_attr(
+                self._trial._trial_id, _PRUNED_KEY, True
+            )
+            self._trial.storage.set_trial_system_attr(
+                self._trial._trial_id, _EPOCH_KEY, step
+            )
+
+
 def optimize_hparams(init_kwargs, train_config):
     study = optuna.create_study(
         direction="minimize",
         sampler=optuna.samplers.TPESampler(),
-        # pruner=optuna.pruners.SuccessiveHalvingPruner(),
-        pruner=optuna.pruners.MedianPruner(),
+        pruner=optuna.pruners.SuccessiveHalvingPruner(),
+        # pruner=optuna.pruners.MedianPruner(),
     )
 
     study.optimize(
