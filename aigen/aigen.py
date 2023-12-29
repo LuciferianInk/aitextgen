@@ -386,12 +386,9 @@ class aigen:
         if len(self.total_train) > 1:
             self.combined_train = CombinedLoader(self.total_train, mode="min_size")
 
-        self.combined_val = self.total_val if len(self.total_val) > 0 else None
-        if len(self.total_val) > 1:
-            self.combined_val = CombinedLoader(self.total_val, mode="min_size")
-
-        if self.static_len > 0:
-            self.total_batches = sum(len(ds) for ds in self.total_train)
+        # self.combined_val = None
+        # if len(self.total_val) > 0:
+        self.combined_val = CombinedLoader(self.total_val, mode="min_size")
 
     def train(
         self,
@@ -623,7 +620,7 @@ class aigen:
 
             if self.static_len > 0:
                 print(
-                    f"Training data:\n{colors.GREEN}{self.total_batches}{colors.WHITE} batches, {colors.GREEN}{self.total_batches * block_size}{colors.WHITE} tokens"
+                    f"Training data:\n{colors.GREEN}{self.static_len}{colors.WHITE} static batches, {colors.GREEN}{self.static_len * block_size}{colors.WHITE} tokens"
                 )
 
         while self.static_len > 0 and train_params["val_check_interval"] > len(

@@ -289,7 +289,7 @@ class StreamingDataset(IterableDataset):
     def __iter__(self):
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
-            buffer_size=self.config.get("sample_size", 10_000),
+            buffer_size=self.config.get("buffer_size", 10_000),
         )
 
         block_size = self.params["block_size"]
@@ -331,7 +331,7 @@ class SequentialStreamingDataset(StreamingDataset):
     def __iter__(self):
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
-            buffer_size=self.config.get("sample_size", 10_000),
+            buffer_size=self.config.get("buffer_size", 10_000),
         )
 
         block_size = self.params["block_size"]

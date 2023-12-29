@@ -70,8 +70,13 @@ class AIGTrainer(LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        outputs = self({"input_ids": batch, "labels": batch})
-        loss = outputs[0]
+        losses = []
+
+        for sample in batch:
+            outputs = self({"input_ids": sample, "labels": sample})
+            losses.append(outputs[0])
+
+        loss = sum(losses) / len(losses)
 
         self.log("val_loss", float(loss), on_step=False, on_epoch=True)
         self.log("val_ppl", float(torch.exp(loss)), on_step=False, on_epoch=True)
