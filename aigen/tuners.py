@@ -19,7 +19,7 @@ from .utils import colors
 
 
 def objective(trial: optuna.trial.Trial, init_kwargs, train_config):
-    train_config["num_steps"] = 25
+    train_config["num_steps"] = 50
 
     max_batch_size = (
         train_config.get("batch_size", 1)
@@ -208,8 +208,8 @@ class CustomPruningCallback(PyTorchLightningPruningCallback):
 
 def optimize_hparams(init_kwargs, train_config):
     storage = optuna.storages.RDBStorage(
-        # url="sqlite:///trial.db",
-        url="sqlite:///:memory:",
+        url="sqlite:///trials.db",
+        # url="sqlite:///:memory:",
         engine_kwargs={"pool_size": 20, "connect_args": {"timeout": 10}},
     )
 
@@ -218,7 +218,7 @@ def optimize_hparams(init_kwargs, train_config):
         direction="minimize",
         storage=storage,
         sampler=optuna.samplers.TPESampler(),
-        pruner=optuna.pruners.SuccessiveHalvingPruner(min_resource=5),
+        pruner=optuna.pruners.SuccessiveHalvingPruner(min_resource=10),
         load_if_exists=True,
     )
 
