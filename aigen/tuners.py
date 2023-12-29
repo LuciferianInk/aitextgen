@@ -21,14 +21,15 @@ from .utils import colors
 def objective(trial: optuna.trial.Trial, init_kwargs, train_config):
     train_config["num_steps"] = 50
 
-    max_batch_size = (
-        train_config.get("batch_size", 1)
-        * train_config.get("gradient_accumulation_steps", 1)
-        * train_config.get("target_batch_size", 1)
-    )
-    min_batch_size = 128
+    # max_gradient_accumulation_steps = (
+    #     train_config.get("batch_size", 1)
+    #     * train_config.get("gradient_accumulation_steps", 1)
+    #     * train_config.get("target_batch_size", 1)
+    # )
+    max_gradient_accumulation_steps = 256
+    min_gradient_accumulation_steps = 32
 
-    train_config["batch_size"] = 1
+    train_config["batch_size"] = 4
 
     train_type = train_config.get("type", "standard")
 
@@ -101,9 +102,9 @@ def objective(trial: optuna.trial.Trial, init_kwargs, train_config):
     )
     train_config["gradient_accumulation_steps"] = trial.suggest_int(
         "gradient_accumulation_steps",
-        min_batch_size,
-        max_batch_size,
-        step=min_batch_size,
+        min_gradient_accumulation_steps,
+        max_gradient_accumulation_steps,
+        step=min_gradient_accumulation_steps,
     )
     train_config["weight_decay"] = trial.suggest_float(
         "weight_decay", 0.00001, 0.1, log=True
