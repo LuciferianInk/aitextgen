@@ -63,7 +63,7 @@ class AIGTrainer(LightningModule):
 
         self.log("step", int(step), on_step=True, on_epoch=True)
         self.log("train_loss", float(loss), on_step=True, on_epoch=True)
-        self.log("total_tokens", int(self.total_tokens), on_step=True, on_epoch=True)
+        self.log("train_tokens", int(self.total_tokens), on_step=True, on_epoch=True)
 
         schedule.step()
 
