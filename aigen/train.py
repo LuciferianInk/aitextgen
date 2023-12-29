@@ -202,6 +202,14 @@ class AIGProgressBar(ProgressBar):
 
         self.pbar.set_description(echo)
 
+    def on_validation_start(self, trainer, lm):
+        super().on_validation_start(trainer, lm)
+
+        if trainer.state.stage in ["sanity_check"]:
+            return
+
+        logging.warning("Calculating validation metrics...")
+
     def average_loss(self, current_loss, prev_avg_loss, smoothing):
         if prev_avg_loss is None:
             return current_loss
@@ -346,14 +354,6 @@ class AIGMetricsLogger(Callback):
             metrics,
             step,
         )
-
-    # def on_validation_start(self, trainer, lm):
-    #     super().on_validation_start(trainer, lm)
-
-    #     if trainer.state.stage in ["sanity_check"]:
-    #         return
-
-    #     logging.warning("Calculating validation metrics. Please wait.")
 
     def on_validation_epoch_end(self, trainer, lm):
         super().on_validation_epoch_end(trainer, lm)

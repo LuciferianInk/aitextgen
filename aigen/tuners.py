@@ -23,13 +23,14 @@ class Objective:
         self.init_kwargs = init_kwargs
         self.train_config = train_config
 
-        self.train_config["num_steps"] = 250
+        self.train_config["num_steps"] = 25
 
         self.max_batch_size = (
             self.train_config.get("batch_size", 1)
             * self.train_config.get("gradient_accumulation_steps", 1)
             * self.train_config.get("target_batch_size", 1)
         )
+        self.min_batch_size = 128
 
         self.train_config["batch_size"] = 1
 
@@ -38,7 +39,7 @@ class Objective:
 
         if train_type in ["pretrain"]:
             setattr(
-                self.init_kwargs["config"], "n_head", trial.suggest_int("n_head", 1, 4)
+                self.init_kwargs["config"], "n_head", trial.suggest_int("n_head", 1, 2)
             )
             setattr(
                 self.init_kwargs["config"], "k_att", trial.suggest_int("k_att", 2, 3)
@@ -59,7 +60,7 @@ class Objective:
             setattr(
                 self.init_kwargs["config"],
                 "block_size",
-                trial.suggest_int("block_size", 16, 256, step=16),
+                trial.suggest_int("block_size", 64, 256, step=64),
             )
             setattr(
                 self.init_kwargs["config"],
@@ -109,7 +110,10 @@ class Objective:
             "learning_rate", 0.00001, 0.1, log=True
         )
         self.train_config["gradient_accumulation_steps"] = trial.suggest_int(
-            "gradient_accumulation_steps", 2, self.max_batch_size
+            "gradient_accumulation_steps",
+            self.min_batch_size,
+            self.max_batch_size,
+            step=self.min_batch_size,
         )
         self.train_config["weight_decay"] = trial.suggest_float(
             "weight_decay", 0.00001, 0.1, log=True
@@ -122,11 +126,6 @@ class Objective:
             self.train_config["bias"] = trial.suggest_categorical(
                 "bias", ["none", "all", "lora_only"]
             )
-
-        print(f"{colors.BLUE}init_kwargs:{colors.WHITE}")
-        pprint(self.init_kwargs)
-        print(f"{colors.BLUE}train_config:{colors.WHITE}")
-        pprint(self.train_config)
 
         self.prototype = aigen(**self.init_kwargs)
 
@@ -141,6 +140,7 @@ class Objective:
         train_loss = self.prototype.train(
             loggers=[logger],
             callbacks=[CustomPruningCallback(trial, monitor="train_loss")],
+            trial=True,
             verbose=False,
             **self.train_config,
         )
@@ -175,13 +175,6 @@ class CustomPruningCallback(PyTorchLightningPruningCallback):
         self.current_step = step
 
         current_score = trainer.callback_metrics.get(self.monitor)
-        # if current_score is None:
-        #     message = (
-        #         f"The metric '{self.monitor}' is not in the evaluation logs for pruning. "
-        #         "Please make sure you set the correct metric name."
-        #     )
-        #     warnings.warn(message)
-        #     return
 
         should_stop = False
 
@@ -227,7 +220,7 @@ def optimize_hparams(init_kwargs, train_config):
     study = optuna.create_study(
         direction="minimize",
         sampler=optuna.samplers.TPESampler(),
-        pruner=optuna.pruners.SuccessiveHalvingPruner(min_resource=25),
+        pruner=optuna.pruners.SuccessiveHalvingPruner(min_resource=5),
     )
 
     study.optimize(

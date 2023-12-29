@@ -430,7 +430,7 @@ class aigen:
         finetune: bool = False,
         checkpoint: int = 0,
         resume: bool = False,
-        tune: bool = False,
+        trial: bool = False,
         verbose: bool = True,
         devices=None,
         callbacks=[],
@@ -514,10 +514,10 @@ class aigen:
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
         world_rank = int(os.environ.get("WORLD_RANK", 0))
 
-        if tune:
+        if trial:
             train_params["enable_checkpointing"] = False
 
-        if not tune:
+        if not trial:
             print(f"Local rank: {local_rank}, World rank: {world_rank}")
             if local_rank == 0:
                 os.makedirs(output_dir, exist_ok=True)
@@ -626,9 +626,8 @@ class aigen:
                     f"Training data:\n{colors.GREEN}{self.total_batches}{colors.WHITE} batches, {colors.GREEN}{self.total_batches * block_size}{colors.WHITE} tokens"
                 )
 
-        while (
-            train_params["val_check_interval"] > len(self.total_train[0])
-            and self.static_len > 0
+        while self.static_len > 0 and train_params["val_check_interval"] > len(
+            self.total_train[0]
         ):
             train_params["val_check_interval"] = math.floor(
                 len(self.total_train[0]) / 2
