@@ -57,20 +57,21 @@ class Objective:
                 "gate_type",
                 trial.suggest_categorical("gate_type", ["mlp", "gmm"]),
             )
+            block_size = trial.suggest_int("block_size", 64, 256, step=64)
             setattr(
                 self.init_kwargs["config"],
                 "block_size",
-                trial.suggest_int("block_size", 64, 256, step=64),
-            )
-            setattr(
-                self.init_kwargs["config"],
-                "gating_size",
-                trial.suggest_int("gating_size", 16, 256, step=16),
+                block_size,
             )
             setattr(
                 self.init_kwargs["config"],
                 "history_length",
-                trial.suggest_int("history_length", 128, 512, step=128),
+                block_size,
+            )
+            setattr(
+                self.init_kwargs["config"],
+                "gating_size",
+                int(block_size / 2),
             )
             setattr(
                 self.init_kwargs["config"],
@@ -217,10 +218,17 @@ class CustomPruningCallback(PyTorchLightningPruningCallback):
 
 
 def optimize_hparams(init_kwargs, train_config):
+    storage = optuna.storages.RDBStorage(
+        url="sqlite:///:memory:",
+        engine_kwargs={"pool_size": 20, "connect_args": {"timeout": 10}},
+    )
+
     study = optuna.create_study(
         direction="minimize",
+        storage=storage,
         sampler=optuna.samplers.TPESampler(),
         pruner=optuna.pruners.SuccessiveHalvingPruner(min_resource=5),
+        load_if_exists=True,
     )
 
     study.optimize(

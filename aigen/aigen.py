@@ -641,7 +641,7 @@ class aigen:
             ckpt_path=latest_checkpoint,
         )
 
-        if save_every > 0 and not tune and not petals:
+        if save_every > 0 and not trial and not petals:
             self.save(output_dir)
 
         if seed:

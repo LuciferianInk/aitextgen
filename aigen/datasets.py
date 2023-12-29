@@ -9,6 +9,7 @@ import sys
 from pprint import pprint
 from typing import List
 
+import datasets
 import numpy as np
 import torch
 from datasets import load_dataset
