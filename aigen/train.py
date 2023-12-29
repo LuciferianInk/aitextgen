@@ -351,7 +351,7 @@ class AIGMetricsLogger(Callback):
         metrics = {
             "train_loss": trainer.callback_metrics["train_loss"],
             "lr": float(trainer.optimizers[0].param_groups[0]["lr"]),
-            "tokens": int(trainer.callback_metrics["total_tokens"]),
+            "tokens": int(trainer.callback_metrics["train_tokens"]),
         }
 
         if current_epoch > 0:
