@@ -245,13 +245,14 @@ class StreamingDataModule(LightningDataModule):
         return DataLoader(
             self.iterable,
             batch_size=self.params["batch_size"],
-            pin_memory=True,
+            pin_memory=self.params["pin_memory"],
             num_workers=self.params["num_workers"],
         )
 
 
 class StreamingDataset(IterableDataset):
     def __init__(self, tokenizer, params, config):
+        self.config = config
         self.tokenizer = tokenizer
         self.content_key = config["content_key"]
         self.params = params
@@ -261,15 +262,15 @@ class StreamingDataset(IterableDataset):
                 if k == "subset":
                     k = "name"
                 kwargs[k] = v
+        split = self.config.get("split", "train")
         self.dataset = load_dataset(
             config["repo"],
-            split="train",
+            split=split,
             streaming=True,
             cache_dir="/data/pile",
             trust_remote_code=True,
             **kwargs,
         )
-        self.config = config
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(

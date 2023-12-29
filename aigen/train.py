@@ -182,7 +182,10 @@ class AIGProgressBar(ProgressBar):
             gpu_memory = result.stdout.strip().split(os.linesep)
             gpus = f"MB{self.white} => {self.blue}".join(gpu_memory)
             epoch_string = "{:.3f}".format(current_epoch)
-            echo += f" => GPU => {self.blue}{gpus}MB{self.white} => Epoch => {self.blue}{epoch_string}{self.white}"
+            echo += f" => GPU => {self.blue}{gpus}MB{self.white}"
+
+        if current_epoch > 0:
+            echo += f" => Epoch => {self.blue}{epoch_string}{self.white}"
 
         if hasattr(trainer.strategy, "num_peers"):
             num_peers = trainer.strategy.num_peers
