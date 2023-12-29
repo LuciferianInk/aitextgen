@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 from lightning.pytorch import loggers
 from optuna.integration import PyTorchLightningPruningCallback
+from optuna.pruners import PatientPruner, SuccessiveHalvingPruner
 from packaging import version
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
@@ -26,10 +27,10 @@ def objective(trial: optuna.trial.Trial, init_kwargs, train_config):
     #     * train_config.get("gradient_accumulation_steps", 1)
     #     * train_config.get("target_batch_size", 1)
     # )
-    max_gradient_accumulation_steps = 256
-    min_gradient_accumulation_steps = 32
+    max_gradient_accumulation_steps = 1024
+    min_gradient_accumulation_steps = 128
 
-    train_config["batch_size"] = 4
+    train_config["batch_size"] = 1
 
     train_type = train_config.get("type", "standard")
 
@@ -219,7 +220,16 @@ def optimize_hparams(init_kwargs, train_config):
         direction="minimize",
         storage=storage,
         sampler=optuna.samplers.TPESampler(),
-        pruner=optuna.pruners.SuccessiveHalvingPruner(min_resource=10),
+        pruner=PatientPruner(
+            SuccessiveHalvingPruner(
+                min_resource="auto",
+                reduction_factor=4,
+                min_early_stopping_rate=0,
+                bootstrap_count=0,
+            ),
+            patience=5,
+            min_delta=0.5,
+        ),
         load_if_exists=True,
     )
 
