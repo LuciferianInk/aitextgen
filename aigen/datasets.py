@@ -228,22 +228,37 @@ class StaticDataModule(LightningDataModule):
 class StreamingDataModule(LightningDataModule):
     def __init__(self, tokenizer, hparams, config):
         super().__init__()
-        self.iterable = None
+        self.train_data = None
         self.tokenizer = tokenizer
         self.params = hparams
         self.setup(config)
 
     def setup(self, config):
         if config.get("sequential", False):
-            self.iterable = SequentialStreamingDataset(
-                self.tokenizer, self.params, config
+            self.train_data = SequentialStreamingDataset(
+                self.tokenizer, self.params, config, split="train"
             )
         else:
-            self.iterable = StreamingDataset(self.tokenizer, self.params, config)
+            self.train_data = StreamingDataset(
+                self.tokenizer, self.params, config, split="train"
+            )
+
+        if config.get("val_samples", 0) > 0:
+            self.val_data = StreamingDataset(
+                self.tokenizer, self.params, config, split="validation"
+            )
 
     def train_dataloader(self):
         return DataLoader(
-            self.iterable,
+            self.train_data,
+            batch_size=self.params["batch_size"],
+            pin_memory=self.params["pin_memory"],
+            num_workers=self.params["num_workers"],
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_data,
             batch_size=self.params["batch_size"],
             pin_memory=self.params["pin_memory"],
             num_workers=self.params["num_workers"],
@@ -251,7 +266,7 @@ class StreamingDataModule(LightningDataModule):
 
 
 class StreamingDataset(IterableDataset):
-    def __init__(self, tokenizer, params, config):
+    def __init__(self, tokenizer, params, config, split="train"):
         self.config = config
         self.tokenizer = tokenizer
         self.content_key = config["content_key"]
@@ -262,7 +277,6 @@ class StreamingDataset(IterableDataset):
                 if k == "subset":
                     k = "name"
                 kwargs[k] = v
-        split = self.config.get("split", "train")
         self.dataset = load_dataset(
             config["repo"],
             split=split,
@@ -279,6 +293,8 @@ class StreamingDataset(IterableDataset):
         )
 
         block_size = self.params["block_size"]
+
+        samples = self.config.get("val_samples", 0)
 
         batch = []
         for document in shuffled:
@@ -302,6 +318,11 @@ class StreamingDataset(IterableDataset):
             if len(batch) >= block_size:
                 yield batch[:block_size]
                 batch = []
+                if samples > 0:
+                    samples -= 1
+                    if samples == 0:
+                        samples = self.config.get("val_samples", 0)
+                        break
             else:
                 continue
 

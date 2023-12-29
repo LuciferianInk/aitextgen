@@ -379,15 +379,15 @@ class aigen:
         for dataset in streaming_data:
             module = StreamingDataModule(self.tokenizer, hparams, dataset)
             self.total_train.append(module.train_dataloader())
+            if dataset.get("val_samples"):
+                self.total_val.append(module.val_dataloader())
 
         self.combined_train = self.total_train
         if len(self.total_train) > 1:
             self.combined_train = CombinedLoader(self.total_train, mode="min_size")
 
-        self.combined_val = None
-        if len(self.total_val) == 1:
-            self.combined_val = self.total_val
-        elif len(self.total_val) > 1:
+        self.combined_val = self.total_val if len(self.total_val) > 0 else None
+        if len(self.total_val) > 1:
             self.combined_val = CombinedLoader(self.total_val, mode="min_size")
 
         if self.static_len > 0:
