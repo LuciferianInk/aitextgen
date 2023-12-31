@@ -364,15 +364,6 @@ class SequentialStreamingDataset(StreamingDataset):
             while len(batch) >= block_size:
                 selection = batch[:block_size]
                 batch = batch[half_block:]
-
-                # gen_texts = self.tokenizer.batch_decode(
-                #     selection.astype("int64"), skip_special_tokens=False
-                # )
-                # print("----------")
-                # print("".join(gen_texts))
-
-                # print(len(batch))
-                # print(len(selection))
                 yield selection.astype("int64")
 
 

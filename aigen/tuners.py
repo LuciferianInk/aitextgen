@@ -219,7 +219,9 @@ def optimize_hparams(init_kwargs, train_config):
         study_name="trial-1",
         direction="minimize",
         storage=storage,
-        sampler=optuna.samplers.TPESampler(),
+        sampler=optuna.samplers.TPESampler(
+            multivariate=True, group=True, constant_liar=True
+        ),
         pruner=PatientPruner(
             SuccessiveHalvingPruner(
                 min_resource="auto",

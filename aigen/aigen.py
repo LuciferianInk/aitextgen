@@ -185,6 +185,7 @@ class aigen:
                         f"{adapter_dir}/{adapter}",
                         adapter_name=adapter,
                         device_map=device_map,
+                        attn_implementation="eager",
                     )
                 else:
                     self.model.load_adapter(
