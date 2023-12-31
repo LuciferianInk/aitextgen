@@ -541,7 +541,17 @@ class aigen:
 
         latest_checkpoint = None
         if resume and checkpoint_every > 0:
-            latest_checkpoint = f"{output_dir}/model.ckpt"
+            num_versions = 1000
+            this_version = 1000
+            for _ in range(num_versions):
+                ckpt_path = f"{output_dir}/model-v{this_version}.ckpt"
+                if os.path.exists(ckpt_path):
+                    latest_checkpoint = ckpt_path
+                    break
+                else:
+                    this_version -= 1
+            if latest_checkpoint is None:
+                latest_checkpoint = f"{output_dir}/model.ckpt"
             print(f"Resuming training from: {latest_checkpoint}")
 
         if finetune:
