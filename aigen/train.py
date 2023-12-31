@@ -40,10 +40,7 @@ class AIGTrainer(LightningModule):
         self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
-        outputs = self.model(**inputs)
-        # labels = inputs.get("labels")
-        # logits = outputs.get("logits")
-        return outputs
+        return self.model(**inputs)
 
     def training_step(self, batch, batch_idx):
         losses = []
@@ -93,12 +90,8 @@ class AIGTrainer(LightningModule):
 class AIGProgressBar(ProgressBar):
     """A variant progress bar that works off of steps and prints periodically."""
 
-    def __init__(
-        self,
-        num_steps,
-    ):
+    def __init__(self):
         super().__init__()
-        self.total_steps = num_steps
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
@@ -124,7 +117,7 @@ class AIGProgressBar(ProgressBar):
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
         self.pbar = tqdm(
-            total=self.total_steps,
+            total=trainer.estimated_stepping_batches,
             smoothing=0,
             leave=True,
             dynamic_ncols=True,
@@ -170,7 +163,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        echo = f"{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {self.blue}{bearing}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
+        bar = f"{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {self.blue}{bearing}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
 
         if lm.on_gpu:
             result = subprocess.run(
@@ -187,14 +180,14 @@ class AIGProgressBar(ProgressBar):
             gpu_memory = result.stdout.strip().split(os.linesep)
             gpus = f"MB{self.white} => {self.blue}".join(gpu_memory)
             epoch_string = "{:.3f}".format(current_epoch)
-            echo += f" => GPU => {self.blue}{gpus}MB{self.white}"
+            bar += f" => GPU => {self.blue}{gpus}MB{self.white}"
 
         if current_epoch > 0:
-            echo += f" => Epoch => {self.blue}{epoch_string}{self.white}"
+            bar += f" => Epoch => {self.blue}{epoch_string}{self.white}"
 
         if hasattr(trainer.strategy, "num_peers"):
             num_peers = trainer.strategy.num_peers
-            echo = echo + f" => Peers => {self.blue}{num_peers}{self.white}"
+            bar += f" => Peers => {self.blue}{num_peers}{self.white}"
 
         step = int(trainer.callback_metrics["step"])
 
@@ -208,7 +201,7 @@ class AIGProgressBar(ProgressBar):
             self.pbar.update(1)
             self.last_step = step
 
-        self.pbar.set_description(echo)
+        self.pbar.set_description(bar)
 
     def on_validation_start(self, trainer, lm):
         super().on_validation_start(trainer, lm)
