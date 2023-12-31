@@ -30,15 +30,16 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             train_params["accumulate_grad_batches"] == 1
         ), "Gradient accumulation is not supported by HivemindStrategy. Use `target_batch_size` instead."
 
-        # bootstrap_peers = [
-        #     "/p2p/QmVtpsm7b91S5pYcjsreHKxoHU6wThBn6RFHPrUWXCBrzo",  # 59.src.eco
-        #     "/p2p/QmVQE44X5wPo5LNheJCBMVRUTRsceJNxVowjxerPUCCZmY",  # 95.src.eco
-        # ]
-
-        pattern = r"(/p2p/.*)"
+        bootstrap_piers = [
+            "/p2p/QmVtpsm7b91S5pYcjsreHKxoHU6wThBn6RFHPrUWXCBrzo",  # 59.src.eco
+            "/p2p/QmVQE44X5wPo5LNheJCBMVRUTRsceJNxVowjxerPUCCZmY",  # 95.src.eco
+        ]
 
         # Start with bootstrap peers
-        initial_piers = hparams.get("initial_piers", [])
+        initial_piers = hparams.get("initial_piers", []) + bootstrap_peers
+
+        # pattern = r"(/p2p/.*)"
+
         # initial_piers.append(random.choice(bootstrap_peers))
 
         # # Get my local peers

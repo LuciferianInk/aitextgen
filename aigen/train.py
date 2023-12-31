@@ -34,8 +34,7 @@ class AIGTrainer(LightningModule):
             train_len,
             tokenizer,
         )
-        self.total_tokens = 0
-        self.block_size = hparams["block_size"]
+        self.train_tokens = getattr(self, "train_tokens", 0)
         self.automatic_optimization = True
         self.save_hyperparameters(hparams)
 
@@ -54,13 +53,13 @@ class AIGTrainer(LightningModule):
         for sample in batch:
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
-            self.total_tokens += int(self.block_size)
+            self.train_tokens += int(self.hparams["block_size"])
 
         loss = sum(losses) / len(losses)
 
         self.log("step", int(step), on_step=True, on_epoch=True)
         self.log("train_loss", float(loss), on_step=True, on_epoch=True)
-        self.log("train_tokens", int(self.total_tokens), on_step=True, on_epoch=True)
+        self.log("train_tokens", int(self.train_tokens), on_step=True, on_epoch=True)
 
         schedule.step()
 
@@ -280,8 +279,8 @@ class AIGSampleGenerator(Callback):
             eta_cutoff=0.0003,
             penalty_alpha=0.6,
             top_k=4,
-            repetition_penalty=1.023,
-            no_repeat_ngram_size=13,
+            repetition_penalty=1.0023,
+            # no_repeat_ngram_size=13,
         )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
