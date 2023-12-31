@@ -241,6 +241,9 @@ def optimize_hparams(init_kwargs, train_config):
         timeout=60 * 60 * 24,
     )
 
+    df = study.trials_dataframe(attrs=("number", "value", "params", "state"))
+    print(df)
+
     print("Number of finished trials: {}".format(len(study.trials)))
 
     print("Best trial:")
