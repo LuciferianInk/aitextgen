@@ -80,6 +80,9 @@ class AIGTrainer(LightningModule):
 
         return loss
 
+    # def predict_step(*args, **kwargs):
+    #     pass
+
     def configure_optimizers(self):
         "Prepare optimizer"
 
@@ -222,25 +225,33 @@ class AIGModelSaver(Callback):
         petals,
     ):
         super().__init__()
-        self.steps = 0
+        self.step = 0
+        self.last_step = 0
         self.save_every = save_every
         self.output_dir = output_dir
         self.petals = petals
 
     @property
     def save_every_check(self):
-        return self.save_every > 0 and self.steps % self.save_every == 0
+        return (
+            self.step > 0
+            and self.save_every > 0
+            and self.last_step != self.step
+            and self.step % self.save_every == 0
+        )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
-        self.steps += 1
+        self.step = int(trainer.callback_metrics["step"])
 
         if TPUAccelerator.is_available() and self.save_every_check:
             self.save_pytorch_model(trainer, lm, tpu=True)
 
         if not TPUAccelerator.is_available() and self.save_every_check:
             self.save_pytorch_model(trainer, lm)
+
+        self.last_step = self.step
 
     def save_pytorch_model(self, trainer, lm, tpu=False):
         if self.petals:
@@ -269,7 +280,8 @@ class AIGSampleGenerator(Callback):
         super().__init__()
         from transformers import GenerationConfig
 
-        self.steps = 0
+        self.step = 0
+        self.last_step = 0
         self.generate_every = generate_every
         self.generation_config = GenerationConfig(
             do_sample=True,
@@ -280,16 +292,22 @@ class AIGSampleGenerator(Callback):
             penalty_alpha=0.6,
             top_k=4,
             repetition_penalty=1.0023,
-            # no_repeat_ngram_size=13,
         )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
-        self.steps += 1
+        self.step = int(trainer.callback_metrics["step"])
 
-        if self.generate_every > 0 and self.steps % self.generate_every == 0:
+        if (
+            self.step > 0
+            and self.generate_every > 0
+            and self.last_step != self.step
+            and self.step % self.generate_every == 0
+        ):
             self.generate_sample_text(trainer, lm)
+
+        self.last_step = self.step
 
     def generate_sample_text(self, trainer, lm):
         lm.model.eval()
@@ -314,7 +332,7 @@ class AIGSampleGenerator(Callback):
 
         lm.model.train()
 
-        print(output[0])
+        trainer.print(output[0])
 
 
 class AIGMetricsLogger(Callback):

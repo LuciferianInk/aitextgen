@@ -477,8 +477,6 @@ class aigen:
             num_steps=num_steps,
             pin_memory=is_gpu_used,
             num_workers=num_workers,
-            save_every=save_every,
-            generate_every=generate_every,
             num_cycles=num_cycles,
             petals=petals,
             val_split=val_split,
