@@ -543,6 +543,9 @@ class aigen:
         if resume and checkpoint_every > 0:
             num_versions = 1000
             this_version = 1000
+            # this checkpoint handling is kind of stupid, but we do it this way
+            # because Lighting sometimes likes to increment model versions, instead
+            # of just overwriting the previous checkpoints
             for _ in range(num_versions):
                 ckpt_path = f"{output_dir}/model-v{this_version}.ckpt"
                 if os.path.exists(ckpt_path):
