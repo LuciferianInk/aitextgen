@@ -35,9 +35,25 @@ def objective(trial: optuna.trial.Trial, init_kwargs, train_config):
     train_type = train_config.get("type", "standard")
 
     if train_type in ["pretrain"]:
+        setattr(init_kwargs["config"], "n_layer", trial.suggest_int("n_layer", 4, 8))
         setattr(init_kwargs["config"], "n_head", trial.suggest_int("n_head", 1, 2))
         setattr(init_kwargs["config"], "k_att", trial.suggest_int("k_att", 2, 3))
         setattr(init_kwargs["config"], "k_mlp", trial.suggest_int("k_mlp", 2, 3))
+        setattr(
+            init_kwargs["config"],
+            "n_att_experts",
+            trial.suggest_int("n_att_experts", 4, 8),
+        )
+        setattr(
+            init_kwargs["config"],
+            "n_mlp_experts",
+            trial.suggest_int("n_mlp_experts", 8, 16),
+        )
+        setattr(
+            init_kwargs["config"],
+            "n_embd",
+            trial.suggest_int("n_embd", 512, 768, step=256),
+        )
         setattr(
             init_kwargs["config"],
             "sample_topk",
@@ -210,13 +226,14 @@ class CustomPruningCallback(PyTorchLightningPruningCallback):
 
 def optimize_hparams(init_kwargs, train_config):
     storage = optuna.storages.RDBStorage(
-        url="sqlite:///trials.db",
-        # url="sqlite:///:memory:",
+        url="sqlite:////data/optuna.sqlite3",
         engine_kwargs={"pool_size": 20, "connect_args": {"timeout": 10}},
     )
 
+    study_name = os.environ.get("FOCUS", "trial")
+
     study = optuna.create_study(
-        study_name="trial-1",
+        study_name=study_name,
         direction="minimize",
         storage=storage,
         sampler=optuna.samplers.TPESampler(
