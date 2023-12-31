@@ -90,12 +90,12 @@ class AIGTrainer(LightningModule):
 class AIGProgressBar(ProgressBar):
     """A variant progress bar that works off of steps and prints periodically."""
 
-    def __init__(self):
+    def __init__(self, num_steps):
         super().__init__()
+        self.num_steps = num_steps
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
-        self.is_synced = False
         try:
             from IPython.display import display
 
@@ -117,7 +117,8 @@ class AIGProgressBar(ProgressBar):
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
         self.pbar = tqdm(
-            total=trainer.estimated_stepping_batches,
+            # total=trainer.estimated_stepping_batches,
+            total=self.num_steps,
             smoothing=0,
             leave=True,
             dynamic_ncols=True,
@@ -129,6 +130,10 @@ class AIGProgressBar(ProgressBar):
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
+
+        step = int(trainer.callback_metrics["step"])
+        if step == -1:
+            return
 
         current_loss = float(trainer.callback_metrics["train_loss"])
 
@@ -186,20 +191,10 @@ class AIGProgressBar(ProgressBar):
             bar += f" => Epoch => {self.blue}{epoch_string}{self.white}"
 
         if hasattr(trainer.strategy, "num_peers"):
-            num_peers = trainer.strategy.num_peers
-            bar += f" => Peers => {self.blue}{num_peers}{self.white}"
+            bar += f" => Peers => {self.blue}{trainer.strategy.num_peers}{self.white}"
 
-        step = int(trainer.callback_metrics["step"])
-
-        if step != 0 and not self.is_synced:
-            # If training resumes from a checkpoint, set progress bar to the correct step.
-            self.pbar.update(step)
-
-        self.is_synced = True
-
-        if step != 0 and step != self.last_step:
-            self.pbar.update(1)
-            self.last_step = step
+        if self.pbar.n != step:
+            self.pbar.update(step - self.pbar.n)
 
         self.pbar.set_description(bar)
 

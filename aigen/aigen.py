@@ -520,7 +520,7 @@ class aigen:
             if local_rank == 0:
                 os.makedirs(output_dir, exist_ok=True)
                 train_params["callbacks"] = [
-                    AIGProgressBar(),
+                    AIGProgressBar(num_steps),
                     AIGSampleGenerator(generate_every),
                     AIGMetricsLogger(),
                     AIGModelSaver(
