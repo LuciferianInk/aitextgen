@@ -227,8 +227,8 @@ def optimize_hparams(init_kwargs, train_config):
                 min_early_stopping_rate=0,
                 bootstrap_count=0,
             ),
-            patience=5,
-            min_delta=0.5,
+            patience=3,
+            min_delta=0.1,
         ),
         load_if_exists=True,
     )

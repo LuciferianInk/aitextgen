@@ -158,6 +158,7 @@ class aigen:
                     local_files_only=True if model_folder else False,
                     device_map=device_map,
                     low_cpu_mem_usage=True,
+                    attn_implementation="eager",
                     **qargs,
                 )
 

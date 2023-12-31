@@ -34,8 +34,9 @@ class AIGTrainer(LightningModule):
             train_len,
             tokenizer,
         )
-        self.train_tokens = getattr(self, "train_tokens", 0)
         self.automatic_optimization = True
+        self.train_tokens = getattr(self, "train_tokens", 0)
+        self.pbar = None
         self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
@@ -118,7 +119,7 @@ class AIGProgressBar(ProgressBar):
 
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
-        self.pbar = tqdm(
+        trainer.pbar = tqdm(
             # total=trainer.estimated_stepping_batches,
             total=self.num_steps,
             smoothing=0,
@@ -128,7 +129,7 @@ class AIGProgressBar(ProgressBar):
         )
 
     def on_train_end(self, trainer, lm):
-        self.pbar.close()
+        trainer.pbar.close()
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
@@ -195,10 +196,10 @@ class AIGProgressBar(ProgressBar):
         if hasattr(trainer.strategy, "num_peers"):
             bar += f" => Peers => {self.blue}{trainer.strategy.num_peers}{self.white}"
 
-        if self.pbar.n != step:
-            self.pbar.update(step - self.pbar.n)
+        if trainer.pbar.n != step:
+            trainer.pbar.update(step - trainer.pbar.n)
 
-        self.pbar.set_description(bar)
+        trainer.pbar.set_description(bar)
 
     def on_validation_start(self, trainer, lm):
         super().on_validation_start(trainer, lm)
@@ -332,7 +333,8 @@ class AIGSampleGenerator(Callback):
 
         lm.model.train()
 
-        trainer.print(output[0])
+        trainer.pbar.write("==>")
+        trainer.pbar.write(output[0])
 
 
 class AIGMetricsLogger(Callback):
