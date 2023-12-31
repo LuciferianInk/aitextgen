@@ -9,6 +9,7 @@ from typing import List, Optional, Union
 
 import numpy as np
 import torch
+from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
     Callback,
     EarlyStopping,
@@ -662,7 +663,14 @@ class aigen:
     def save(self, target_folder: str = os.getcwd()):
         """Saves the model into the specified directory."""
         logger.info(f"Saving trained model to {target_folder}")
-        self.model.save_pretrained(target_folder, safe_serialization=True)
+        if TPUAccelerator.is_available():
+            import torch_xla.core.xla_model as xm
+
+            self.model.save_pretrained(
+                target_folder, save_function=xm.save, safe_serialization=True
+            )
+        else:
+            self.model.save_pretrained(target_folder, safe_serialization=True)
 
     def get_device(self) -> str:
         """Getter for the current device where the model is located."""
