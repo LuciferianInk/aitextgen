@@ -246,7 +246,12 @@ class aigen:
             use_gradient_checkpointing=kwargs.get("gradient_checkpointing", False),
         )
 
-        self.model = get_peft_model(self.model, peft_config)
+        try:
+            self.model = get_peft_model(self.model, peft_config)
+        except Exception as e:
+            print(self.model)
+            print(e)
+            raise Exception
 
     def optimize_for_inference(self):
         arch = platform.machine()
