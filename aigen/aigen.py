@@ -2,17 +2,13 @@ import logging
 import math
 import os
 import platform
-import random
 import re
 import time
 from typing import List, Optional, Union
 
-import numpy as np
 import torch
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
-    Callback,
-    EarlyStopping,
     ModelCheckpoint,
     ModelPruning,
     StochasticWeightAveraging,
@@ -216,14 +212,14 @@ class aigen:
 
             logger.info(f"Using adapter: {self.model.active_adapter}")
 
-        self.model_max_length = model_max_length(self.model.config)
-
         self.model.eval()
         logger.info(self)
 
-    def load_adapter(self, adapter_dir):
-        from peft import PeftModel
+    @property
+    def model_max_length(self):
+        return model_max_length(self.model.config)
 
+    def load_adapter(self, adapter_dir):
         self.model = PeftModel.from_pretrained(
             self.model,
             adapter_dir,
@@ -268,18 +264,19 @@ class aigen:
         min_length: int = None,
         max_new_tokens: int = None,
         seed: int = None,
-        schema: str = False,
         mode: str = "transformer",
         generation_config: dict = None,
         **kwargs,
     ) -> Optional[str]:
-        # Tokenize the prompt
+        if seed:
+            set_seed(seed)
+
         prompt_tensors = self.tokenizer(text=prompt, return_tensors="pt")
 
         if prompt:
             prompt_num_tokens = list(prompt_tensors["input_ids"].shape)[1]
-            assert prompt_num_tokens < model_max_length(
-                self.model.config
+            assert (
+                prompt_num_tokens < self.model_max_length
             ), f"The prompt is too large for the model. ({prompt_num_tokens} tokens)"
 
         input_ids = (
@@ -289,9 +286,6 @@ class aigen:
         attention_mask = (
             prompt_tensors["attention_mask"].to(self.get_device()) if prompt else None
         )
-
-        if seed:
-            set_seed(seed)
 
         self.mode = mode
         if mode in ["rnn"]:
