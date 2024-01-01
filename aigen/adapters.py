@@ -29,6 +29,20 @@ def get_peft_config(peft_type, kwargs):
             alpha_pattern=kwargs.get("alpha_pattern", {}),
             modules_to_save=kwargs.get("modules_to_save", None),
         )
+    elif peft_type == "oft":
+        from peft import OFTConfig
+
+        peft_config = OFTConfig(
+            task_type="CAUSAL_LM",
+            r=kwargs.get("r", 4),
+            module_dropout=kwargs.get("dropout", 0.1),
+            coft=True,
+            eps=6e-5,
+            block_share=True,
+            target_modules=kwargs.get("target_modules", None),
+            rank_pattern=kwargs.get("rank_pattern", {}),
+            modules_to_save=kwargs.get("modules_to_save", None),
+        )
     elif peft_type == "ia3":
         from peft import IA3Config
 
