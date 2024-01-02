@@ -158,7 +158,7 @@ class aigen:
                     local_files_only=True if model_folder else False,
                     device_map=device_map,
                     low_cpu_mem_usage=True,
-                    attn_implementation="eager",
+                    # attn_implementation="eager",
                     **qargs,
                 )
 
@@ -184,8 +184,6 @@ class aigen:
                         self.model,
                         f"{adapter_dir}/{adapter}",
                         adapter_name=adapter,
-                        device_map=device_map,
-                        attn_implementation="eager",
                     )
                 else:
                     self.model.load_adapter(
@@ -408,8 +406,8 @@ class aigen:
         eps: float = 1e-8,
         warmup_steps: int = 0,
         num_steps: int = 5000,
-        save_every: int = 1000,
-        generate_every: int = 1000,
+        save_every: int = 0,
+        generate_every: int = 0,
         loggers: List = None,
         batch_size: int = 1,
         num_workers: int = None,
@@ -506,23 +504,24 @@ class aigen:
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
         world_rank = int(os.environ.get("WORLD_RANK", 0))
 
-        if trial:
-            train_params["enable_checkpointing"] = False
-
         if not trial:
             print(f"Local rank: {local_rank}, World rank: {world_rank}")
             if local_rank == 0:
-                os.makedirs(output_dir, exist_ok=True)
-                train_params["callbacks"] = [
-                    AIGProgressBar(num_steps),
-                    AIGSampleGenerator(generate_every),
-                    AIGMetricsLogger(),
+                train_params["callbacks"].append(AIGProgressBar(num_steps))
+
+        if local_rank == 0:
+            os.makedirs(output_dir, exist_ok=True)
+            if save_every > 0:
+                train_params["callbacks"].append(
                     AIGModelSaver(
                         save_every,
                         output_dir,
                         petals,
-                    ),
-                ]
+                    )
+                )
+
+            if generate_every > 0:
+                train_params["callbacks"].append(AIGSampleGenerator(generate_every))
 
         if checkpoint_every > 0:
             checkpoint_callback = ModelCheckpoint(

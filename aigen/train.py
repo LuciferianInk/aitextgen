@@ -292,7 +292,7 @@ class AIGSampleGenerator(Callback):
             eta_cutoff=0.0003,
             penalty_alpha=0.6,
             top_k=4,
-            repetition_penalty=1.0023,
+            repetition_penalty=1.023,
         )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
