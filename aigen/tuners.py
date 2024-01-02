@@ -148,8 +148,8 @@ def objective(trial: optuna.trial.Trial, init_kwargs, train_config):
     train_loss = prototype.train(
         loggers=[logger],
         callbacks=[CustomPruningCallback(trial, monitor="train_loss")],
-        trial=True,
         verbose=False,
+        progress_bar=False,
         **train_config,
     )
 

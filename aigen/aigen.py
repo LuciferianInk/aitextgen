@@ -158,7 +158,7 @@ class aigen:
                     local_files_only=True if model_folder else False,
                     device_map=device_map,
                     low_cpu_mem_usage=True,
-                    # attn_implementation="eager",
+                    attn_implementation="eager",
                     **qargs,
                 )
 
@@ -420,9 +420,9 @@ class aigen:
         target_batch_size: int = 8192,
         strategy: str = "auto",
         finetune: bool = False,
+        progress_bar: bool = True,
         checkpoint_every: int = 0,
         resume: bool = False,
-        trial: bool = False,
         verbose: bool = True,
         devices=None,
         callbacks=[],
@@ -504,13 +504,14 @@ class aigen:
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
         world_rank = int(os.environ.get("WORLD_RANK", 0))
 
-        if not trial:
-            print(f"Local rank: {local_rank}, World rank: {world_rank}")
-            if local_rank == 0:
-                train_params["callbacks"].append(AIGProgressBar(num_steps))
+        print(f"Local rank: {local_rank}, World rank: {world_rank}")
 
         if local_rank == 0:
             os.makedirs(output_dir, exist_ok=True)
+
+            if progress_bar:
+                train_params["callbacks"].append(AIGProgressBar(num_steps))
+
             if save_every > 0:
                 train_params["callbacks"].append(
                     AIGModelSaver(
@@ -643,7 +644,7 @@ class aigen:
             ckpt_path=latest_checkpoint,
         )
 
-        if save_every > 0 and not trial and not petals:
+        if save_every > 0 and not petals:
             self.save(output_dir)
 
         if seed:
