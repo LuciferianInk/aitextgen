@@ -58,9 +58,15 @@ class AIGTrainer(LightningModule):
 
         loss = sum(losses) / len(losses)
 
-        self.log("step", int(step), on_step=True, on_epoch=True)
-        self.log("train_loss", float(loss), on_step=True, on_epoch=True)
-        self.log("train_tokens", int(self.train_tokens), on_step=True, on_epoch=True)
+        self.log("step", int(step), on_step=True, on_epoch=True, sync_dist=True)
+        self.log("train_loss", float(loss), on_step=True, on_epoch=True, sync_dist=True)
+        self.log(
+            "train_tokens",
+            int(self.train_tokens),
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
         schedule.step()
 
@@ -75,9 +81,15 @@ class AIGTrainer(LightningModule):
 
         loss = sum(losses) / len(losses)
 
-        self.log("val_loss", float(loss), on_step=False, on_epoch=True)
-        self.log("val_ppl", float(torch.exp(loss)), on_step=False, on_epoch=True)
-        self.log("hp_metric", loss, on_step=False, on_epoch=True)
+        self.log("val_loss", float(loss), on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_ppl",
+            float(torch.exp(loss)),
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        self.log("hp_metric", loss, on_step=False, on_epoch=True, sync_dist=True)
 
         return loss
 
