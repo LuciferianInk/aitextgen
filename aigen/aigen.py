@@ -223,7 +223,6 @@ class aigen:
         self.model = PeftModel.from_pretrained(
             self.model,
             adapter_dir,
-            # device_map=device_map,
             is_trainable=True,
         )
         setattr(self.model.config, "is_prompt_learning", False)
@@ -247,8 +246,7 @@ class aigen:
             self.model = get_peft_model(self.model, peft_config)
         except Exception as e:
             print(self.model)
-            print(e)
-            raise Exception
+            raise e
 
     def optimize_for_inference(self):
         arch = platform.machine()
