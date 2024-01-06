@@ -396,8 +396,8 @@ class AIGMetricsLogger(Callback):
         lm.logger.experiment.add_scalars(
             "vtx",
             {
-                "val_loss": trainer.callback_metrics["val_loss"],
-                "val_ppl": trainer.callback_metrics["val_ppl"],
+                "val_loss": trainer.callback_metrics.get("val_loss", 0.0),
+                "val_ppl": trainer.callback_metrics.get("val_ppl", 0.0),
             },
             step,
         )
