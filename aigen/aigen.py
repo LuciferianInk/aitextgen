@@ -560,8 +560,6 @@ class aigen:
 
             logging.info(f"Using a naive finetuning schedule.")
 
-        time.sleep(3)
-
         if prune > 0.0:
             modules_to_prune = []
             for n, m in self.model.named_modules():
@@ -581,16 +579,20 @@ class aigen:
                     resample_parameters=True,
                     apply_pruning=True,
                     make_pruning_permanent=True,
-                    use_lottery_ticket_hypothesis=True,
+                    use_lottery_ticket_hypothesis=False,
                     prune_on_train_epoch_end=False,  # Prune on validation epoch end.
                     verbose=1,  # 0 to disable, 1 to log overall sparsity, 2 to log per-layer sparsity
                 )
             )
 
+            print(f"Will prune {prune} of model neurons during training.")
+
         if swa_learning_rate:
             train_params["callbacks"].append(
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
+
+        time.sleep(3)
 
         self.prepare_datasets(hparams, static_data, streaming_data)
 
