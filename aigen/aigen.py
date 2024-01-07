@@ -449,7 +449,7 @@ class aigen:
             torch.cuda.set_device(devices[0])
 
         num_workers = (
-            num_workers if num_workers is not None else int(os.cpu_count() / 4)
+            num_workers if num_workers is not None else int(os.cpu_count() / 2)
         )
 
         if gradient_checkpointing:

@@ -18,7 +18,7 @@ setup(
     description="A robust Python tool for text-based AI training and generation using Huggingface Transformers.",
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    author="Ryan Brooks",
+    author="Max Woolf, Ryan Brooks",
     author_email="LuciferianInk@proton.me",
     url="https://github.com/LuciferianInk/aigen",
     keywords=["gpt", "text generation", "ai"],
