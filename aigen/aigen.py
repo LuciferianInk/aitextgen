@@ -520,14 +520,15 @@ class aigen:
             # because Lighting sometimes likes to increment model versions, instead
             # of just overwriting the previous checkpoints
             for _ in range(num_versions):
+                this_version -= 1
                 ckpt_path = f"{output_dir}/model-v{this_version}.ckpt"
                 if os.path.exists(ckpt_path):
                     latest_checkpoint = ckpt_path
                     break
-                else:
-                    this_version -= 1
+
             if latest_checkpoint is None:
                 latest_checkpoint = f"{output_dir}/model.ckpt"
+
             print(f"Resuming training from: {latest_checkpoint}")
 
         if finetune:
