@@ -499,41 +499,18 @@ class aigen:
 
         train_params["callbacks"].append(AIGMetricsLogger())
 
-        local_rank = int(os.environ.get("LOCAL_RANK", 0))
-        world_rank = int(os.environ.get("WORLD_RANK", 0))
+        if checkpoint_every > 0:
+            checkpoint_callback = ModelCheckpoint(
+                save_top_k=2,
+                monitor="step",
+                mode="max",
+                every_n_train_steps=checkpoint_every,
+                dirpath=output_dir,
+                filename="model",
+            )
 
-        print(f"Local rank: {local_rank}, World rank: {world_rank}")
-
-        if local_rank == 0:
-            os.makedirs(output_dir, exist_ok=True)
-
-            if progress_bar:
-                train_params["callbacks"].append(AIGProgressBar(num_steps))
-
-            if generate_every > 0:
-                train_params["callbacks"].append(AIGSampleGenerator(generate_every))
-
-            if save_every > 0:
-                train_params["callbacks"].append(
-                    AIGModelSaver(
-                        save_every,
-                        output_dir,
-                        petals,
-                    )
-                )
-
-            if checkpoint_every > 0:
-                checkpoint_callback = ModelCheckpoint(
-                    save_top_k=1,
-                    monitor="step",
-                    mode="max",
-                    every_n_train_steps=checkpoint_every,
-                    dirpath=output_dir,
-                    filename="model",
-                )
-
-                train_params["callbacks"].append(checkpoint_callback)
-                print(f"Model checkpointing enabled.")
+            train_params["callbacks"].append(checkpoint_callback)
+            print(f"Model checkpointing enabled.")
 
         latest_checkpoint = None
         if resume and checkpoint_every > 0:
@@ -591,6 +568,29 @@ class aigen:
             train_params["callbacks"].append(
                 StochasticWeightAveraging(swa_lrs=swa_learning_rate)
             )
+
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        world_rank = int(os.environ.get("WORLD_RANK", 0))
+
+        print(f"Local rank: {local_rank}, World rank: {world_rank}")
+
+        if local_rank == 0:
+            os.makedirs(output_dir, exist_ok=True)
+
+            if progress_bar:
+                train_params["callbacks"].append(AIGProgressBar(num_steps))
+
+            if generate_every > 0:
+                train_params["callbacks"].append(AIGSampleGenerator(generate_every))
+
+            if save_every > 0:
+                train_params["callbacks"].append(
+                    AIGModelSaver(
+                        save_every,
+                        output_dir,
+                        petals,
+                    )
+                )
 
         time.sleep(3)
 
