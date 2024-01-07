@@ -306,7 +306,7 @@ class AIGSampleGenerator(Callback):
         self.generate_every = generate_every
         self.generation_config = GenerationConfig(
             do_sample=True,
-            min_length=1,
+            min_length=22,
             max_new_tokens=222,
             temperature=0.9,
             eta_cutoff=0.0003,
