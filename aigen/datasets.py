@@ -347,6 +347,7 @@ class SequentialStreamingDataset(StreamingDataset):
                 max_length=block_size,
                 padding=False,
                 truncation=True,
+                stride=0,
                 return_overflowing_tokens=True,
                 return_tensors="np",
             )["input_ids"]

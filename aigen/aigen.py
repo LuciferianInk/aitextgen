@@ -228,21 +228,21 @@ class aigen:
         setattr(self.model.config, "is_prompt_learning", False)
 
     def create_adapter(self, kwargs):
-        from peft import get_peft_model, prepare_model_for_kbit_training
-
-        from .adapters import get_peft_config
-
-        peft_config = get_peft_config(
-            peft_type=kwargs.get("type", "lora"),
-            kwargs=kwargs,
-        )
-
-        self.model = prepare_model_for_kbit_training(
-            self.model,
-            use_gradient_checkpointing=kwargs.get("gradient_checkpointing", False),
-        )
-
         try:
+            from peft import get_peft_model, prepare_model_for_kbit_training
+
+            from .adapters import get_peft_config
+
+            peft_config = get_peft_config(
+                peft_type=kwargs.get("type", "lora"),
+                kwargs=kwargs,
+            )
+
+            self.model = prepare_model_for_kbit_training(
+                self.model,
+                use_gradient_checkpointing=kwargs.get("gradient_checkpointing", False),
+            )
+
             self.model = get_peft_model(self.model, peft_config)
         except Exception as e:
             print(self.model)
