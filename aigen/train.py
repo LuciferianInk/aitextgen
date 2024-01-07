@@ -169,9 +169,17 @@ class AIGProgressBar(ProgressBar):
         elif current_loss > avg_loss:
             color = self.red
 
-        bearing = "{:.5f}".format(
-            abs(round((current_loss / avg_loss) if avg_loss != 0 else 0, 5))
+        bearing = str(
+            "{:.5f}".format(
+                abs(round((current_loss / avg_loss) if avg_loss != 0 else 0, 5))
+            )
         )
+
+        b1 = bearing[:1]
+        b2 = bearing[2:]
+
+        if b1 == "1":
+            b1 = f"{self.red}{b1}{self.white}"
 
         c_sym = "+" if current_loss >= 0 else ""
         a_sym = "+" if avg_loss >= 0 else ""
@@ -183,7 +191,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        bar = f"{os.environ.get('FOCUS', 'self')}{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {self.blue}{bearing}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
+        bar = f"{os.environ.get('FOCUS', 'self')}{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {b1}.{self.blue}{b2}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
 
         if lm.on_gpu:
             result = subprocess.run(
