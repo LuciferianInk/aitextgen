@@ -558,15 +558,15 @@ class aigen:
                     )
             train_params["callbacks"].append(
                 ModelPruning(
-                    pruning_fn="random_unstructured",
-                    amount=prune,
-                    parameters_to_prune=list(set(modules_to_prune)),
-                    use_global_unstructured=True,
-                    resample_parameters=True,
                     apply_pruning=True,
-                    make_pruning_permanent=True,
+                    amount=prune,
+                    make_pruning_permanent=False,
                     use_lottery_ticket_hypothesis=True,
-                    prune_on_train_epoch_end=False,  # Prune on validation epoch end.
+                    resample_parameters=True,
+                    pruning_fn="random_unstructured",
+                    use_global_unstructured=True,
+                    prune_on_train_epoch_end=False,
+                    parameters_to_prune=list(set(modules_to_prune)),
                     verbose=1,  # 0 to disable, 1 to log overall sparsity, 2 to log per-layer sparsity
                 )
             )
