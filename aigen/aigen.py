@@ -258,6 +258,7 @@ class aigen:
 
     def generate(
         self,
+        assistant=None,
         prompt: str = "",
         min_length: int = None,
         max_new_tokens: int = None,
@@ -316,6 +317,7 @@ class aigen:
                 output_scores=False,
                 num_return_sequences=1,
                 state=self.memory,
+                assistant_model=assistant if assistant else None,
                 **kwargs,
             )
 
@@ -423,6 +425,7 @@ class aigen:
         resume: bool = False,
         verbose: bool = True,
         devices=None,
+        overfit: bool = False,
         callbacks=[],
         **kwargs,
     ) -> None:
@@ -485,16 +488,19 @@ class aigen:
             devices=devices,
             max_steps=num_steps,
             max_epochs=-1,
-            val_check_interval=val_interval * gradient_accumulation_steps,
+            val_check_interval=5 * gradient_accumulation_steps
+            if overfit
+            else val_interval * gradient_accumulation_steps,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=True if checkpoint_every > 0 else False,
             precision="32-true",
             accumulate_grad_batches=gradient_accumulation_steps,
             gradient_clip_val=gradient_clip_val,
             gradient_clip_algorithm="norm",
-            logger=loggers if loggers else False,
             benchmark=True,
             callbacks=callbacks,
+            logger=loggers if loggers else False,
+            overfit_batches=1000 if overfit else 0,
         )
 
         train_params["callbacks"].append(AIGMetricsLogger())
@@ -557,7 +563,7 @@ class aigen:
                     resample_parameters=True,
                     apply_pruning=True,
                     make_pruning_permanent=True,
-                    use_lottery_ticket_hypothesis=False,
+                    use_lottery_ticket_hypothesis=True,
                     prune_on_train_epoch_end=False,  # Prune on validation epoch end.
                     verbose=1,  # 0 to disable, 1 to log overall sparsity, 2 to log per-layer sparsity
                 )

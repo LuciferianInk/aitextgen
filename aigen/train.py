@@ -180,7 +180,9 @@ class AIGProgressBar(ProgressBar):
 
         if random.random() > 0.666:
             b1 = f"{self.red}{b1}{self.white}"
-        else:
+        if random.random() > 0.333:
+            b1 = f"{self.white}{b1}{self.white}"
+        if random.random() <= 0.333:
             b1 = f"{self.blue}{b1}{self.white}"
 
         c_sym = "+" if current_loss >= 0 else ""
