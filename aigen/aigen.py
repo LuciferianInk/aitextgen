@@ -318,6 +318,8 @@ class aigen:
                 num_return_sequences=1,
                 state=self.memory,
                 assistant_model=assistant if assistant else None,
+                # enable_timing=False,
+                # cg=True,
                 **kwargs,
             )
 
