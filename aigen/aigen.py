@@ -488,7 +488,7 @@ class aigen:
             devices=devices,
             max_steps=num_steps,
             max_epochs=-1,
-            val_check_interval=5 * gradient_accumulation_steps
+            val_check_interval=1000
             if overfit
             else val_interval * gradient_accumulation_steps,
             reload_dataloaders_every_n_epochs=1,
