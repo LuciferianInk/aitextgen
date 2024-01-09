@@ -30,45 +30,14 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             train_params["accumulate_grad_batches"] == 1
         ), "Gradient accumulation is not supported by HivemindStrategy. Use `target_batch_size` instead."
 
-        bootstrap_piers = [
-            "/p2p/QmVtpsm7b91S5pYcjsreHKxoHU6wThBn6RFHPrUWXCBrzo",  # 59.src.eco
-            "/p2p/QmVQE44X5wPo5LNheJCBMVRUTRsceJNxVowjxerPUCCZmY",  # 95.src.eco
-        ]
-
         # Start with bootstrap peers
-        initial_piers = hparams.get("initial_piers", []) + bootstrap_peers
+        # bootstrap_piers = [
+        #     "/p2p/QmVtpsm7b91S5pYcjsreHKxoHU6wThBn6RFHPrUWXCBrzo",  # src.eco
+        #     "/p2p/QmVQE44X5wPo5LNheJCBMVRUTRsceJNxVowjxerPUCCZmY",  # src.eco
+        # ]
 
-        # pattern = r"(/p2p/.*)"
-
-        # initial_piers.append(random.choice(bootstrap_peers))
-
-        # # Get my local peers
-        # command = "docker exec vtx-fil-1 ipfs swarm peers"
-        # process = subprocess.Popen(
-        #     command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        # )
-        # output, error = process.communicate()
-
-        # peers = output.decode("utf-8").splitlines()
-
-        # for peer in peers:
-        #     match = re.search(pattern, peer)
-        #     if match:
-        #         initial_piers.append(match.group(1))
-
-        # # Get my own peer ID
-        # command = "docker exec vtx-fil-1 ipfs id"
-        # process = subprocess.Popen(
-        #     command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        # )
-        # output, error = process.communicate()
-
-        # try:
-        #     mine = json.loads(output.decode("utf-8"))
-        #     craft = f"/p2p/{mine['ID']}"
-        #     initial_piers.append(craft)
-        # except:
-        #     pass
+        # initial_piers = hparams.get("initial_piers", []) + bootstrap_piers
+        initial_piers = hparams.get("initial_piers", [])
 
         delay = 1.0
         for peer in initial_piers:
@@ -82,7 +51,6 @@ def get_strategy(name, params, hparams, train_params, scheduler):
 
             def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
                 schedule = lm.lr_schedulers()
-                # trainer.strategy.barrier()
                 if schedule.current_step >= self.max_steps:
                     print(f"Reached max_steps ({self.max_steps}). Stopping training.")
                     trainer.should_stop = True
@@ -129,6 +97,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         ]
 
         my_ids = []
+        pattern = r"(/p2p/.*)"
         for peer in list(visible_addresses):
             match = re.search(pattern, peer)
             if match:
