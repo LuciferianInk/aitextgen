@@ -4,6 +4,9 @@ from typing import List, Union
 from tokenizers import ByteLevelBPETokenizer
 
 
+# https://huggingface.co/docs/tokenizers/quicktour
+# There is a better way to do this; we just haven't
+# fixed it yet.
 def train_tokenizer(
     files: Union[str, List[str]],
     dropout: float = None,
