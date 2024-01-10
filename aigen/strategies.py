@@ -79,12 +79,13 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             verbose=False,
             wait_timeout=90,
             bootstrap_timeout=30,
-            matchmaking_time=30.0,
-            averaging_timeout=60.0,
+            matchmaking_time=90.0,
+            averaging_timeout=180.0,
             # delay_state_averaging=True,
             # delay_grad_averaging=True,
             # delay_optimizer_step=True,
-            # offload_optimizer=True,  # required to delay averaging
+            # offload_optimizer=True,
+            # scheduler_fn=scheduler,
             # scheduler_fn=partial(
             #     AdamW,
             #     # params,
