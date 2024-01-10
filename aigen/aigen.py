@@ -9,19 +9,19 @@ from typing import List, Optional, Union
 import torch
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
-  ModelCheckpoint,
-  ModelPruning,
-  StochasticWeightAveraging,
+    ModelCheckpoint,
+    ModelPruning,
+    StochasticWeightAveraging,
 )
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
 from peft import PeftModel
 from pkg_resources import resource_filename
 from transformers import (
-  AutoConfig,
-  AutoModelForCausalLM,
-  AutoTokenizer,
-  GenerationConfig,
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    GenerationConfig,
 )
 
 from .datasets import StaticDataModule, StaticDataset, StreamingDataModule
@@ -29,11 +29,11 @@ from .optimizers import get_optimizer
 from .schedulers import get_schedule
 from .strategies import get_strategy
 from .train import (
-  AIGMetricsLogger,
-  AIGModelSaver,
-  AIGProgressBar,
-  AIGSampleGenerator,
-  AIGTrainer,
+    AIGMetricsLogger,
+    AIGModelSaver,
+    AIGProgressBar,
+    AIGSampleGenerator,
+    AIGTrainer,
 )
 from .utils import colors, model_max_length, reset_seed, set_seed
 
@@ -455,7 +455,7 @@ class aigen:
                 torch.cuda.set_device(devices[0])
             except Exception as e:
                 logging.error(e)
-                torch.cuda.set_device(0)
+                torch.cuda.set_device([0])
 
         num_workers = (
             num_workers if num_workers is not None else int(os.cpu_count() / 2)
