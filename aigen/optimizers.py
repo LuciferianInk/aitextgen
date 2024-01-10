@@ -8,7 +8,7 @@ def get_optimizer(params, hparams):
             betas=(0.9, 0.99),
             r=0.95,
             use_gc=True,
-            adanorm=True,
+            adanorm=False,
         )
     elif hparams["optimizer"] == "AdaBelief":
         from pytorch_optimizer import AdaBelief

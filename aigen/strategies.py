@@ -65,9 +65,11 @@ def get_strategy(name, params, hparams, train_params, scheduler):
 
         focus = os.environ["FOCUS"]
 
+        pet = random.choice(["cat", "dog", "fox"])
+
         strategy = HivemindStrategy(
             run_id=f"src-vtx-{focus}",
-            identity_path='/data/identity.key',
+            identity_path=f"/data/identity.{pet}.key",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
             initial_peers=initial_piers,
