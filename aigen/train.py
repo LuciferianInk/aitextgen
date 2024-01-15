@@ -93,11 +93,8 @@ class AIGTrainer(LightningModule):
 
         return loss
 
-    # def predict_step(*args, **kwargs):
-    #     pass
-
     def configure_optimizers(self):
-        "Prepare optimizer"
+        "Create optimizer and scheduler"
 
         return [self.optimizer], [self.scheduler]
 

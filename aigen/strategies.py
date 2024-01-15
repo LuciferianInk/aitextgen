@@ -68,7 +68,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         pet = random.choice(["cat", "dog", "fox"])
 
         strategy = HivemindStrategy(
-            run_id=f"src-vtx-{focus}",
+            run_id=f"vtx-src-{focus}",
             identity_path=f"/data/identity.{pet}.key",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
@@ -77,10 +77,10 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             use_relay=True,
             use_auto_relay=True,
             verbose=False,
-            wait_timeout=90,
-            bootstrap_timeout=30,
-            matchmaking_time=90.0,
-            averaging_timeout=300.0,
+            # wait_timeout=90,
+            bootstrap_timeout=15,
+            matchmaking_time=45.0,
+            # averaging_timeout=300.0,
             # reuse_grad_buffers=True,
             # delay_state_averaging=True,
             # delay_grad_averaging=True,
