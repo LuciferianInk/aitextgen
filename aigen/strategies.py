@@ -80,7 +80,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             wait_timeout=90,
             bootstrap_timeout=30,
             matchmaking_time=90.0,
-            averaging_timeout=180.0,
+            averaging_timeout=600.0,
             # delay_state_averaging=True,
             # delay_grad_averaging=True,
             # delay_optimizer_step=True,
