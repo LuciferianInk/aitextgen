@@ -455,7 +455,7 @@ class aigen:
                 torch.cuda.set_device(devices[0])
             except Exception as e:
                 logging.error(e)
-                torch.cuda.set_device([0])
+                torch.cuda.set_device(0)
 
         num_workers = (
             num_workers if num_workers is not None else int(os.cpu_count() / 2)
