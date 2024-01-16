@@ -13,7 +13,7 @@ from lightning.pytorch.callbacks import Callback
 from .utils import colors
 
 
-def get_strategy(name, params, hparams, train_params):
+def get_strategy(name, params, hparams, train_params, schedule):
     if name == "deepspeed":
         strategy = DeepSpeedStrategy(
             stage=3,
@@ -51,11 +51,11 @@ def get_strategy(name, params, hparams, train_params):
                 self.max_steps = max_steps
 
             def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
-                schedule = lm.lr_schedulers()
-                # if schedule.current_step >= self.max_steps:
-                #     print(f"Reached max_steps ({self.max_steps}). Stopping training.")
-                #     trainer.should_stop = True
-                #     trainer.strategy.teardown()
+                current_step = trainer.strategy.optimizers[0].local_epoch
+                if current_step >= self.max_steps:
+                    print(f"Reached max_steps ({self.max_steps}). Stopping training.")
+                    trainer.should_stop = True
+                    trainer.strategy.teardown()
 
         train_params["callbacks"].append(
             MaxStepCallback(max_steps=train_params["max_steps"])
@@ -68,6 +68,7 @@ def get_strategy(name, params, hparams, train_params):
 
         pet = random.choice(["cat", "dog", "fox"])
 
+        schedule = False
         strategy = HivemindStrategy(
             run_id=f"vtx-{focus}",
             identity_path=f"/data/identity.{pet}.key",
@@ -79,7 +80,7 @@ def get_strategy(name, params, hparams, train_params):
             use_auto_relay=True,
             verbose=False,
             wait_timeout=30,
-            bootstrap_timeout=15,
+            bootstrap_timeout=20,
             matchmaking_time=45.0,
             averaging_timeout=180.0,
             reuse_grad_buffers=True,
@@ -114,4 +115,4 @@ def get_strategy(name, params, hparams, train_params):
     else:
         strategy = name
 
-    return strategy
+    return strategy, schedule

@@ -45,14 +45,6 @@ class AIGTrainer(LightningModule):
     def training_step(self, batch, batch_idx):
         losses = []
 
-        schedule = self.lr_schedulers()
-        step = self.global_step
-
-        print(self.global_epoch)
-
-        if hasattr(schedule, "current_step"):
-            step = schedule.current_step
-
         for sample in batch:
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
@@ -60,7 +52,6 @@ class AIGTrainer(LightningModule):
 
         loss = sum(losses) / len(losses)
 
-        self.log("step", int(step), on_step=True, on_epoch=True, sync_dist=True)
         self.log("train_loss", float(loss), on_step=True, on_epoch=True, sync_dist=True)
         self.log(
             "train_tokens",
@@ -70,10 +61,21 @@ class AIGTrainer(LightningModule):
             sync_dist=True,
         )
 
+        return loss
+
+    def on_train_batch_end(self, trainer, lm, outputs):
+        schedule = self.lr_schedulers()
+        step = self.global_step
+
+        if hasattr(schedule, "current_step"):
+            step = schedule.current_step
+        elif hasattr(self.trainer.strategy.optimizers[0], "local_epoch"):
+            step = self.trainer.strategy.optimizers[0].local_epoch
+
+        self.log("step", int(step), on_step=True, on_epoch=True, sync_dist=True)
+
         if hasattr(schedule, "step"):
             schedule.step()
-
-        return loss
 
     def validation_step(self, batch, batch_idx):
         losses = []
@@ -148,7 +150,7 @@ class AIGProgressBar(ProgressBar):
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
-        step = int(trainer.callback_metrics["step"])
+        step = int(trainer.callback_metrics.get("step", -1))
         if step == -1:
             return
 
@@ -270,7 +272,7 @@ class AIGModelSaver(Callback):
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
-        self.step = int(trainer.callback_metrics["step"])
+        self.step = int(trainer.callback_metrics.get("step", 0))
 
         if TPUAccelerator.is_available() and self.save_every_check:
             self.save_pytorch_model(trainer, lm, tpu=True)
@@ -324,7 +326,7 @@ class AIGSampleGenerator(Callback):
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
 
-        self.step = int(trainer.callback_metrics["step"])
+        self.step = int(trainer.callback_metrics.get("step", -1))
 
         if (
             self.step > 0
@@ -379,7 +381,10 @@ class AIGMetricsLogger(Callback):
         if lm.train_len > 0:
             current_epoch += batch_idx / lm.train_len
 
-        step = trainer.callback_metrics["step"]
+        step = trainer.callback_metrics.get("step", 0)
+
+        if step == 0:
+            return
 
         metrics = {
             "train_loss": trainer.callback_metrics["train_loss"],
