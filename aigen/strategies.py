@@ -83,11 +83,11 @@ def get_strategy(name, params, hparams, train_params, schedule):
             bootstrap_timeout=20,
             matchmaking_time=45.0,
             averaging_timeout=180.0,
-            reuse_grad_buffers=True,
             delay_state_averaging=True,
             delay_grad_averaging=True,
             delay_optimizer_step=True,
             offload_optimizer=True,
+            reuse_grad_buffers=False,
             scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=0.999),
         )
 
