@@ -48,6 +48,8 @@ class AIGTrainer(LightningModule):
         schedule = self.lr_schedulers()
         step = self.global_step
 
+        print(self.global_epoch)
+
         if hasattr(schedule, "current_step"):
             step = schedule.current_step
 
@@ -68,7 +70,8 @@ class AIGTrainer(LightningModule):
             sync_dist=True,
         )
 
-        schedule.step()
+        if hasattr(schedule, "step"):
+            schedule.step()
 
         return loss
 
@@ -96,7 +99,9 @@ class AIGTrainer(LightningModule):
     def configure_optimizers(self):
         "Create optimizer and scheduler"
 
-        return [self.optimizer], [self.scheduler]
+        if self.scheduler:
+            return [self.optimizer], [self.scheduler()]
+        return [self.optimizer]
 
 
 class AIGProgressBar(ProgressBar):

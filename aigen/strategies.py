@@ -7,12 +7,13 @@ import subprocess
 import time
 from functools import partial
 
+import torch
 from lightning.pytorch.callbacks import Callback
 
 from .utils import colors
 
 
-def get_strategy(name, params, hparams, train_params, scheduler):
+def get_strategy(name, params, hparams, train_params):
     if name == "deepspeed":
         strategy = DeepSpeedStrategy(
             stage=3,
@@ -51,10 +52,10 @@ def get_strategy(name, params, hparams, train_params, scheduler):
 
             def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
                 schedule = lm.lr_schedulers()
-                if schedule.current_step >= self.max_steps:
-                    print(f"Reached max_steps ({self.max_steps}). Stopping training.")
-                    trainer.should_stop = True
-                    trainer.strategy.teardown()
+                # if schedule.current_step >= self.max_steps:
+                #     print(f"Reached max_steps ({self.max_steps}). Stopping training.")
+                #     trainer.should_stop = True
+                #     trainer.strategy.teardown()
 
         train_params["callbacks"].append(
             MaxStepCallback(max_steps=train_params["max_steps"])
@@ -68,7 +69,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         pet = random.choice(["cat", "dog", "fox"])
 
         strategy = HivemindStrategy(
-            run_id=f"vtx-src-{focus}",
+            run_id=f"vtx-{focus}",
             identity_path=f"/data/identity.{pet}.key",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
@@ -81,18 +82,12 @@ def get_strategy(name, params, hparams, train_params, scheduler):
             bootstrap_timeout=15,
             matchmaking_time=45.0,
             averaging_timeout=180.0,
-            # reuse_grad_buffers=True,
-            # delay_state_averaging=True,
-            # delay_grad_averaging=True,
-            # delay_optimizer_step=True,
-            # offload_optimizer=True,
-            # scheduler_fn=scheduler,
-            # scheduler_fn=partial(
-            #     AdamW,
-            #     # params,
-            #     lr=hparams["learning_rate"],
-            #     eps=hparams.get("eps", 1e-8),
-            # ),
+            reuse_grad_buffers=True,
+            delay_state_averaging=True,
+            delay_grad_averaging=True,
+            delay_optimizer_step=True,
+            offload_optimizer=True,
+            scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=0.999),
         )
 
         visible_addresses = [
@@ -111,6 +106,7 @@ def get_strategy(name, params, hparams, train_params, scheduler):
         print(
             f"{colors.BLUE}ONE@SWARM:{colors.WHITE} To join this swarm, use the following `initial_piers`:"
         )
+
         for peer in list(set(my_ids)):
             print(
                 f"{colors.GREEN}PIER-{len(initial_piers) + list(set(my_ids)).index(peer)}:{colors.WHITE} {peer}"

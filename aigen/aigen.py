@@ -615,8 +615,9 @@ class aigen:
         schedule = get_schedule(hparams, opt)
 
         if strategy is not None:
+            schedule = False
             train_params["strategy"] = get_strategy(
-                strategy, params, hparams, train_params, schedule
+                strategy, params, hparams, train_params
             )
 
         # Wrap the model in a pytorch-lightning module
