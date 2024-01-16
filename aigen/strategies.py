@@ -88,7 +88,8 @@ def get_strategy(name, params, hparams, train_params, schedule):
             delay_optimizer_step=True,
             offload_optimizer=True,
             reuse_grad_buffers=False,
-            scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=0.999),
+            scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=9e-5
+            ),
         )
 
         visible_addresses = [
