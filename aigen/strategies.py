@@ -81,7 +81,7 @@ def get_strategy(name, params, hparams, train_params, schedule):
             use_auto_relay=True,
             verbose=False,
             wait_timeout=30,
-            bootstrap_timeout=30,
+            bootstrap_timeout=20,
             matchmaking_time=45.0,
             averaging_timeout=180.0,
             delay_state_averaging=True,
@@ -89,9 +89,9 @@ def get_strategy(name, params, hparams, train_params, schedule):
             delay_optimizer_step=True,
             offload_optimizer=True,
             reuse_grad_buffers=False,
-            # grad_compression=Float16Compression(),
-            # state_averaging_compression=Float16Compression(),
-            # load_state_compression=NoCompression(),
+            grad_compression=Float16Compression(),
+            state_averaging_compression=Float16Compression(),
+            load_state_compression=NoCompression(),
             scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=0.9999),
         )
 
