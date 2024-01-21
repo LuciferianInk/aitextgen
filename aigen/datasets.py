@@ -45,10 +45,10 @@ class StaticDataset(Dataset):
         stride: int = 0,
         tokenized_texts: bool = False,
         text_delim: str = "\n",
-        bos_token: str = "<|endoftext|>",
-        eos_token: str = "<|endoftext|>",
-        unk_token: str = "<|endoftext|>",
-        pad_token: str = "<|endoftext|>",
+        bos_token: str = "<|void|>",
+        eos_token: str = "<|void|>",
+        unk_token: str = "<|void|>",
+        pad_token: str = "<|void|>",
         **kwargs,
     ) -> None:
         self.block_size = block_size

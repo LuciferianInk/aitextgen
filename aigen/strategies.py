@@ -25,6 +25,7 @@ def get_strategy(name, params, hparams, train_params, schedule):
     elif name == "hivemind":
         import ipaddress
 
+        from hivemind import Float16Compression, NoCompression
         from lightning_hivemind.strategy import HivemindStrategy
 
         assert (
@@ -88,6 +89,9 @@ def get_strategy(name, params, hparams, train_params, schedule):
             delay_optimizer_step=True,
             offload_optimizer=True,
             reuse_grad_buffers=False,
+            grad_compression=Float16Compression(),
+            state_averaging_compression=Float16Compression(),
+            load_state_compression=NoCompression(),
             scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=0.9999),
         )
 

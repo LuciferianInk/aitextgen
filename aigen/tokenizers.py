@@ -12,10 +12,10 @@ def train_tokenizer(
     min_frequency: int = 2,
     save_path: str = "aigen",
     added_tokens: List[str] = [],
-    bos_token: str = "<|endoftext|>",
-    eos_token: str = "<|endoftext|>",
-    unk_token: str = "<|endoftext|>",
-    pad_token: str = "<|endoftext|>",
+    bos_token: str = "<|void|>",
+    eos_token: str = "<|void|>",
+    unk_token: str = "<|void|>",
+    pad_token: str = "<|void|>",
 ) -> None:
     """
     Tokenizes the text(s) as a tokenizer, wrapping the tokenizer package.
