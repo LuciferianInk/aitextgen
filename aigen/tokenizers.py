@@ -43,7 +43,9 @@ def train_tokenizer(
     if isinstance(files, str):
         files = [files]
 
-    tokenizer = Tokenizer(models.BPE(dropout=dropout))
+    tokenizer = Tokenizer(
+        models.BPE(dropout=dropout, unk_token=unk_token, fuse_unk=True)
+    )
     trainer = trainers.BpeTrainer(
         vocab_size=vocab_size,
         min_frequency=min_frequency,
