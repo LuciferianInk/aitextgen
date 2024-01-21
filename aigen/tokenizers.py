@@ -1,18 +1,10 @@
 import os
 from typing import List, Union
 
-from tokenizers import Tokenizer
-from tokenizers.decoders import ByteLevel as ByteLevel2
-from tokenizers.models import BPE
-from tokenizers.pre_tokenizers import ByteLevel as ByteLevel1
-from tokenizers.pre_tokenizers import Whitespace
-from tokenizers.processors import ByteLevel as ByteLevel3
-from tokenizers.processors import TemplateProcessing
-from tokenizers.trainers import BpeTrainer
+from tokenizers import Tokenizer, decoders, models, pre_tokenizers, processors, trainers
 from transformers import PreTrainedTokenizerFast
 
 
-# https://huggingface.co/docs/tokenizers/quicktour
 def train_tokenizer(
     files: Union[str, List[str]],
     dropout: float = None,
@@ -27,7 +19,7 @@ def train_tokenizer(
 ) -> None:
     """
     Tokenizes the text(s) as a tokenizer, wrapping the tokenizer package.
-    See: https://huggingface.co/blog/how-to-train
+    See: https://huggingface.co/docs/tokenizers/quicktour
 
     For consistency, this function makes opinionated assuptions.
 
@@ -51,27 +43,35 @@ def train_tokenizer(
     if isinstance(files, str):
         files = [files]
 
-    tokenizer = Tokenizer(
-        BPE(
-            cache_capacity=100_000,
-            dropout=dropout,
-            unk_token=unk_token,
-            fuse_unk=True,
-            byte_fallback=True,
-        )
-    )
-    trainer = BpeTrainer(
+    tokenizer = Tokenizer(models.BPE(dropout=dropout))
+    trainer = trainers.BpeTrainer(
         vocab_size=vocab_size,
         min_frequency=min_frequency,
-        special_tokens=[unk_token, bos_token, eos_token, pad_token],
+        initial_alphabet=pre_tokenizers.ByteLevel.alphabet(),
+        special_tokens=[
+            unk_token,
+            pad_token,
+            bos_token,
+            eos_token,
+        ],
     )
 
-    tokenizer.pre_tokenizer = Whitespace()
-    tokenizer.pre_tokenizer = ByteLevel1(add_prefix_space=True, use_regex=True)
-    tokenizer.decoder = ByteLevel2()
-    tokenizer.post_processor = ByteLevel3(trim_offsets=True)
+    tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
+        [
+            pre_tokenizers.Digits(individual_digits=True),
+            pre_tokenizers.ByteLevel(
+                add_prefix_space=False, trim_offsets=True, use_regex=True
+            ),
+        ]
+    )
+    tokenizer.decoder = decoders.ByteLevel(
+        add_prefix_space=True, trim_offsets=True, use_regex=True
+    )
+    tokenizer.post_processor = processors.ByteLevel(
+        add_prefix_space=True, trim_offsets=True, use_regex=True
+    )
 
-    # tokenizer.post_processor = TemplateProcessing(
+    # tokenizer.post_processor = processors.TemplateProcessing(
     #     single="[CLS] $A [SEP]",
     #     pair="[CLS] $A [SEP] $B:1 [SEP]:1",
     #     special_tokens=[
@@ -90,9 +90,9 @@ def train_tokenizer(
     trained_tokenizer.add_special_tokens(
         {
             "unk_token": unk_token,
+            "pad_token": pad_token,
             "bos_token": bos_token,
             "eos_token": eos_token,
-            "pad_token": pad_token,
         }
     )
 

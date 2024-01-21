@@ -184,7 +184,7 @@ class AIGProgressBar(ProgressBar):
 
         if random.random() > 0.666:
             b1 = f"{self.blue}{b1}{self.white}"
-        elif random.random() > 0.666:
+        elif random.random() > 0.888:
             b1 = f"{self.red}{b1}{self.white}"
         else:
             b1 = f"{self.white}{b1}{self.white}"
