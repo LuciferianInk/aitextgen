@@ -1,10 +1,13 @@
 import os
 from typing import List, Union
 
-from tokenizers import ByteLevelBPETokenizer, Tokenizer
+from tokenizers import Tokenizer
+from tokenizers.decoders import ByteLevel as ByteLevel2
 from tokenizers.models import BPE
+from tokenizers.pre_tokenizers import ByteLevel as ByteLevel1
 from tokenizers.pre_tokenizers import Whitespace
-from tokenizers.processors import ByteLevel, TemplateProcessing
+from tokenizers.processors import ByteLevel as ByteLevel3
+from tokenizers.processors import TemplateProcessing
 from tokenizers.trainers import BpeTrainer
 from transformers import PreTrainedTokenizerFast
 
@@ -50,9 +53,11 @@ def train_tokenizer(
 
     tokenizer = Tokenizer(
         BPE(
+            cache_capacity=100_000,
             dropout=dropout,
-            byte_fallback=True,
             unk_token=unk_token,
+            fuse_unk=True,
+            byte_fallback=True,
         )
     )
     trainer = BpeTrainer(
@@ -62,25 +67,23 @@ def train_tokenizer(
     )
 
     tokenizer.pre_tokenizer = Whitespace()
-    tokenizer.post_processor = ByteLevel(trim_offsets=True)
+    tokenizer.pre_tokenizer = ByteLevel1(add_prefix_space=True, use_regex=True)
+    tokenizer.decoder = ByteLevel2()
+    tokenizer.post_processor = ByteLevel3(trim_offsets=True)
+
+    # tokenizer.post_processor = TemplateProcessing(
+    #     single="[CLS] $A [SEP]",
+    #     pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+    #     special_tokens=[
+    #         ("[CLS]", tokenizer.token_to_id("[CLS]")),
+    #         ("[SEP]", tokenizer.token_to_id("[SEP]")),
+    #     ],
+    # )
 
     tokenizer.train(
         files=files,
         trainer=trainer,
     )
-
-    # tokenizer.post_processor = TemplateProcessing(
-    #     # single="[CLS] $A [SEP]",
-    #     # pair="[CLS] $A [SEP] $B:1 [SEP]:1",
-    #     special_tokens=[
-    #         # ("[CLS]", tokenizer.token_to_id("[CLS]")),
-    #         # ("[SEP]", tokenizer.token_to_id("[SEP]")),
-    #         (unk_token, tokenizer.token_to_id(unk_token)),
-    #         (bos_token, tokenizer.token_to_id(bos_token)),
-    #         (eos_token, tokenizer.token_to_id(eos_token)),
-    #         (pad_token, tokenizer.token_to_id(pad_token)),
-    #     ],
-    # )
 
     trained_tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer)
 
