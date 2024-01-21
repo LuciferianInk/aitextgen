@@ -81,7 +81,7 @@ def get_strategy(name, params, hparams, train_params, schedule):
             use_auto_relay=True,
             verbose=False,
             wait_timeout=30,
-            bootstrap_timeout=20,
+            bootstrap_timeout=30,
             matchmaking_time=45.0,
             averaging_timeout=180.0,
             delay_state_averaging=True,
