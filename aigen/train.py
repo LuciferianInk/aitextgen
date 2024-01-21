@@ -46,6 +46,8 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
+            if sample.nelement() == 0:
+                continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
             self.train_tokens += int(self.hparams["block_size"])
@@ -81,6 +83,8 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
+            if sample.nelement() == 0:
+                continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
 
