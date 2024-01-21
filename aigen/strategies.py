@@ -66,7 +66,7 @@ def get_strategy(name, params, hparams, train_params, schedule):
 
         focus = os.environ["FOCUS"]
 
-        pet = random.choice(["cat", "dog", "fox"])
+        pet = random.choice(["cat", "dog", "fox", "jackal", "lemur"])
 
         schedule = False
         strategy = HivemindStrategy(
@@ -88,7 +88,7 @@ def get_strategy(name, params, hparams, train_params, schedule):
             delay_optimizer_step=True,
             offload_optimizer=True,
             reuse_grad_buffers=False,
-            scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=0.99999),
+            scheduler_fn=partial(torch.optim.lr_scheduler.ExponentialLR, gamma=0.9999),
         )
 
         visible_addresses = [

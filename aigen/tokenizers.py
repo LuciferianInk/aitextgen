@@ -1,25 +1,26 @@
 import os
 from typing import List, Union
 
-from tokenizers import ByteLevelBPETokenizer
+from tokenizers import ByteLevelBPETokenizer, Tokenizer
+from tokenizers.models import BPE
+from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.processors import ByteLevel, TemplateProcessing
+from tokenizers.trainers import BpeTrainer
+from transformers import PreTrainedTokenizerFast
 
 
 # https://huggingface.co/docs/tokenizers/quicktour
-# There is a better way to do this; we just haven't
-# fixed it yet.
 def train_tokenizer(
     files: Union[str, List[str]],
     dropout: float = None,
     vocab_size: int = 1000,
     min_frequency: int = 2,
-    prefix: str = "aigen",
-    save_path: str = "",
+    save_path: str = "aigen",
     added_tokens: List[str] = [],
     bos_token: str = "<|endoftext|>",
     eos_token: str = "<|endoftext|>",
     unk_token: str = "<|endoftext|>",
-    serialize: bool = True,
-    trim_offsets: bool = True,
+    pad_token: str = "<|endoftext|>",
 ) -> None:
     """
     Tokenizes the text(s) as a tokenizer, wrapping the tokenizer package.
@@ -31,7 +32,6 @@ def train_tokenizer(
     :param dropout: Training dropout
     :param vocab_size: Final vocabulary size
     :param min_frequency: Minimum number of occurences to add to vocab
-    :param prefix: File name prefix of the final tokenizer
     :param save_path: Where to save the final tokenizer
     :param added_tokens: List of tokens to add to the tokenizer (currently not working)
     :param bos_token: Beginning-of-string special token
@@ -48,20 +48,53 @@ def train_tokenizer(
     if isinstance(files, str):
         files = [files]
 
-    tokenizer = ByteLevelBPETokenizer(dropout=dropout, trim_offsets=trim_offsets)
+    tokenizer = Tokenizer(
+        BPE(
+            dropout=dropout,
+            byte_fallback=True,
+            unk_token=unk_token,
+        )
+    )
+    trainer = BpeTrainer(
+        vocab_size=vocab_size,
+        min_frequency=min_frequency,
+        special_tokens=[unk_token, bos_token, eos_token, pad_token],
+    )
+
+    tokenizer.pre_tokenizer = Whitespace()
+    tokenizer.post_processor = ByteLevel(trim_offsets=True)
 
     tokenizer.train(
         files=files,
-        vocab_size=vocab_size,
-        min_frequency=min_frequency,
-        special_tokens=[bos_token, eos_token, unk_token] + added_tokens,
+        trainer=trainer,
     )
 
-    output_dir = f"{save_path}/{prefix}"
+    # tokenizer.post_processor = TemplateProcessing(
+    #     # single="[CLS] $A [SEP]",
+    #     # pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+    #     special_tokens=[
+    #         # ("[CLS]", tokenizer.token_to_id("[CLS]")),
+    #         # ("[SEP]", tokenizer.token_to_id("[SEP]")),
+    #         (unk_token, tokenizer.token_to_id(unk_token)),
+    #         (bos_token, tokenizer.token_to_id(bos_token)),
+    #         (eos_token, tokenizer.token_to_id(eos_token)),
+    #         (pad_token, tokenizer.token_to_id(pad_token)),
+    #     ],
+    # )
 
-    os.makedirs(output_dir, exist_ok=True)
+    trained_tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer)
 
-    if serialize:
-        tokenizer.save(f"{output_dir}/tokenizer.json")
-    else:
-        tokenizer.save_model(output_dir)
+    trained_tokenizer.add_special_tokens(
+        {
+            "unk_token": unk_token,
+            "bos_token": bos_token,
+            "eos_token": eos_token,
+            "pad_token": pad_token,
+        }
+    )
+
+    os.makedirs(save_path, exist_ok=True)
+
+    trained_tokenizer.save_pretrained(save_path)
+
+    return trained_tokenizer
