@@ -67,8 +67,20 @@ def get_strategy(name, params, hparams, train_params, schedule):
 
         focus = os.environ["FOCUS"]
 
+        # catch em all
         pet = random.choice(
-            ["cat", "dog", "fox", "jackal", "lemur", "squirrel", "frog"]
+            [
+                "cat",
+                "dog",
+                "fox",
+                "jackal",
+                "lemur",
+                "squirrel",
+                "frog",
+                "crotalus",
+                "mouse",
+                "keyboard",
+            ]
         )
 
         schedule = False
