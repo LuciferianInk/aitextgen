@@ -249,7 +249,7 @@ class AIGProgressBar(ProgressBar):
 
 
 class AIGModelSaver(Callback):
-    """Periodically model during training."""
+    """Periodically save the model during training."""
 
     def __init__(
         self,
