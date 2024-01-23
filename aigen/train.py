@@ -74,7 +74,7 @@ class AIGTrainer(LightningModule):
         elif hasattr(self.trainer.strategy.optimizers[0], "local_epoch"):
             step = self.trainer.strategy.optimizers[0].local_epoch
 
-        self.log("step", int(step), on_step=True, on_epoch=True, sync_dist=True)
+        self.log("step", int(step), on_step=True, on_epoch=False, sync_dist=True)
 
         if hasattr(schedule, "step"):
             schedule.step()
