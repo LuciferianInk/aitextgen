@@ -46,7 +46,7 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if sample.nelement() == 0:
+            if len(sample) == 0:
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
@@ -54,12 +54,14 @@ class AIGTrainer(LightningModule):
 
         loss = sum(losses) / len(losses)
 
-        self.log("train_loss", float(loss), on_step=True, on_epoch=True, sync_dist=True)
+        self.log(
+            "train_loss", float(loss), on_step=True, on_epoch=False, sync_dist=True
+        )
         self.log(
             "train_tokens",
             int(self.train_tokens),
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
             sync_dist=True,
         )
 
@@ -83,7 +85,7 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if sample.nelement() == 0:
+            if len(sample) == 0:
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])

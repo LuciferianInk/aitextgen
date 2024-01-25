@@ -506,7 +506,7 @@ class aigen:
             else val_interval * gradient_accumulation_steps,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=True if checkpoint_every > 0 else False,
-            precision="32-true",
+            precision="64-true" if self.precision in [64, 128] else "32-true",
             accumulate_grad_batches=gradient_accumulation_steps,
             gradient_clip_val=gradient_clip_val,
             gradient_clip_algorithm="norm",
