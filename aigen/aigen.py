@@ -76,6 +76,12 @@ class aigen:
 
         qargs = dict(torch_dtype=torch.float32)
 
+        if precision in [128]:
+            qargs["torch_dtype"] = torch.complex128
+
+        if precision in [64]:
+            qargs["torch_dtype"] = torch.float64
+
         if precision in [16, 8, 4]:
             qargs["torch_dtype"] = torch.bfloat16
 
@@ -97,6 +103,7 @@ class aigen:
                 config = AutoConfig.from_pretrained(config, low_cpu_mem_usage=True)
             for k, v in qargs.items():
                 setattr(config, k, v)
+            setattr(config, "torch_dtype", qargs["torch_dtype"])
             self.model = AutoModelForCausalLM.from_config(config)
         else:
             if model_folder:
