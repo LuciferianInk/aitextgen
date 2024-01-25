@@ -104,6 +104,8 @@ class aigen:
             for k, v in qargs.items():
                 setattr(config, k, v)
             setattr(config, "torch_dtype", qargs["torch_dtype"])
+            print(f"{colors.GREEN}modified pretrain config:{colors.WHITE}")
+            print(config)
             self.model = AutoModelForCausalLM.from_config(config)
         else:
             if model_folder:
