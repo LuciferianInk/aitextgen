@@ -46,7 +46,7 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if len(sample) == 0:
+            if sample[0][0] == self.tokenizer.eos_token_id:
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
@@ -85,7 +85,7 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if len(sample) == 0:
+            if sample[0][0] == self.tokenizer.eos_token_id:
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
