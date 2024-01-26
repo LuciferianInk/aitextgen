@@ -352,7 +352,11 @@ class InstructStreamingDataset(StreamingDataset):
             if random.random() < self.config.get("sample_rate", 1.0):
                 human = self.config["identity_function"]()
                 robot = self.config["identity_function"]()
-                content = f"{wall}{human}{ship} {document.get('definition')}\n{wall}{human}{ship} {document.get('inputs')}\n{wall}{robot}{ship} {document.get('targets')}"
+                content = (
+                    f"{wall}{human}{ship} {document.get('definition')}\n"
+                    f"{wall}{human}{ship} {document.get('inputs')}\n"
+                    f"{wall}{robot}{ship} {document.get('targets')}"
+                )
                 tokens = self.tokenizer(
                     text=content,
                     max_length=block_size,
