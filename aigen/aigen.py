@@ -506,7 +506,7 @@ class aigen:
             val_check_interval=1000
             if overfit
             else val_interval * gradient_accumulation_steps,
-            reload_dataloaders_every_n_epochs=1,
+            reload_dataloaders_every_n_epochs=0,
             enable_checkpointing=True if checkpoint_every > 0 else False,
             precision="64-true" if self.precision in [64, 128] else "32-true",
             accumulate_grad_batches=gradient_accumulation_steps,
