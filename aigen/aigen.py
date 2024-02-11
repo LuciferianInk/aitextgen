@@ -7,6 +7,7 @@ import time
 from typing import List, Optional, Union
 
 import torch
+from lightning.fabric.utilities.seed import reset_seed, seed_everything
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
     ModelCheckpoint,
@@ -35,8 +36,9 @@ from .train import (
     AIGSampleGenerator,
     AIGTrainer,
 )
-from .utils import colors, model_max_length, reset_seed, set_seed
+from .utils import colors, model_max_length
 
+logging.getLogger("lightning.fabric").setLevel(logging.WARNING)
 logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
 
@@ -277,7 +279,7 @@ class aigen:
         **kwargs,
     ) -> Optional[str]:
         if seed:
-            set_seed(seed)
+            seed_everything(seed)
 
         prompt_tensors = self.tokenizer(text=prompt, return_tensors="pt")
 
@@ -348,9 +350,7 @@ class aigen:
             if len(gen_texts) == 0:
                 continue
 
-            # Reset seed if used
-            if seed:
-                reset_seed()
+            reset_seed()
 
             return gen_texts[0]
 
@@ -444,7 +444,7 @@ class aigen:
             self.model.training = True
 
         if seed:
-            set_seed(seed)
+            seed_everything(seed)
 
         is_gpu_used = torch.cuda.is_available()
 
@@ -503,9 +503,9 @@ class aigen:
             devices=devices,
             max_steps=num_steps,
             max_epochs=-1,
-            val_check_interval=1000
-            if overfit
-            else val_interval * gradient_accumulation_steps,
+            val_check_interval=(
+                1000 if overfit else val_interval * gradient_accumulation_steps
+            ),
             reload_dataloaders_every_n_epochs=0,
             enable_checkpointing=True if checkpoint_every > 0 else False,
             precision="32-true",
@@ -669,8 +669,7 @@ class aigen:
         if save_every > 0 and not petals:
             self.save(output_dir)
 
-        if seed:
-            reset_seed()
+        reset_seed()
 
         return trainer.callback_metrics["train_loss"].item()
 
