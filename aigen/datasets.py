@@ -170,6 +170,7 @@ class StaticDataset(Dataset):
                 content[i : i + batch_size] for i in range(0, len(content), batch_size)
             ]
             tokenized_batches = []
+            max_len = 0
             with tqdm(total=len(batches)) as pbar:
                 for batch in batches:
                     tokenized = tokenizer(
@@ -181,10 +182,25 @@ class StaticDataset(Dataset):
                         truncation=True,
                         return_tensors="np",
                     )
+                    max_len = max(max_len, tokenized["input_ids"].shape[1])
                     tokenized_batches.append(tokenized["input_ids"])
                     pbar.update(1)
 
-            tokens = np.concatenate(tokenized_batches)
+            padded_batches = []
+            for batch in tokenized_batches:
+                padding_length = max_len - batch.shape[1]
+                if padding_length > 0:
+                    padded_batch = np.pad(
+                        batch,
+                        ((0, 0), (0, padding_length)),
+                        mode="constant",
+                        constant_values=tokenizer.pad_token_id,
+                    )
+                else:
+                    padded_batch = batch
+                padded_batches.append(padded_batch)
+
+            tokens = np.concatenate(padded_batches)
 
             return tokens
 

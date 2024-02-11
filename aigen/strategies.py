@@ -15,6 +15,8 @@ from .utils import colors
 
 def get_strategy(name, params, hparams, train_params, schedule):
     if name == "deepspeed":
+        from lightning.pytorch.strategies import DeepSpeedStrategy
+
         strategy = DeepSpeedStrategy(
             stage=3,
             offload_optimizer=True,
