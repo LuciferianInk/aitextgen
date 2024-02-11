@@ -121,6 +121,10 @@ class AIGProgressBar(ProgressBar):
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
+        self.blue = ""
+        self.red = ""
+        self.green = ""
+        self.white = ""
         try:
             from IPython.display import display
 
@@ -128,12 +132,7 @@ class AIGProgressBar(ProgressBar):
         except ImportError:
             self.is_notebook = False
 
-        if self.is_notebook:
-            self.blue = ""
-            self.red = ""
-            self.green = ""
-            self.white = ""
-        else:
+        if not self.is_notebook:
             self.blue = colors.BLUE
             self.red = colors.RED
             self.green = colors.GREEN

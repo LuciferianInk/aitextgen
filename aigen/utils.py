@@ -1,9 +1,3 @@
-import random
-
-import numpy as np
-import torch
-
-
 def model_max_length(config):
     """Returns the maximum generation length for the given model."""
     length = (
