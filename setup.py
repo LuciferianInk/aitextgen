@@ -1,7 +1,7 @@
 import os
 
 from pkg_resources import parse_requirements
-from setuptools import setup
+from setuptools import find_packages, setup
 
 _PATH_ROOT = os.path.dirname(__file__)
 
@@ -13,7 +13,7 @@ def _load_requirements(path_dir: str, file_name: str = "requirements.txt") -> li
 
 setup(
     name="aigen",
-    packages=["aigen"],
+    packages=find_packages(),
     version="0.7.0",
     description="A robust Python tool for text-based AI training and generation using Huggingface Transformers.",
     long_description=open("README.md", "r", encoding="utf-8").read(),
