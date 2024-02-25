@@ -184,15 +184,14 @@ class AIGProgressBar(ProgressBar):
             )
         )
 
-        b1 = bearing[:1]
-        b2 = bearing[2:]
+        left, right = bearing.split(".")
 
         if random.random() > 0.666:
-            b1 = f"{self.blue}{b1}{self.white}"
+            left = f"{self.blue}{left}{self.white}"
         elif random.random() > 0.888:
-            b1 = f"{self.red}{b1}{self.white}"
+            left = f"{self.red}{left}{self.white}"
         else:
-            b1 = f"{self.white}{b1}{self.white}"
+            left = f"{self.white}{left}{self.white}"
 
         c_sym = "+" if current_loss >= 0 else ""
         a_sym = "+" if avg_loss >= 0 else ""
@@ -204,7 +203,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        bar = f"{os.environ.get('FOCUS', 'self')}{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {b1}.{self.blue}{b2}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
+        bar = f"{os.environ.get('FOCUS', 'self')}{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {left}.{self.blue}{right}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
 
         if lm.on_gpu:
             result = subprocess.run(
@@ -322,10 +321,10 @@ class AIGSampleGenerator(Callback):
             min_length=22,
             max_new_tokens=222,
             temperature=0.9,
-            eta_cutoff=0.0003,
+            eta_cutoff=0.002,
             penalty_alpha=0.6,
             top_k=4,
-            repetition_penalty=1.023,
+            repetition_penalty=1.1,
         )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
