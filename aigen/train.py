@@ -35,7 +35,7 @@ class AIGTrainer(LightningModule):
             tokenizer,
         )
         self.automatic_optimization = True
-        self.train_tokens = getattr(self, "train_tokens", 0)
+        self.train_tokens = 0
         self.pbar = None
         self.save_hyperparameters(hparams)
 
@@ -110,6 +110,12 @@ class AIGTrainer(LightningModule):
         if self.scheduler:
             return [self.optimizer], [self.scheduler()]
         return [self.optimizer]
+
+    def on_save_checkpoint(self, checkpoint):
+        checkpoint["train_tokens"] = self.train_tokens
+
+    def on_load_checkpoint(self, checkpoint):
+        self.train_tokens = checkpoint.get("train_tokens", 0)
 
 
 class AIGProgressBar(ProgressBar):
