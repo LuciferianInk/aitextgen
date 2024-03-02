@@ -255,7 +255,7 @@ class StreamingDataModule(LightningDataModule):
             self.train_data = SequentialStreamingDataset(
                 self.tokenizer, self.params, config, split="train"
             )
-        elif config.get("sample_rate", 1.0) < 1.0:
+        elif config.get("instruct", False):
             self.train_data = InstructStreamingDataset(
                 self.tokenizer, self.params, config, split="train"
             )
