@@ -259,14 +259,22 @@ class StreamingDataModule(LightningDataModule):
             self.train_data = InstructStreamingDataset(
                 self.tokenizer, self.params, config, split="train"
             )
+        elif config.get("chat", False):
+            self.train_data = ChatStreamingDataset(
+                self.tokenizer, self.params, config, split="train"
+            )
         else:
             self.train_data = StreamingDataset(
                 self.tokenizer, self.params, config, split="train"
             )
 
         if config.get("val_samples", 0) > 0:
-            if config.get("sample_rate", 1.0) < 1.0:
+            if config.get("instruct", False) and config.get("sample_rate", 1.0) < 1.0:
                 self.val_data = InstructStreamingDataset(
+                    self.tokenizer, self.params, config, split="validation"
+                )
+            elif config.get("chat", False) and config.get("sample_rate", 1.0) < 1.0:
+                self.val_data = ChatStreamingDataset(
                     self.tokenizer, self.params, config, split="validation"
                 )
             else:
@@ -375,6 +383,43 @@ class InstructStreamingDataset(StreamingDataset):
                 )
                 tokens = self.tokenizer(
                     text=content,
+                    max_length=block_size,
+                    padding="max_length",
+                    truncation=True,
+                    return_overflowing_tokens=False,
+                    return_tensors="np",
+                )["input_ids"]
+                batch = np.array([]).astype("int64")
+                for block in tokens:
+                    batch = np.concatenate([batch, block])
+                yield batch.astype("int64")
+            else:
+                yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
+                    "int64"
+                )
+
+
+class ChatStreamingDataset(StreamingDataset):
+    def __iter__(self):
+        shuffled = self.dataset.shuffle(
+            seed=random.randint(0, 2**31),
+            buffer_size=self.config.get("buffer_size", 10_000),
+        )
+
+        block_size = self.params["block_size"]
+        wall = self.config.get("wall", "¶")
+        ship = self.config.get("ship", ":>")
+
+        for document in shuffled:
+            if random.random() < self.config.get("sample_rate", 1.0):
+                human = self.config["identity_function"]()
+                robot = self.config["identity_function"]()
+                orig = document.get("text")
+                new = orig.replace("Tom:", f"\n{wall}{robot}{ship}").replace(
+                    "Sarah:", f"\n{wall}{human}{ship}"
+                )
+                tokens = self.tokenizer(
+                    text=new,
                     max_length=block_size,
                     padding="max_length",
                     truncation=True,

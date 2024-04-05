@@ -56,7 +56,7 @@ class aigen:
         config: Union[str, AutoConfig] = None,
         vocab_file: str = None,
         merges_file: str = None,
-        tokenizer_file: str = None,
+        tokenizer_folder: str = None,
         embeddings_dir: str = "",
         precision: int = 32,
         petals: bool = False,
@@ -178,7 +178,7 @@ class aigen:
             tokenizer
             if tokenizer is not None
             else AutoTokenizer.from_pretrained(
-                model,
+                tokenizer_folder if tokenizer_folder else model,
                 cache_dir=cache_dir,
                 trust_remote_code=True,
             )
