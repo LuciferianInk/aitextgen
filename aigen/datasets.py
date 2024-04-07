@@ -400,6 +400,14 @@ class InstructStreamingDataset(StreamingDataset):
 
 
 class ChatStreamingDataset(StreamingDataset):
+    # We currently override the dataset length, because very small datasets
+    # will cause the dataloaders to reload themselves, constantly. This is bad
+    # because the reload_dataloaders_every_n_epochs flag will cause large
+    # streaming datasets to keep resetting themselves to the same "shards"
+    # (in HuggingFace Datasets).
+    def __len__(self):
+        return None
+
     def __iter__(self):
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
