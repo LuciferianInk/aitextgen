@@ -400,48 +400,44 @@ class InstructStreamingDataset(StreamingDataset):
 
 
 class ChatStreamingDataset(StreamingDataset):
-    # We currently override the dataset length, because very small datasets
-    # will cause the dataloaders to reload themselves, constantly. This is bad
-    # because the reload_dataloaders_every_n_epochs flag will cause large
-    # streaming datasets to keep resetting themselves to the same "shards"
-    # (in HuggingFace Datasets).
-    def __len__(self):
-        return None
-
     def __iter__(self):
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
             buffer_size=self.config.get("buffer_size", 10_000),
         )
 
+        num_epochs = 1_000_000
+
         block_size = self.params["block_size"]
         wall = self.config.get("wall", "¶")
         ship = self.config.get("ship", ":>")
 
-        for document in shuffled:
-            if random.random() < self.config.get("sample_rate", 1.0):
-                human = self.config["identity_function"]()
-                robot = self.config["identity_function"]()
-                orig = document.get("text")
-                new = orig.replace("Tom:", f"\n{wall}{robot}{ship}").replace(
-                    "Sarah:", f"\n{wall}{human}{ship}"
-                )
-                tokens = self.tokenizer(
-                    text=new,
-                    max_length=block_size,
-                    padding="max_length",
-                    truncation=True,
-                    return_overflowing_tokens=False,
-                    return_tensors="np",
-                )["input_ids"]
-                batch = np.array([]).astype("int64")
-                for block in tokens:
-                    batch = np.concatenate([batch, block])
-                yield batch.astype("int64")
-            else:
-                yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                    "int64"
-                )
+        for epoch in range(num_epochs):
+            self.dataset.set_epoch(epoch)
+            for document in shuffled:
+                if random.random() < self.config.get("sample_rate", 1.0):
+                    human = self.config["identity_function"]()
+                    robot = self.config["identity_function"]()
+                    orig = document.get("text")
+                    new = orig.replace("Tom:", f"\n{wall}{robot}{ship}").replace(
+                        "Sarah:", f"\n{wall}{human}{ship}"
+                    )
+                    tokens = self.tokenizer(
+                        text=new,
+                        max_length=block_size,
+                        padding="max_length",
+                        truncation=True,
+                        return_overflowing_tokens=False,
+                        return_tensors="np",
+                    )["input_ids"]
+                    batch = np.array([]).astype("int64")
+                    for block in tokens:
+                        batch = np.concatenate([batch, block])
+                    yield batch.astype("int64")
+                else:
+                    yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
+                        "int64"
+                    )
 
 
 class SequentialStreamingDataset(StreamingDataset):
