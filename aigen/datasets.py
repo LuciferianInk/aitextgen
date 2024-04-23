@@ -319,6 +319,9 @@ class StreamingDataset(IterableDataset):
             trust_remote_code=True,
             **kwargs,
         )
+        self.params["num_workers"] = min(
+            self.params["num_workers"], self.dataset.n_shards
+        )
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(
