@@ -339,6 +339,7 @@ class StreamingDataset(IterableDataset):
                 yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
                     "int64"
                 )
+                continue
             tokenized = self.tokenizer(
                 text=document.get(self.content_key),
                 max_length=block_size,
@@ -466,6 +467,7 @@ class SequentialStreamingDataset(StreamingDataset):
                 yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
                     "int64"
                 )
+                continue
             tokens = self.tokenizer(
                 text=document.get(self.content_key),
                 max_length=block_size,
