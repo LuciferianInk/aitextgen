@@ -52,7 +52,9 @@ class AIGTrainer(LightningModule):
             losses.append(outputs[0])
             self.train_tokens += int(self.hparams["block_size"])
 
-        loss = sum(losses) / len(losses)
+        loss = 0
+        if len(losses) > 0:
+            loss = sum(losses) / len(losses)
 
         self.log(
             "train_loss", float(loss), on_step=True, on_epoch=False, sync_dist=True
@@ -90,7 +92,9 @@ class AIGTrainer(LightningModule):
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
 
-        loss = sum(losses) / len(losses)
+        loss = 0
+        if len(losses) > 0:
+            loss = sum(losses) / len(losses)
 
         self.log("val_loss", float(loss), on_step=False, on_epoch=True, sync_dist=True)
         self.log(
