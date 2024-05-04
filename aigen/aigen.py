@@ -522,7 +522,7 @@ class aigen:
 
         if checkpoint_every > 0:
             checkpoint_callback = ModelCheckpoint(
-                save_top_k=1,
+                save_top_k=2,
                 monitor="step",
                 mode="max",
                 every_n_train_steps=checkpoint_every,
