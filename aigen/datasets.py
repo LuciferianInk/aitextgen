@@ -353,12 +353,12 @@ class StreamingDataset(IterableDataset):
                 np.append(batch, self.tokenizer.eos_token_id)
                 batch = np.concatenate([batch, choice])
             if len(batch) >= block_size:
-                # while True:
-                #     if random.random() < self.config.get("sample_rate", 1.0):
-                #         break
-                #     yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                #         "int64"
-                #     )
+                while True:
+                    if random.random() < self.config.get("sample_rate", 1.0):
+                        break
+                    yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
+                        "int64"
+                    )
                 yield batch[:block_size]
                 batch = []
                 if samples > 0:
@@ -487,7 +487,13 @@ class SequentialStreamingDataset(StreamingDataset):
             while len(batch) >= block_size:
                 selection = batch[:block_size]
                 batch = batch[half_block:]
-                yield selection.astype("int64")
+                while True:
+                    if random.random() < self.config.get("sample_rate", 1.0):
+                        yield selection.astype("int64")
+                        break
+                    yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
+                        "int64"
+                    )
 
 
 def merge_datasets(

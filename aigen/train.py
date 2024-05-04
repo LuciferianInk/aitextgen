@@ -46,11 +46,17 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if sample[0][0] == self.tokenizer.eos_token_id:
+            if (
+                sample[0][0] == self.tokenizer.eos_token_id
+                and sample[0][1] == self.tokenizer.eos_token_id
+            ):
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
             self.train_tokens += int(self.hparams["block_size"])
+
+        if len(losses) == 0:
+            return
 
         loss = sum(losses) / len(losses)
 
@@ -85,10 +91,16 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if sample[0][0] == self.tokenizer.eos_token_id:
+            if (
+                sample[0][0] == self.tokenizer.eos_token_id
+                and sample[0][1] == self.tokenizer.eos_token_id
+            ):
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
+
+        if len(losses) == 0:
+            return
 
         loss = sum(losses) / len(losses)
 
