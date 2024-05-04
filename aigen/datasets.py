@@ -335,11 +335,6 @@ class StreamingDataset(IterableDataset):
 
         batch = []
         for document in shuffled:
-            if random.random() > self.config.get("sample_rate", 1.0):
-                yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                    "int64"
-                )
-                continue
             tokenized = self.tokenizer(
                 text=document.get(self.content_key),
                 max_length=block_size,
@@ -358,6 +353,12 @@ class StreamingDataset(IterableDataset):
                 np.append(batch, self.tokenizer.eos_token_id)
                 batch = np.concatenate([batch, choice])
             if len(batch) >= block_size:
+                # while True:
+                #     if random.random() < self.config.get("sample_rate", 1.0):
+                #         break
+                #     yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
+                #         "int64"
+                #     )
                 yield batch[:block_size]
                 batch = []
                 if samples > 0:
@@ -463,11 +464,6 @@ class SequentialStreamingDataset(StreamingDataset):
 
         batch = np.array([])
         for document in shuffled:
-            if random.random() > self.config.get("sample_rate", 1.0):
-                yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                    "int64"
-                )
-                continue
             tokens = self.tokenizer(
                 text=document.get(self.content_key),
                 max_length=block_size,
