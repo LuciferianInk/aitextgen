@@ -372,7 +372,7 @@ class StreamingDataset(IterableDataset):
 
 class InstructStreamingDataset(StreamingDataset):
     def __iter__(self):
-        shuffled = self.dataset.shuffle(
+        self.dataset.shuffle(
             seed=random.randint(0, 2**31),
             buffer_size=self.config.get("buffer_size", 10_000),
         )
@@ -381,7 +381,7 @@ class InstructStreamingDataset(StreamingDataset):
         wall = self.config.get("wall", "¶")
         ship = self.config.get("ship", ":>")
 
-        for document in shuffled:
+        for document in self.dataset:
             if random.random() < self.config.get("sample_rate", 1.0):
                 human = self.config["identity_function"]()
                 robot = self.config["identity_function"]()
@@ -390,6 +390,7 @@ class InstructStreamingDataset(StreamingDataset):
                     f"{wall}{human}{ship} {document.get('inputs')}\n"
                     f"{wall}{robot}{ship} {document.get('targets')}"
                 )
+
                 tokens = self.tokenizer(
                     text=content,
                     max_length=block_size,
