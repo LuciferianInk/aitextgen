@@ -2,6 +2,7 @@ import logging
 import math
 import os
 import platform
+import random
 import re
 import time
 from typing import List, Optional, Union
@@ -23,6 +24,10 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     GenerationConfig,
+    LogitsProcessor,
+    LogitsProcessorList,
+    LogitsWarper,
+    TopKLogitsWarper,
 )
 
 from .datasets import StaticDataModule, StaticDataset, StreamingDataModule
@@ -276,6 +281,7 @@ class aigen:
         seed: int = None,
         mode: str = "transformer",
         generation_config: dict = None,
+        forbidden_chars: list = [],
         **kwargs,
     ) -> Optional[str]:
         if seed:
@@ -316,6 +322,16 @@ class aigen:
 
         # print(self.model.forward(input_ids))
 
+        # Prepare the logits processor list
+        logits_processor = LogitsProcessorList()
+        if len(forbidden_chars) > 0:
+            # Initialize the custom logit processor
+            top_k = 50
+            custom_processor = CharacterSuppressionTopKLogitsWarper(
+                self.tokenizer, forbidden_chars, top_k
+            )
+            logits_processor.append(custom_processor)
+
         while True:
             outputs = self.model.generate(
                 inputs=input_ids,
@@ -329,8 +345,10 @@ class aigen:
                 num_return_sequences=1,
                 state=self.memory,
                 assistant_model=assistant if assistant else None,
+                tokenizer=self.tokenizer,
                 # enable_timing=False,
                 # cg=True,
+                logits_processor=logits_processor,
                 **kwargs,
             )
 
@@ -698,3 +716,31 @@ class aigen:
         num_params_m = int(self.get_total_params() / 10**6)
         model_name = type(self.model.config).__name__.replace("Config", "")
         return f"{model_name} loaded with {num_params_m}M parameters."
+
+
+class CharacterSuppressionTopKLogitsWarper(LogitsWarper):
+    def __init__(self, tokenizer, forbidden_chars, top_k):
+        self.tokenizer = tokenizer
+        self.forbidden_chars = forbidden_chars
+        self.top_k_warper = TopKLogitsWarper(top_k=top_k)
+
+    def __call__(self, input_ids, scores):
+        # Apply top_k warping
+        scores = self.top_k_warper(input_ids, scores)
+
+        # Get the top k token indices
+        top_k_scores, top_k_indices = torch.topk(
+            scores, self.top_k_warper.top_k, dim=-1
+        )
+
+        # Iterate over the top k tokens and suppress those with forbidden characters
+        for batch_idx in range(top_k_scores.size(0)):
+            for i in range(top_k_scores.size(1)):
+                token_idx = top_k_indices[batch_idx, i].item()
+                token_str = self.tokenizer.decode(
+                    [token_idx], clean_up_tokenization_spaces=False
+                )
+                if any(char in token_str for char in self.forbidden_chars):
+                    scores[batch_idx, token_idx] = -float("inf")
+
+        return scores
