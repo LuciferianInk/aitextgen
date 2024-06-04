@@ -36,6 +36,7 @@ class AIGTrainer(LightningModule):
         )
         self.automatic_optimization = True
         self.train_tokens = 0
+        self.fake_token = 999999999
         self.pbar = None
         self.save_hyperparameters(hparams)
 
@@ -46,7 +47,8 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if sample[0][0] == self.tokenizer.eos_token_id:
+            if sample[0][0] == self.fake_token:
+                print(sample[0][0].cpu().numpy())
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
@@ -88,10 +90,7 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if (
-                sample[0][0] == self.tokenizer.eos_token_id
-                and sample[0][1] == self.tokenizer.eos_token_id
-            ):
+            if sample[0][0] == self.tokenizer.eos_token_id:
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])

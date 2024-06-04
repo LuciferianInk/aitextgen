@@ -269,17 +269,18 @@ class StreamingDataModule(LightningDataModule):
             )
 
         if config.get("val_samples", 0) > 0:
-            if config.get("instruct", False) and config.get("sample_rate", 1.0) < 1.0:
+            split = config.get("val_split", "validation")
+            if config.get("instruct", False):
                 self.val_data = InstructStreamingDataset(
-                    self.tokenizer, self.params, config, split="validation"
+                    self.tokenizer, self.params, config, split=split
                 )
-            elif config.get("chat", False) and config.get("sample_rate", 1.0) < 1.0:
+            elif config.get("chat", False):
                 self.val_data = ChatStreamingDataset(
-                    self.tokenizer, self.params, config, split="validation"
+                    self.tokenizer, self.params, config, split=split
                 )
             else:
                 self.val_data = StreamingDataset(
-                    self.tokenizer, self.params, config, split="validation"
+                    self.tokenizer, self.params, config, split=split
                 )
 
     def train_dataloader(self):
@@ -356,9 +357,8 @@ class StreamingDataset(IterableDataset):
                 while True:
                     if random.random() < self.config.get("sample_rate", 1.0):
                         break
-                    yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                        "int64"
-                    )
+                    fake_token = 999999999
+                    yield np.array([fake_token] * block_size).astype("int64")
                 yield batch[:block_size]
                 batch = []
                 if samples > 0:
@@ -404,9 +404,8 @@ class InstructStreamingDataset(StreamingDataset):
                     batch = np.concatenate([batch, block])
                 yield batch.astype("int64")
             else:
-                yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                    "int64"
-                )
+                fake_token = 999999999
+                yield np.array([fake_token] * block_size).astype("int64")
 
 
 class ChatStreamingDataset(StreamingDataset):
@@ -445,9 +444,8 @@ class ChatStreamingDataset(StreamingDataset):
                         batch = np.concatenate([batch, block])
                     yield batch.astype("int64")
                 else:
-                    yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                        "int64"
-                    )
+                    fake_token = 999999999
+                    yield np.array([fake_token] * block_size).astype("int64")
 
 
 class SequentialStreamingDataset(StreamingDataset):
@@ -492,9 +490,8 @@ class SequentialStreamingDataset(StreamingDataset):
                     if random.random() < self.config.get("sample_rate", 1.0):
                         yield selection.astype("int64")
                         break
-                    yield np.array([self.tokenizer.eos_token_id] * block_size).astype(
-                        "int64"
-                    )
+                    fake_token = 999999999
+                    yield np.array([fake_token] * block_size).astype("int64")
 
 
 def merge_datasets(
