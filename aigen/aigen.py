@@ -137,6 +137,33 @@ class aigen:
 
             if self.petals:
                 print("loading model from Petals")
+                # from petals.constants import DTYPE_MAP, PUBLIC_INITIAL_PEERS
+                # from petals.server.server import Server
+
+                # server = Server(
+                #     # **args,
+                #     # host_maddrs=host_maddrs,
+                #     # announce_maddrs=announce_maddrs,
+                #     # compression=compression,
+                #     # max_disk_space=max_disk_space,
+                #     converted_model_name_or_path=(
+                #         model_folder if model_folder is not None else model
+                #     ),
+                #     dht_prefix=None,
+                #     initial_peers=PUBLIC_INITIAL_PEERS,
+                #     public_name="https://src.eco",
+                #     cache_dir="/data/models",
+                #     num_blocks=24,
+                #     torch_dtype="bfloat16",
+                #     throughput=1.0,
+                # )
+                # try:
+                #     server.run()
+                # except KeyboardInterrupt:
+                #     logger.info("Caught KeyboardInterrupt, shutting down")
+                # finally:
+                #     server.shutdown()
+
                 from petals import AutoDistributedModelForCausalLM
 
                 self.model = AutoDistributedModelForCausalLM.from_pretrained(
@@ -345,7 +372,7 @@ class aigen:
                 num_return_sequences=1,
                 state=self.memory,
                 assistant_model=assistant if assistant else None,
-                tokenizer=self.tokenizer,
+                tokenizer=self.tokenizer if not self.petals else None,
                 # enable_timing=False,
                 # cg=True,
                 logits_processor=logits_processor,
