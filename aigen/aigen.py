@@ -5,6 +5,7 @@ import platform
 import random
 import re
 import time
+import traceback
 from typing import List, Optional, Union
 
 import torch
@@ -17,7 +18,7 @@ from lightning.pytorch.callbacks import (
 )
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
-from peft import PeftModel
+from peft import PeftMixedModel, PeftModel
 from pkg_resources import resource_filename
 from transformers import (
     AutoConfig,
@@ -238,22 +239,23 @@ class aigen:
                 try:
                     self.model.add_weighted_adapter(
                         adapters=adapters,
-                        weights=[1.0 / len(adapters)] * len(adapters),
+                        weights=[1.0] * len(adapters),
                         adapter_name="combined",
                         combination_type="cat",
                     )
                 except:
-                    import traceback
-
                     print(traceback.format_exc())
 
+                # logger.info("Using adapters: ", adapters)
+                logger.warning(f"Created new adapter: combined")
                 self.model.set_adapter("combined")
+                # self.model.set_adapter(adapters)
 
                 for adapter in adapters:
                     logger.warning(f"Deleting unused adapter: {adapter}")
                     self.model.delete_adapter(adapter)
 
-            logger.info(f"Using adapter: {self.model.active_adapter}")
+            # logger.info(f"Using adapter: {self.model.active_adapter}")
 
         self.model.eval()
         logger.info(self)
@@ -648,7 +650,9 @@ class aigen:
                 train_params["callbacks"].append(AIGProgressBar(num_steps))
 
             if generate_every > 0:
-                train_params["callbacks"].append(AIGSampleGenerator(generate_every))
+                train_params["callbacks"].append(
+                    AIGSampleGenerator(generate_every, self.get_device())
+                )
 
             if save_every > 0:
                 train_params["callbacks"].append(

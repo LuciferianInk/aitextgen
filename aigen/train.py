@@ -323,13 +323,14 @@ class AIGModelSaver(Callback):
 class AIGSampleGenerator(Callback):
     """Periodically print samples to the console."""
 
-    def __init__(self, generate_every):
+    def __init__(self, generate_every, device):
         super().__init__()
         from transformers import GenerationConfig
 
         self.step = 0
         self.last_step = 0
         self.generate_every = generate_every
+        self.device = device
         self.generation_config = GenerationConfig(
             do_sample=True,
             min_length=22,
@@ -362,8 +363,13 @@ class AIGSampleGenerator(Callback):
         if hasattr(lm.model, "training"):
             lm.model.training = False
 
+        inputs = None
+        if lm.tokenizer.bos_token_id == None:
+            tensors = lm.tokenizer(text="¶", return_tensors="pt")
+            inputs = tensors["input_ids"].to(self.device)
+
         outputs = lm.model.generate(
-            inputs=None,
+            inputs=inputs,
             generation_config=self.generation_config,
             do_sample=True,
             max_new_tokens=222,
