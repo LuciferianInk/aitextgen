@@ -96,7 +96,7 @@ class aigen:
         if precision == 8:
             qargs["load_in_8bit"] = True
             qargs["llm_int8_has_fp16_weight"] = False
-            qargs["llm_int8_threshold"] = 6
+            qargs["llm_int8_threshold"] = 6.0
 
         if precision == 4:
             qargs["load_in_4bit"] = True
@@ -241,7 +241,7 @@ class aigen:
                         adapters=adapters,
                         weights=[1.0] * len(adapters),
                         adapter_name="combined",
-                        combination_type="cat",
+                        combination_type="linear",
                     )
                 except:
                     print(traceback.format_exc())

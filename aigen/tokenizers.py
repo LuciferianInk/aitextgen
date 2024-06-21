@@ -8,8 +8,10 @@ from transformers import PreTrainedTokenizerFast
 def train_tokenizer(
     files: Union[str, List[str]],
     dropout: float = None,
+    byte_fallback: bool = True,
     vocab_size: int = 1000,
     min_frequency: int = 2,
+    max_token_length: int = 5,
     save_path: str = "aigen",
     added_tokens: List[str] = [],
     bos_token: str = "<|void|>",
@@ -44,11 +46,17 @@ def train_tokenizer(
         files = [files]
 
     tokenizer = Tokenizer(
-        models.BPE(dropout=dropout, unk_token=unk_token, fuse_unk=True)
+        models.BPE(
+            dropout=dropout,
+            byte_fallback=byte_fallback,
+            unk_token=unk_token,
+            fuse_unk=True,
+        )
     )
     trainer = trainers.BpeTrainer(
         vocab_size=vocab_size,
         min_frequency=min_frequency,
+        max_token_length=max_token_length,
         initial_alphabet=pre_tokenizers.ByteLevel.alphabet(),
         special_tokens=[
             unk_token,
