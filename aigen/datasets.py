@@ -378,18 +378,26 @@ class InstructStreamingDataset(StreamingDataset):
         )
 
         block_size = self.params["block_size"]
+
+        method = self.config.get("method", "standard")
         wall = self.config.get("wall", "¶")
-        ship = self.config.get("ship", ":>")
+        ship = self.config.get("ship", "")
+        if method in ["standard"]:
+            ship = ":>"
 
         for document in self.dataset:
             if random.random() < self.config.get("sample_rate", 1.0):
-                human = self.config["identity_function"]()
-                robot = self.config["identity_function"]()
+                human = ""
+                robot = ""
+                if method in ["standard"]:
+                    human = self.config["identity_function"]()
+                    robot = self.config["identity_function"]()
                 content = (
                     f"{wall}{human}{ship} {document.get('definition')}\n"
                     f"{wall}{human}{ship} {document.get('inputs')}\n"
                     f"{wall}{robot}{ship} {document.get('targets')}"
                 )
+                # print(content)
 
                 tokens = self.tokenizer(
                     text=content,
