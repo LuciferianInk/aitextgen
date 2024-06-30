@@ -72,6 +72,7 @@ class aigen:
         tuning_mode=None,
         pre_seq_len=24,
         device_map="auto",
+        attn_implementation="eager",
         **kwargs,
     ) -> None:
         self.mode = "transformer"
@@ -202,7 +203,7 @@ class aigen:
                     local_files_only=True if model_folder else False,
                     device_map=device_map,
                     low_cpu_mem_usage=True,
-                    attn_implementation="eager",
+                    attn_implementation=attn_implementation,
                     **qargs,
                 )
 
