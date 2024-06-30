@@ -19,6 +19,7 @@ from pkg_resources import resource_filename
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
+from .utils import get_identity
 
 csv.field_size_limit(2**31 - 1)
 
@@ -390,8 +391,8 @@ class InstructStreamingDataset(StreamingDataset):
                 human = ""
                 robot = ""
                 if method in ["standard"]:
-                    human = self.config["identity_function"]()
-                    robot = self.config["identity_function"]()
+                    human = get_identity()
+                    robot = get_identity()
                 content = (
                     f"{wall}{human}{ship} {document.get('definition')}\n"
                     f"{wall}{human}{ship} {document.get('inputs')}\n"
@@ -433,8 +434,8 @@ class ChatStreamingDataset(StreamingDataset):
             self.dataset.set_epoch(epoch)
             for document in shuffled:
                 if random.random() < self.config.get("sample_rate", 1.0):
-                    human = self.config["identity_function"]()
-                    robot = self.config["identity_function"]()
+                    human = get_identity()
+                    robot = get_identity()
                     orig = document.get("text")
                     new = orig.replace("Tom:", f"\n{wall}{robot}{ship}").replace(
                         "Sarah:", f"\n{wall}{human}{ship}"
