@@ -373,11 +373,6 @@ class StreamingDataset(IterableDataset):
 
 class InstructStreamingDataset(StreamingDataset):
     def __iter__(self):
-        self.dataset.shuffle(
-            seed=random.randint(0, 2**31),
-            buffer_size=self.config.get("buffer_size", 10_000),
-        )
-
         block_size = self.params["block_size"]
 
         method = self.config.get("method", "standard")
@@ -386,52 +381,57 @@ class InstructStreamingDataset(StreamingDataset):
         if method in ["standard"]:
             ship = ":>"
 
-        for document in self.dataset:
-            if random.random() < self.config.get("sample_rate", 1.0):
-                human = ""
-                robot = ""
-                if method in ["standard"]:
-                    human = get_identity()
-                    robot = get_identity()
-                content = (
-                    f"{wall}{human}{ship} {document.get('definition')}\n"
-                    f"{wall}{human}{ship} {document.get('inputs')}\n"
-                    f"{wall}{robot}{ship} {document.get('targets')}"
-                )
-                # print(content)
+        num_epochs = 1_000_000
+        for epoch in range(num_epochs):
+            self.dataset.set_epoch(epoch)
+            shuffled = self.dataset.shuffle(
+                seed=random.randint(0, 2**31),
+                buffer_size=self.config.get("buffer_size", 10_000),
+            )
+            for document in shuffled:
+                if random.random() < self.config.get("sample_rate", 1.0):
+                    human = ""
+                    robot = ""
+                    if method in ["standard"]:
+                        human = get_identity()
+                        robot = get_identity()
+                    content = (
+                        f"{wall}{human}{ship} {document.get('definition')}\n"
+                        f"{wall}{human}{ship} {document.get('inputs')}\n"
+                        f"{wall}{robot}{ship} {document.get('targets')}"
+                    )
+                    # print(content)
 
-                tokens = self.tokenizer(
-                    text=content,
-                    max_length=block_size,
-                    padding="max_length",
-                    truncation=True,
-                    return_overflowing_tokens=False,
-                    return_tensors="np",
-                )["input_ids"]
-                batch = np.array([]).astype("int64")
-                for block in tokens:
-                    batch = np.concatenate([batch, block])
-                yield batch.astype("int64")
-            else:
-                fake_token = 999999999
-                yield np.array([fake_token] * block_size).astype("int64")
+                    tokens = self.tokenizer(
+                        text=content,
+                        max_length=block_size,
+                        padding="max_length",
+                        truncation=True,
+                        return_overflowing_tokens=False,
+                        return_tensors="np",
+                    )["input_ids"]
+                    batch = np.array([]).astype("int64")
+                    for block in tokens:
+                        batch = np.concatenate([batch, block])
+                    yield batch.astype("int64")
+                else:
+                    fake_token = 999999999
+                    yield np.array([fake_token] * block_size).astype("int64")
 
 
 class ChatStreamingDataset(StreamingDataset):
     def __iter__(self):
-        shuffled = self.dataset.shuffle(
-            seed=random.randint(0, 2**31),
-            buffer_size=self.config.get("buffer_size", 10_000),
-        )
-
-        num_epochs = 1_000_000
-
         block_size = self.params["block_size"]
         wall = self.config.get("wall", "¶")
         ship = self.config.get("ship", ":>")
 
+        num_epochs = 1_000_000
         for epoch in range(num_epochs):
             self.dataset.set_epoch(epoch)
+            shuffled = self.dataset.shuffle(
+                seed=random.randint(0, 2**31),
+                buffer_size=self.config.get("buffer_size", 10_000),
+            )
             for document in shuffled:
                 if random.random() < self.config.get("sample_rate", 1.0):
                     human = get_identity()
