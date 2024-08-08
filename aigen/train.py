@@ -90,7 +90,7 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if sample[0][0] == self.tokenizer.eos_token_id:
+            if sample[0][0] == self.fake_token:
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
