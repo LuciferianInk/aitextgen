@@ -1,1 +1,1 @@
-from .aigen import aigen  # noqa
+from .aigen import aigen

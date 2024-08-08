@@ -48,7 +48,6 @@ class AIGTrainer(LightningModule):
 
         for sample in batch:
             if sample[0][0] == self.fake_token:
-                print(sample[0][0].cpu().numpy())
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
