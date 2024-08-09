@@ -363,7 +363,7 @@ class HuggingfaceDataset(IterableDataset):
             self.params["num_workers"], self.dataset.n_shards
         )
         self.cached_text = ""
-        self.cache_size = 1_000_000
+        self.cache_size = 100_000
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(
@@ -406,9 +406,17 @@ class HuggingfaceDataset(IterableDataset):
             )["input_ids"]
 
             self.cached_text = ""
+
             for batch in tokens:
-                if len(batch) == block_size:
-                    yield batch
+                if len(batch) != block_size:
+                    break
+                while True:
+                    if random.random() < self.config.get("sample_rate", 1.0):
+                        yield batch
+                        break
+                    else:
+                        fake_token = 999999999
+                        yield np.array([fake_token] * block_size).astype("int64")
 
 
 class StreamingDataset(IterableDataset):
