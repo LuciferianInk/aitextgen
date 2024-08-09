@@ -238,43 +238,6 @@ class LocalDataModule(LightningDataModule):
         )
 
 
-class StaticDataModule(LightningDataModule):
-    def __init__(self, dataset, hparams):
-        super().__init__()
-        self.dataset = dataset
-        self.batch_size = hparams["batch_size"]
-        self.pin_memory = hparams["pin_memory"]
-        self.num_workers = hparams["num_workers"]
-        self.val_split = hparams["val_split"]
-        self.train = None
-        self.val = None
-        self.setup()
-
-    def setup(self):
-        train_split = 1.0 - self.val_split
-        self.train, self.val = torch.utils.data.random_split(
-            self.dataset, [train_split, self.val_split]
-        )
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.train,
-            shuffle=True,
-            batch_size=self.batch_size,
-            pin_memory=self.pin_memory,
-            num_workers=self.num_workers,
-        )
-
-    def val_dataloader(self):
-        return DataLoader(
-            self.val,
-            shuffle=False,
-            batch_size=self.batch_size,
-            pin_memory=self.pin_memory,
-            num_workers=self.num_workers,
-        )
-
-
 class StreamingDataModule(LightningDataModule):
     def __init__(self, tokenizer, hparams, config):
         super().__init__()
@@ -303,7 +266,7 @@ class StreamingDataModule(LightningDataModule):
             self.train_data,
             batch_size=self.params["batch_size"],
             pin_memory=self.params["pin_memory"],
-            num_workers=self.params["num_workers"],
+            num_workers=1,
         )
 
     def val_dataloader(self):
@@ -311,7 +274,7 @@ class StreamingDataModule(LightningDataModule):
             self.val_data,
             batch_size=self.params["batch_size"],
             pin_memory=self.params["pin_memory"],
-            num_workers=self.params["num_workers"],
+            num_workers=1,
         )
 
 
@@ -338,18 +301,16 @@ class HuggingfaceDataset(IterableDataset):
             trust_remote_code=True,
             **kwargs,
         )
-        self.params["num_workers"] = min(
-            self.params["num_workers"], self.dataset.n_shards
-        )
 
         self.cached_text = ""
-        self.cache_size = 100_000
 
     def __iter__(self):
 
+        buffer_size = self.config.get("buffer_size", 10_000)
+        text_cache_size = 10 * buffer_size
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
-            buffer_size=self.config.get("buffer_size", 10_000),
+            buffer_size=buffer_size,
         )
 
         block_size = self.params["block_size"]
@@ -384,7 +345,7 @@ class HuggingfaceDataset(IterableDataset):
             text += self.tokenizer.eos_token
 
             self.cached_text += text
-            if len(self.cached_text) < self.cache_size:
+            if len(self.cached_text) < text_cache_size:
                 continue
 
             if self.config.get("debug", False):
