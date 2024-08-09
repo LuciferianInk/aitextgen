@@ -58,6 +58,14 @@ def get_optimizer(params, hparams):
             params,
             lr=hparams["learning_rate"],
         )
+    elif hparams["optimizer"] in ["SignSGD", "Signum"]:
+        from pytorch_optimizer import SignSGD
+
+        opt = SignSGD(
+            params,
+            lr=hparams["learning_rate"],
+            momentum=hparams.get("momentum", 0.9),
+        )
     else:
         if hparams.get("deepspeed"):
             from deepspeed.ops.adam import DeepSpeedCPUAdam
