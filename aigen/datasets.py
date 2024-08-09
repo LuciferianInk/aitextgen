@@ -13,6 +13,7 @@ from typing import List
 import datasets
 import numpy as np
 import torch
+from torch.utils.data import WeightedRandomSampler
 from datasets import load_dataset
 from lightning.pytorch.core.datamodule import LightningDataModule
 from pkg_resources import resource_filename
@@ -204,6 +205,34 @@ class StaticDataset(Dataset):
             tokens = np.concatenate(padded_batches)
 
             return tokens
+
+
+class LocalDataModule(LightningDataModule):
+    def __init__(self, train_data, val_data, weights, hparams):
+        super().__init__()
+        self.train = train_data
+        self.val = val_data
+        self.weights = weights
+        self.config = hparams
+
+    def train_dataloader(self):
+        sampler = WeightedRandomSampler(self.weights, len(self.weights), False)
+        return DataLoader(
+            self.train,
+            batch_size=self.config["batch_size"],
+            pin_memory=self.config["pin_memory"],
+            num_workers=self.config["num_workers"],
+            sampler=sampler,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val,
+            shuffle=False,
+            batch_size=self.config["batch_size"],
+            pin_memory=self.config["pin_memory"],
+            num_workers=self.config["num_workers"],
+        )
 
 
 class StaticDataModule(LightningDataModule):

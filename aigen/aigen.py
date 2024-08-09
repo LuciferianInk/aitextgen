@@ -9,6 +9,7 @@ import traceback
 from typing import List, Optional, Union
 
 import torch
+from torch.utils.data import DataLoader
 from lightning.fabric.utilities.seed import reset_seed, seed_everything
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
@@ -31,7 +32,12 @@ from transformers import (
     TopKLogitsWarper,
 )
 
-from .datasets import StaticDataModule, StaticDataset, StreamingDataModule
+from .datasets import (
+    LocalDataModule,
+    StaticDataModule,
+    StaticDataset,
+    StreamingDataModule,
+)
 from .optimizers import get_optimizer
 from .schedulers import get_schedule
 from .strategies import get_strategy
@@ -424,9 +430,16 @@ class aigen:
 
         return grouped_parameters
 
-    def prepare_datasets(self, hparams, static_data, streaming_data):
+    def prepare_datasets(self, hparams, local_data, static_data, streaming_data):
         self.total_train = []
         self.total_val = []
+
+        for dataset in local_data:
+            module = LocalDataModule(
+                dataset["train"], dataset["val"], dataset["weights"], hparams
+            )
+            self.total_train.append(module.train_dataloader())
+            self.total_val.append(module.val_dataloader())
 
         for dataset in static_data:
             module = StaticDataModule(dataset, hparams)
@@ -447,6 +460,7 @@ class aigen:
     def train(
         self,
         static_data: Union[str, StaticDataset] = [],
+        local_data=[],
         streaming_data: [] = [],
         generation_config: dict = None,
         output_dir: str = "trained_model",
@@ -666,7 +680,7 @@ class aigen:
 
         time.sleep(3)
 
-        self.prepare_datasets(hparams, static_data, streaming_data)
+        self.prepare_datasets(hparams, local_data, static_data, streaming_data)
 
         params = self._get_params(self.model, hparams)
 
