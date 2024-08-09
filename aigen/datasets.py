@@ -383,7 +383,6 @@ class HuggingfaceDataset(IterableDataset):
 
             text += self.tokenizer.eos_token
 
-            raise Exception
             self.cached_text += text
             if len(self.cached_text) < self.cache_size:
                 continue
