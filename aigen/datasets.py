@@ -366,7 +366,7 @@ class HuggingfaceDataset(IterableDataset):
 
         for document in shuffled:
             if self.split != "train":
-                if val_samples == 0:
+                if val_samples <= 0:
                     break
 
             text = ""
@@ -409,6 +409,7 @@ class HuggingfaceDataset(IterableDataset):
                     if self.split != "train":
                         val_samples -= 1
                         yield batch
+                        break
                     elif random.random() < self.config.get("sample_rate", 1.0):
                         yield batch
                         break
