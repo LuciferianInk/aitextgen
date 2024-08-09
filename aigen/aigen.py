@@ -9,7 +9,6 @@ import traceback
 from typing import List, Optional, Union
 
 import torch
-from torch.utils.data import DataLoader
 from lightning.fabric.utilities.seed import reset_seed, seed_everything
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
@@ -21,6 +20,7 @@ from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
 from peft import PeftMixedModel, PeftModel
 from pkg_resources import resource_filename
+from torch.utils.data import DataLoader
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,

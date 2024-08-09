@@ -284,33 +284,19 @@ class StreamingDataModule(LightningDataModule):
         self.setup(config)
 
     def setup(self, config):
-        if config.get("sequential", False):
-            self.train_data = SequentialStreamingDataset(
-                self.tokenizer, self.params, config, split="train"
-            )
-        elif config.get("chat", False):
-            self.train_data = ChatStreamingDataset(
-                self.tokenizer, self.params, config, split="train"
-            )
-        elif config.get("hf", False):
+
+        print(f"repo: {config['repo']}")
+        pprint(config)
+
+        if config.get("hf", False):
             self.train_data = HuggingfaceDataset(
                 self.tokenizer, self.params, config, split="train"
             )
-        else:
-            self.train_data = StreamingDataset(
-                self.tokenizer, self.params, config, split="train"
-            )
 
-        if config.get("val_samples", 0) > 0:
-            split = config.get("val_split", "validation")
-            if config.get("chat", False):
-                self.val_data = ChatStreamingDataset(
-                    self.tokenizer, self.params, config, split=split
-                )
-            else:
-                self.val_data = StreamingDataset(
-                    self.tokenizer, self.params, config, split=split
-                )
+        if config.get("val_split"):
+            self.val_data = HuggingfaceDataset(
+                self.tokenizer, self.params, config, split=config["val_split"]
+            )
 
     def train_dataloader(self):
         return DataLoader(
@@ -337,6 +323,7 @@ class HuggingfaceDataset(IterableDataset):
         self.config = config
         self.tokenizer = tokenizer
         self.params = params
+        self.split = split
         kwargs = {}
         for k, v in config.items():
             if k in ["snapshots", "subset", "languages"]:
@@ -345,7 +332,7 @@ class HuggingfaceDataset(IterableDataset):
                 kwargs[k] = v
         self.dataset = load_dataset(
             config["repo"],
-            split=split,
+            split=self.split,
             streaming=True,
             cache_dir="/data/pile",
             trust_remote_code=True,
@@ -354,10 +341,12 @@ class HuggingfaceDataset(IterableDataset):
         self.params["num_workers"] = min(
             self.params["num_workers"], self.dataset.n_shards
         )
+
         self.cached_text = ""
         self.cache_size = 100_000
 
     def __iter__(self):
+
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
             buffer_size=self.config.get("buffer_size", 10_000),
@@ -371,21 +360,35 @@ class HuggingfaceDataset(IterableDataset):
         elif delimiter == "\\t":
             delimiter = "\t"
 
-        patterns = self.config["patterns"]
+        patterns = self.config.get("patterns", [])
+
+        val_samples = self.config.get("val_samples", 0)
 
         for document in shuffled:
+            if self.split != "train":
+                if val_samples == 0:
+                    break
+
             text = ""
-            for k, v in self.config["schema"].items():
+            items = list(self.config["schema"].items())
+            for i, (k, v) in enumerate(items):
                 for pattern in patterns:
                     identity = get_identity()
                     v = re.sub(pattern, identity, v)
-                text += v + document[k] + delimiter
+
+                text += v + document[k]
+
+                if i < len(items) - 1:
+                    text += delimiter
 
             text += self.tokenizer.eos_token
 
             self.cached_text += text
             if len(self.cached_text) < self.cache_size:
                 continue
+
+            if self.config.get("debug", False):
+                print(self.cached_text[4096:])
 
             tokens = self.tokenizer(
                 text=self.cached_text,
@@ -403,166 +406,15 @@ class HuggingfaceDataset(IterableDataset):
                 if len(batch) != block_size:
                     break
                 while True:
-                    if random.random() < self.config.get("sample_rate", 1.0):
+                    if self.split != "train":
+                        val_samples -= 1
+                        yield batch
+                    elif random.random() < self.config.get("sample_rate", 1.0):
                         yield batch
                         break
                     else:
                         fake_token = 999999999
                         yield np.array([fake_token] * block_size).astype("int64")
-
-
-class StreamingDataset(IterableDataset):
-    def __init__(self, tokenizer, params, config, split="train"):
-        self.config = config
-        self.tokenizer = tokenizer
-        self.content_key = config.get("content_key", "default")
-        self.params = params
-        kwargs = {}
-        for k, v in config.items():
-            if k in ["snapshots", "subset", "languages"]:
-                if k == "subset":
-                    k = "name"
-                kwargs[k] = v
-        self.dataset = load_dataset(
-            config["repo"],
-            split=split,
-            streaming=True,
-            cache_dir="/data/pile",
-            trust_remote_code=True,
-            **kwargs,
-        )
-        self.params["num_workers"] = min(
-            self.params["num_workers"], self.dataset.n_shards
-        )
-
-    def __iter__(self):
-        shuffled = self.dataset.shuffle(
-            seed=random.randint(0, 2**31),
-            buffer_size=self.config.get("buffer_size", 10_000),
-        )
-
-        block_size = self.params["block_size"]
-
-        samples = self.config.get("val_samples", 0)
-
-        batch = []
-        for document in shuffled:
-            tokenized = self.tokenizer(
-                text=document.get(self.content_key),
-                max_length=block_size,
-                stride=block_size - 32,
-                padding=False,
-                truncation=True,
-                return_overflowing_tokens=True,
-                return_tensors="np",
-            )["input_ids"]
-            choice = random.choice(tokenized)
-            if len(choice) == 0:
-                continue
-            elif len(batch) == 0:
-                batch = choice
-            else:
-                np.append(batch, self.tokenizer.eos_token_id)
-                batch = np.concatenate([batch, choice])
-            if len(batch) >= block_size:
-                while True:
-                    if random.random() < self.config.get("sample_rate", 1.0):
-                        break
-                    fake_token = 999999999
-                    yield np.array([fake_token] * block_size).astype("int64")
-                yield batch[:block_size]
-                batch = []
-                if samples > 0:
-                    samples -= 1
-                    if samples == 0:
-                        samples = self.config.get("val_samples", 0)
-                        break
-            else:
-                continue
-
-
-class ChatStreamingDataset(StreamingDataset):
-    def __iter__(self):
-        block_size = self.params["block_size"]
-        wall = self.config.get("wall", "¶")
-        ship = self.config.get("ship", ":>")
-
-        num_epochs = 1_000_000
-        for epoch in range(num_epochs):
-            self.dataset.set_epoch(epoch)
-            shuffled = self.dataset.shuffle(
-                seed=random.randint(0, 2**31),
-                buffer_size=self.config.get("buffer_size", 10_000),
-            )
-            for document in shuffled:
-                if random.random() < self.config.get("sample_rate", 1.0):
-                    human = get_identity()
-                    robot = get_identity()
-                    orig = document.get("text")
-                    new = orig.replace("Tom:", f"\n{wall}{robot}{ship}").replace(
-                        "Sarah:", f"\n{wall}{human}{ship}"
-                    )
-                    tokens = self.tokenizer(
-                        text=new,
-                        max_length=block_size,
-                        padding="max_length",
-                        truncation=True,
-                        return_overflowing_tokens=False,
-                        return_tensors="np",
-                    )["input_ids"]
-                    batch = np.array([]).astype("int64")
-                    for block in tokens:
-                        batch = np.concatenate([batch, block])
-                    yield batch.astype("int64")
-                else:
-                    fake_token = 999999999
-                    yield np.array([fake_token] * block_size).astype("int64")
-
-
-class SequentialStreamingDataset(StreamingDataset):
-    def __iter__(self):
-        shuffled = self.dataset.shuffle(
-            seed=random.randint(0, 2**31),
-            buffer_size=self.config.get("buffer_size", 10_000),
-        )
-
-        block_size = self.params["block_size"]
-
-        assert block_size % 2 == 0, "`block_size` must be divisible by 2."
-
-        half_block = int(block_size / 2)
-
-        batch = np.array([])
-        for document in shuffled:
-            tokens = self.tokenizer(
-                text=document.get(self.content_key),
-                max_length=block_size,
-                padding=False,
-                truncation=True,
-                stride=0,
-                return_overflowing_tokens=True,
-                return_tensors="np",
-            )["input_ids"]
-
-            if len(tokens) == 0:
-                continue
-
-            for block in tokens:
-                batch = np.concatenate([batch, block])
-
-            if len(batch) < block_size:
-                np.append(batch, self.tokenizer.eos_token_id)
-                continue
-
-            while len(batch) >= block_size:
-                selection = batch[:block_size]
-                batch = batch[half_block:]
-                while True:
-                    if random.random() < self.config.get("sample_rate", 1.0):
-                        yield selection.astype("int64")
-                        break
-                    fake_token = 999999999
-                    yield np.array([fake_token] * block_size).astype("int64")
 
 
 def merge_datasets(
