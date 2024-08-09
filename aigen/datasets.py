@@ -5,22 +5,22 @@ import logging
 import math
 import os
 import random
+import re
 import sys
 import textwrap
 from pprint import pprint
 from typing import List
-import re
 
 import datasets
 import numpy as np
 import torch
-from torch.utils.data import WeightedRandomSampler
 from datasets import load_dataset
 from lightning.pytorch.core.datamodule import LightningDataModule
 from pkg_resources import resource_filename
-from torch.utils.data import DataLoader, Dataset, IterableDataset
+from torch.utils.data import DataLoader, Dataset, IterableDataset, WeightedRandomSampler
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
+
 from .utils import get_identity
 
 csv.field_size_limit(2**31 - 1)
@@ -355,7 +355,7 @@ class HuggingfaceDataset(IterableDataset):
             self.params["num_workers"], self.dataset.n_shards
         )
         self.cached_text = ""
-        self.cache_size = 1_000_000
+        self.cache_size = 100_000
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(
