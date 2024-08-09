@@ -355,7 +355,7 @@ class HuggingfaceDataset(IterableDataset):
             self.params["num_workers"], self.dataset.n_shards
         )
         self.cached_text = ""
-        self.cache_size = 100_000
+        self.cache_size = 1_000_000
 
     def __iter__(self):
         shuffled = self.dataset.shuffle(
