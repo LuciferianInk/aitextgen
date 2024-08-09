@@ -51,6 +51,13 @@ def get_optimizer(params, hparams):
             params,
             lr=hparams["learning_rate"],
         )
+    elif hparams["optimizer"] == "Kate":
+        from pytorch_optimizer import Kate
+
+        opt = Kate(
+            params,
+            lr=hparams["learning_rate"],
+        )
     else:
         if hparams.get("deepspeed"):
             from deepspeed.ops.adam import DeepSpeedCPUAdam
