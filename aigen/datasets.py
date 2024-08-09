@@ -9,6 +9,7 @@ import sys
 import textwrap
 from pprint import pprint
 from typing import List
+import re
 
 import datasets
 import numpy as np
@@ -295,6 +296,10 @@ class StreamingDataModule(LightningDataModule):
             self.train_data = ChatStreamingDataset(
                 self.tokenizer, self.params, config, split="train"
             )
+        elif config.get("hf", False):
+            self.train_data = HuggingfaceDataset(
+                self.tokenizer, self.params, config, split="train"
+            )
         else:
             self.train_data = StreamingDataset(
                 self.tokenizer, self.params, config, split="train"
@@ -330,6 +335,80 @@ class StreamingDataModule(LightningDataModule):
             pin_memory=self.params["pin_memory"],
             num_workers=self.params["num_workers"],
         )
+
+
+class HuggingfaceDataset(IterableDataset):
+    def __init__(self, tokenizer, params, config, split="train"):
+
+        assert config["schema"], "You must provide a schema."
+
+        self.config = config
+        self.tokenizer = tokenizer
+        self.params = params
+        kwargs = {}
+        for k, v in config.items():
+            if k in ["snapshots", "subset", "languages"]:
+                if k == "subset":
+                    k = "name"
+                kwargs[k] = v
+        self.dataset = load_dataset(
+            config["repo"],
+            split=split,
+            streaming=True,
+            cache_dir="/data/pile",
+            trust_remote_code=True,
+            **kwargs,
+        )
+        self.params["num_workers"] = min(
+            self.params["num_workers"], self.dataset.n_shards
+        )
+        self.cached_text = ""
+        self.cache_size = 1_000_000
+
+    def __iter__(self):
+        shuffled = self.dataset.shuffle(
+            seed=random.randint(0, 2**31),
+            buffer_size=self.config.get("buffer_size", 10_000),
+        )
+
+        block_size = self.params["block_size"]
+
+        delimiter = self.config.get("delimiter", "\n")
+        if delimiter == "\\n":
+            delimiter = "\n"
+        elif delimiter == "\\t":
+            delimiter = "\t"
+
+        patterns = self.config["patterns"]
+
+        for document in shuffled:
+            text = ""
+            for k, v in self.config["schema"].items():
+                for pattern in patterns:
+                    identity = get_identity()
+                    v = re.sub(pattern, identity, v)
+                text += v + document[k] + delimiter
+
+            text += self.tokenizer.eos_token
+
+            self.cached_text += text
+            if len(self.cached_text) < self.cache_size:
+                continue
+
+            tokens = self.tokenizer(
+                text=self.cached_text,
+                max_length=block_size,
+                stride=64,
+                padding=False,
+                truncation=True,
+                return_overflowing_tokens=True,
+                return_tensors="np",
+            )["input_ids"]
+
+            self.cached_text = ""
+            for batch in tokens:
+                if len(batch) == block_size:
+                    yield batch
 
 
 class StreamingDataset(IterableDataset):
