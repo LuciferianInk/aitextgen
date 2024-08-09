@@ -382,8 +382,6 @@ class aigen:
                 state=self.memory,
                 assistant_model=assistant if assistant else None,
                 tokenizer=self.tokenizer if not self.petals else None,
-                # enable_timing=False,
-                # cg=True,
                 logits_processor=logits_processor,
                 **kwargs,
             )

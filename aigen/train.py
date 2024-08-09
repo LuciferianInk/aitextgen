@@ -53,17 +53,24 @@ class AIGTrainer(LightningModule):
             losses.append(outputs[0])
             self.train_tokens += int(self.hparams["block_size"])
 
-        if len(losses) == 0:
+        batch_size = len(losses)
+        if batch_size == 0:
             return
 
-        loss = sum(losses) / len(losses)
+        loss = sum(losses) / batch_size
 
         self.log(
-            "train_loss", float(loss), on_step=True, on_epoch=False, sync_dist=True
+            "train_loss",
+            float(loss),
+            batch_size=batch_size,
+            on_step=True,
+            on_epoch=False,
+            sync_dist=True,
         )
         self.log(
             "train_tokens",
             int(self.train_tokens),
+            batch_size=batch_size,
             on_step=True,
             on_epoch=False,
             sync_dist=True,
@@ -80,7 +87,14 @@ class AIGTrainer(LightningModule):
         elif hasattr(self.trainer.strategy.optimizers[0], "local_epoch"):
             step = self.trainer.strategy.optimizers[0].local_epoch
 
-        self.log("step", int(step), on_step=True, on_epoch=False, sync_dist=True)
+        self.log(
+            "step",
+            int(step),
+            batch_size=self.hparams["batch_size"],
+            on_step=True,
+            on_epoch=False,
+            sync_dist=True,
+        )
 
         if hasattr(schedule, "step"):
             schedule.step()
@@ -94,20 +108,28 @@ class AIGTrainer(LightningModule):
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
 
-        if len(losses) == 0:
+        batch_size = len(losses)
+        if batch_size == 0:
             return
 
-        loss = sum(losses) / len(losses)
+        loss = sum(losses) / batch_size
 
-        self.log("val_loss", float(loss), on_step=False, on_epoch=True, sync_dist=True)
         self.log(
-            "val_ppl",
-            float(torch.exp(loss)),
+            "val_loss",
+            float(loss),
+            batch_size=batch_size,
             on_step=False,
             on_epoch=True,
             sync_dist=True,
         )
-        self.log("hp_metric", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_ppl",
+            float(torch.exp(loss)),
+            batch_size=batch_size,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
         return loss
 

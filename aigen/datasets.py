@@ -216,7 +216,9 @@ class LocalDataModule(LightningDataModule):
         self.config = hparams
 
     def train_dataloader(self):
-        sampler = WeightedRandomSampler(self.weights, len(self.weights), False)
+        sampler = WeightedRandomSampler(
+            self.weights, num_samples=len(self.weights), replacement=True
+        )
         return DataLoader(
             self.train,
             batch_size=self.config["batch_size"],
