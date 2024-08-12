@@ -92,8 +92,14 @@ class aigen:
         if precision in [64]:
             qargs["torch_dtype"] = torch.float64
 
-        if precision in [16, 8, 4]:
+        if precision in [32]:
+            qargs["torch_dtype"] = torch.float32
+
+        if precision in ["b16"]:
             qargs["torch_dtype"] = torch.bfloat16
+
+        if precision in [16, 8, 4]:
+            qargs["torch_dtype"] = torch.float16
 
         if precision == 8:
             qargs["load_in_8bit"] = True
@@ -363,6 +369,17 @@ class aigen:
             )
             logits_processor.append(custom_processor)
 
+        # import sys
+
+        # from transformers import TextStreamer
+
+        # class RealTimeStreamer(TextStreamer):
+        #     def on_finalized_text(self, text: str, stream_end: bool = False):
+        #         print(text, end="", flush=True)
+        #         sys.stdout.flush()
+
+        # streamer = RealTimeStreamer(self.tokenizer)
+
         while True:
             outputs = self.model.generate(
                 inputs=input_ids,
@@ -374,6 +391,7 @@ class aigen:
                 output_attentions=False,
                 output_scores=False,
                 num_return_sequences=1,
+                # streamer=streamer,
                 state=self.memory,
                 assistant_model=assistant if assistant else None,
                 tokenizer=self.tokenizer if not self.petals else None,
@@ -748,7 +766,7 @@ class aigen:
         # https://discuss.pytorch.org/t/how-do-i-check-the-number-of-parameters-of-a-model/4325/24
         num_params_m = int(self.get_total_params() / 10**6)
         model_name = type(self.model.config).__name__.replace("Config", "")
-        return f"{model_name} loaded with {num_params_m}M parameters."
+        return f"{model_name} loaded with {num_params_m}M parameters. (precision: {self.precision})"
 
 
 class CharacterSuppressionTopKLogitsWarper(LogitsWarper):
