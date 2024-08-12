@@ -230,7 +230,7 @@ class aigen:
 
         if adapters and not petals:
             for adapter in adapters:
-                logger.info(f"Loading adapter: {adapter}")
+                print(f"Loading adapter: {adapter}")
                 if adapters.index(adapter) == 0:
                     self.model = PeftModel.from_pretrained(
                         self.model,
@@ -243,7 +243,7 @@ class aigen:
                     )
 
             if len(adapters) > 1:
-                logger.info("Merging adapters...")
+                print("Merging adapters...")
                 try:
                     self.model.add_weighted_adapter(
                         adapters=adapters,
@@ -255,15 +255,20 @@ class aigen:
                     print(traceback.format_exc())
 
                 # logger.info("Using adapters: ", adapters)
-                logger.warning(f"Created new adapter: combined")
+                print(f"Created new adapter: combined")
                 self.model.set_adapter("combined")
                 # self.model.set_adapter(adapters)
 
                 for adapter in adapters:
-                    logger.warning(f"Deleting unused adapter: {adapter}")
+                    print(f"Deleting unused adapter: {adapter}")
                     self.model.delete_adapter(adapter)
 
             # logger.info(f"Using adapter: {self.model.active_adapter}")
+
+            print("merging adapters into the main model")
+            self.model = self.model.merge_and_unload(
+                progressbar=True, safe_merge=True, adapter_names=None
+            )
 
         self.model.eval()
         logger.info(self)
