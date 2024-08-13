@@ -238,7 +238,7 @@ class AIGProgressBar(ProgressBar):
 
         memory = psutil.virtual_memory()
 
-        bar = f"{os.environ.get('FOCUS', 'self')}{self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {left}.{self.blue}{right}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
+        bar = f"{os.environ.get('FOCUS', 'self')} {self.green}{c_sym}{current_loss:.3f}{self.white} => Loss => {color}{a_sym}{avg_loss:.3f}{self.white} => Bearing => {left}.{self.blue}{right}{random.randint(0,2)}00{self.white} => System => {self.blue}{memory.percent}%{self.white}"
 
         if lm.on_gpu:
             result = subprocess.run(

@@ -74,6 +74,7 @@ class aigen:
         pre_seq_len=24,
         device_map="auto",
         attn_implementation="eager",
+        merge_adapters=False,
         **kwargs,
     ) -> None:
         self.mode = "transformer"
@@ -265,10 +266,11 @@ class aigen:
 
             # logger.info(f"Using adapter: {self.model.active_adapter}")
 
-            print("merging adapters into the main model")
-            self.model = self.model.merge_and_unload(
-                progressbar=True, safe_merge=True, adapter_names=None
-            )
+            if merge_adapters:
+                print("merging adapters into the main model")
+                self.model = self.model.merge_and_unload(
+                    progressbar=True, safe_merge=True, adapter_names=None
+                )
 
         self.model.eval()
         logger.info(self)

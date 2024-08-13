@@ -23,7 +23,12 @@ def get_optimizer(params, hparams):
     elif hparams["optimizer"] == "Prodigy":
         from pytorch_optimizer import Prodigy
 
-        opt = Prodigy(params, lr=hparams["learning_rate"])
+        opt = Prodigy(
+            params,
+            lr=hparams["learning_rate"],
+            safeguard_warmup=True,
+            bias_correction=True,
+        )
     elif hparams["optimizer"] == "Ranger21":
         from pytorch_optimizer import Ranger21
 
