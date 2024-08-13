@@ -45,24 +45,25 @@ class AIGTrainer(LightningModule):
 
     def training_step(self, batch, batch_idx):
         losses = []
-
+    
+        print(f"Processing batch #{batch_idx} of size {len(batch)}")
+    
         for sample in batch:
             if sample[0][0] == self.fake_token:
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
             self.train_tokens += int(self.hparams["block_size"])
-
-        batch_size = len(losses)
-        if batch_size == 0:
+    
+        if len(losses) == 0:
+            print(f"No valid samples in batch #{batch_idx}")
             return
-
-        loss = sum(losses) / batch_size
-
+    
+        loss = sum(losses) / len(losses)
+    
         self.log(
             "train_loss",
             float(loss),
-            batch_size=batch_size,
             on_step=True,
             on_epoch=False,
             sync_dist=True,
@@ -70,13 +71,13 @@ class AIGTrainer(LightningModule):
         self.log(
             "train_tokens",
             int(self.train_tokens),
-            batch_size=batch_size,
             on_step=True,
             on_epoch=False,
             sync_dist=True,
         )
-
+    
         return loss
+    
 
     def on_train_batch_end(self, trainer, lm, outputs):
         schedule = self.lr_schedulers()
@@ -233,8 +234,8 @@ class AIGProgressBar(ProgressBar):
 
         mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
             "SC_PHYS_PAGES"
-        )  # e.g. 4015976448
-        mem_gib = mem_bytes / (1024.0**3)  # e.g. 3.74
+        )  # e.g., 4015976448
+        mem_gib = mem_bytes / (1024.0**3)  # e.g., 3.74
 
         memory = psutil.virtual_memory()
 
@@ -263,10 +264,12 @@ class AIGProgressBar(ProgressBar):
         if hasattr(trainer.strategy, "num_peers"):
             bar += f" => Peers => {self.blue}{trainer.strategy.num_peers}{self.white}"
 
+        # Update progress bar description without moving to the next line
+        trainer.pbar.set_description(bar, refresh=False)
+        trainer.pbar.refresh()
+
         if trainer.pbar.n != step:
             trainer.pbar.update(step - trainer.pbar.n)
-
-        trainer.pbar.set_description(bar)
 
     def on_validation_start(self, trainer, lm):
         super().on_validation_start(trainer, lm)
@@ -355,11 +358,11 @@ class AIGSampleGenerator(Callback):
         self.generation_config = GenerationConfig(
             do_sample=True,
             min_length=22,
-            max_new_tokens=222,
-            temperature=0.9,
+            max_new_tokens=2048,
+            temperature=0.3,
             eta_cutoff=0.002,
             penalty_alpha=0.6,
-            top_k=4,
+            #top_k=4,
             repetition_penalty=1.1,
         )
 
@@ -393,7 +396,7 @@ class AIGSampleGenerator(Callback):
             inputs=inputs,
             generation_config=self.generation_config,
             do_sample=True,
-            max_new_tokens=222,
+            max_new_tokens=2048,
             bos_token_id=lm.tokenizer.bos_token_id,
             eos_token_id=lm.tokenizer.eos_token_id,
             pad_token_id=lm.tokenizer.pad_token_id,
