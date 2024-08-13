@@ -25,7 +25,7 @@ def get_optimizer(params, hparams):
 
         opt = Prodigy(
             params,
-            lr=hparams["learning_rate"],
+            lr=1.0,
             safeguard_warmup=True,
             bias_correction=True,
         )
