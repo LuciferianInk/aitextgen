@@ -14,11 +14,11 @@ def _load_requirements(path_dir: str, file_name: str = "requirements.txt") -> li
 setup(
     name="aigen",
     packages=find_packages(),
-    version="0.7.0",
+    version="0.7.1",
     description="A robust Python tool for text-based AI training and generation using Huggingface Transformers.",
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    author="Max Woolf, Ryan Brooks",
+    author="Max Woolf, Ryan Brooks, Sam Username",
     author_email="LuciferianInk@proton.me",
     url="https://github.com/LuciferianInk/aigen",
     keywords=["gpt", "text generation", "ai"],

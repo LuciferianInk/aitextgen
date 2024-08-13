@@ -12,7 +12,7 @@ def train_tokenizer(
     vocab_size: int = 1000,
     min_frequency: int = 2,
     max_token_length: int = 5,
-    save_path: str = "aigen",
+    save_path: str = "trained_model",
     added_tokens: List[str] = [],
     bos_token: str = "<|void|>",
     eos_token: str = "<|void|>",

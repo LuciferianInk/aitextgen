@@ -452,23 +452,60 @@ class aigen:
         self.total_train = []
         self.total_val = []
 
-        for dataset in local_data:
-            module = LocalDataModule(
-                dataset["train"], dataset["val"], dataset["weights"], hparams
-            )
-            self.total_train.append(module.train_dataloader())
-            self.total_val.append(module.val_dataloader())
+        print("Preparing datasets...")
 
-        self.static_len = sum(len(dataset) for dataset in self.total_train)
+        # Ensure hparams contains necessary keys
+        hparams.setdefault('batch_size', 8)
+        hparams.setdefault('pin_memory', True)
+        hparams.setdefault('num_workers', int(os.cpu_count()))  # default value, adjust as needed
+
+        for dataset in local_data:
+            print(f"Processing local dataset: Train size = {len(dataset['train'])}, Val size = {len(dataset['val'])}")
+
+            module = LocalDataModule(
+                train_data=dataset["train"],
+                val_data=dataset["val"],
+                weights=dataset["weights"],
+                hparams=hparams
+            )
+
+            train_loader = module.train_dataloader()
+            val_loader = module.val_dataloader()
+
+            if len(train_loader) > 0:
+                self.total_train.append(train_loader)
+            else:
+                print("Train DataLoader is empty!")
+
+            if len(val_loader) > 0:
+                self.total_val.append(val_loader)
+            else:
+                print("Val DataLoader is empty!")
+
+        self.static_len = sum(len(loader) for loader in self.total_train)
 
         for dataset in streaming_data:
             module = StreamingDataModule(self.tokenizer, hparams, dataset)
-            self.total_train.append(module.train_dataloader())
-            if dataset.get("val_samples"):
-                self.total_val.append(module.val_dataloader())
+            train_loader = module.train_dataloader()
+            val_loader = module.val_dataloader()
+            if len(train_loader) > 0:
+                self.total_train.append(train_loader)
+            else:
+                print("Streaming Train DataLoader is empty!")
+
+            if dataset.get("val_samples") and len(val_loader) > 0:
+                self.total_val.append(val_loader)
+            else:
+                print("Streaming Val DataLoader is empty!")
 
         self.combined_train = CombinedLoader(self.total_train, mode="min_size")
         self.combined_val = CombinedLoader(self.total_val, mode="min_size")
+
+        num_train_batches = sum(len(loader) for loader in self.total_train)
+        num_val_batches = sum(len(loader) for loader in self.total_val)
+
+        print(f"Total combined train batches: {num_train_batches}")
+        print(f"Total combined val batches: {num_val_batches}")
 
     def train(
         self,
@@ -483,22 +520,22 @@ class aigen:
         optimizer: str = "AdamW",
         scheduler: str = "cosine",
         num_cycles: int = None,
-        learning_rate: float = 1e-3,
+        learning_rate: float = 2e-6,
         lookahead: int = 0,
         momentum: float = 0,
         swa_learning_rate: float = None,
-        weight_decay: float = 0,
+        weight_decay: float = 0.5,
         eps: float = 1e-8,
         warmup_steps: int = 0,
         num_steps: int = 5000,
-        save_every: int = 0,
-        generate_every: int = 0,
+        save_every: int = 25,
+        generate_every: int = 50,
         loggers: List = None,
-        batch_size: int = 1,
-        num_workers: int = None,
+        batch_size: int = 8,
+        num_workers: int = int(os.cpu_count()),
         prune: float = 0.0,
         petals: bool = False,
-        block_size: int = 2048,
+        block_size: int = 50000,
         val_split: float = 0.0,
         val_interval: int = 1000,
         initial_piers: list = [],
@@ -507,247 +544,224 @@ class aigen:
         finetune: bool = False,
         progress_bar: bool = True,
         checkpoint_every: int = 0,
-        resume: bool = False,
+        resume: bool = True,
         verbose: bool = True,
         devices=None,
         overfit: bool = False,
         callbacks=[],
         **kwargs,
     ) -> None:
-        if hasattr(self.model, "training"):
-            self.model.training = True
-
-        if seed:
-            seed_everything(seed)
-
-        is_gpu_used = torch.cuda.is_available()
-
-        if devices is None:
-            device = self.get_device().index
-            devices = [device]
-            if device is None:
-                devices = -1
-
-        if os.environ.get("DEVICE", "auto") == "cpu":
-            devices = 1
-
-        # This is a hack, but prevents HivemindStrategy from placing models
-        # onto the wrong device.
-        if is_gpu_used and strategy == "hivemind":
-            try:
-                torch.cuda.set_device(devices[0])
-            except Exception as e:
-                logging.error(e)
-                torch.cuda.set_device(0)
-
-        num_workers = (
-            num_workers if num_workers is not None else int(os.cpu_count() / 2)
-        )
-
-        if gradient_checkpointing:
-            self.model.gradient_checkpointing_enable({"use_reentrant": False})
-            setattr(self.model.config, "use_cache", None if petals else False)
-
-        hparams = dict(
-            optimizer=optimizer,
-            scheduler=scheduler,
-            learning_rate=learning_rate,
-            lookahead=lookahead,
-            momentum=momentum,
-            weight_decay=weight_decay,
-            eps=eps,
-            warmup_steps=warmup_steps,
-            batch_size=batch_size,
-            num_steps=num_steps,
-            pin_memory=is_gpu_used,
-            num_workers=num_workers,
-            num_cycles=num_cycles,
-            petals=petals,
-            val_split=val_split,
-            block_size=block_size,
-            initial_piers=initial_piers,
-            target_batch_size=target_batch_size,
-            accumulate_grad_batches=gradient_accumulation_steps,
-            **kwargs,
-        )
-
-        train_params = dict(
-            accelerator="auto",
-            strategy="auto",
-            devices=devices,
-            max_steps=num_steps,
-            max_epochs=-1,
-            val_check_interval=(
-                1000 if overfit else val_interval * gradient_accumulation_steps
-            ),
-            reload_dataloaders_every_n_epochs=1,
-            enable_checkpointing=True if checkpoint_every > 0 else False,
-            precision="32-true",
-            accumulate_grad_batches=gradient_accumulation_steps,
-            gradient_clip_val=gradient_clip_val,
-            gradient_clip_algorithm="norm",
-            benchmark=True,
-            callbacks=callbacks,
-            logger=loggers if loggers else False,
-            overfit_batches=1000 if overfit else 0,
-        )
-
-        train_params["callbacks"].append(AIGMetricsLogger())
-
-        if checkpoint_every > 0:
-            checkpoint_callback = ModelCheckpoint(
-                save_top_k=2,
-                monitor="step",
-                mode="max",
-                every_n_train_steps=checkpoint_every,
-                dirpath=output_dir,
-                filename="model",
+            if hasattr(self.model, "training"):
+                self.model.training = True
+        
+            if seed:
+                seed_everything(seed)
+        
+            is_gpu_used = torch.cuda.is_available()
+        
+            if devices is None:
+                device = self.get_device().index
+                devices = [device]
+                if device is None:
+                    devices = -1
+        
+            if os.environ.get("DEVICE", "auto") == "cpu":
+                devices = 1
+        
+            if is_gpu_used and strategy == "hivemind":
+                try:
+                    torch.cuda.set_device(devices[0])
+                except Exception as e:
+                    logging.error(e)
+                    torch.cuda.set_device(0)
+        
+            num_workers = (
+                num_workers if num_workers is not None else int(os.cpu_count() / 2)
             )
-
-            train_params["callbacks"].append(checkpoint_callback)
-            print(f"Model checkpointing enabled.")
-
-        latest_checkpoint = None
-        if resume and checkpoint_every > 0:
-            num_versions = 1000
-            this_version = 1000
-            # this checkpoint handling is kind of stupid, but we do it this way
-            # because Lighting sometimes likes to increment model versions, instead
-            # of just overwriting the previous checkpoints
-            for _ in range(num_versions):
-                this_version -= 1
-                ckpt_path = f"{output_dir}/model-v{this_version}.ckpt"
-                if os.path.exists(ckpt_path):
-                    latest_checkpoint = ckpt_path
-                    break
-
-            if latest_checkpoint is None:
-                latest_checkpoint = f"{output_dir}/model.ckpt"
-
-            print(f"Resuming training from: {latest_checkpoint}")
-
-        if finetune:
-            from finetuning_scheduler import FinetuningScheduler
-
-            train_params["callbacks"].append(FinetuningScheduler())
-
-            logging.info(f"Using a naive finetuning schedule.")
-
-        if prune > 0.0:
-            modules_to_prune = []
-            for n, m in self.model.named_modules():
-                if isinstance(m, torch.nn.Embedding) or isinstance(m, torch.nn.Linear):
-                    modules_to_prune.append(
-                        (
-                            m,
-                            "weight",
+        
+            if gradient_checkpointing:
+                self.model.gradient_checkpointing_enable({"use_reentrant": False})
+                setattr(self.model.config, "use_cache", False)
+        
+            hparams = dict(
+                optimizer=optimizer,
+                scheduler=scheduler,
+                learning_rate=learning_rate,
+                lookahead=lookahead,
+                momentum=momentum,
+                weight_decay=weight_decay,
+                eps=eps,
+                warmup_steps=warmup_steps,
+                batch_size=batch_size,
+                num_steps=num_steps,
+                pin_memory=is_gpu_used,
+                num_workers=num_workers,
+                num_cycles=num_cycles,
+                petals=petals,
+                val_split=val_split,
+                block_size=block_size,
+                initial_piers=initial_piers,
+                target_batch_size=target_batch_size,
+                accumulate_grad_batches=gradient_accumulation_steps,
+                **kwargs,
+            )
+        
+            train_params = dict(
+                accelerator="auto",
+                strategy="auto",
+                devices=devices,
+                max_steps=num_steps,
+                max_epochs=-1,
+                val_check_interval=val_interval * gradient_accumulation_steps,
+                reload_dataloaders_every_n_epochs=1,
+                enable_checkpointing=True if checkpoint_every > 0 else False,
+                precision="32-true",
+                accumulate_grad_batches=gradient_accumulation_steps,
+                gradient_clip_val=gradient_clip_val,
+                gradient_clip_algorithm="norm",
+                benchmark=True,
+                callbacks=callbacks,
+                logger=loggers if loggers else False,
+                overfit_batches=1000 if overfit else 0,
+            )
+        
+            train_params["callbacks"].append(AIGMetricsLogger())
+        
+            if checkpoint_every > 0:
+                checkpoint_callback = ModelCheckpoint(
+                    save_top_k=2,
+                    monitor="step",
+                    mode="max",
+                    every_n_train_steps=checkpoint_every,
+                    dirpath=output_dir,
+                    filename="model",
+                )
+        
+                train_params["callbacks"].append(checkpoint_callback)
+                print(f"Model checkpointing enabled.")
+        
+            if finetune:
+                from finetuning_scheduler import FinetuningScheduler
+        
+                train_params["callbacks"].append(FinetuningScheduler())
+                logging.info(f"Using a naive finetuning schedule.")
+        
+            if prune > 0.0:
+                modules_to_prune = []
+                for n, m in self.model.named_modules():
+                    if isinstance(m, torch.nn.Embedding) or isinstance(m, torch.nn.Linear):
+                        modules_to_prune.append(
+                            (
+                                m,
+                                "weight",
+                            )
+                        )
+                train_params["callbacks"].append(
+                    ModelPruning(
+                        apply_pruning=True,
+                        amount=prune,
+                        make_pruning_permanent=False,
+                        use_lottery_ticket_hypothesis=True,
+                        resample_parameters=True,
+                        pruning_fn="random_unstructured",
+                        use_global_unstructured=True,
+                        prune_on_train_epoch_end=False,
+                        parameters_to_prune=list(set(modules_to_prune)),
+                        verbose=1,
+                    )
+                )
+        
+                print(f"Will prune {prune}% of model neurons during training.")
+        
+            if swa_learning_rate:
+                train_params["callbacks"].append(
+                    StochasticWeightAveraging(swa_lrs=swa_learning_rate)
+                )
+        
+            local_rank = int(os.environ.get("LOCAL_RANK", 0))
+            world_rank = int(os.environ.get("WORLD_RANK", 0))
+        
+            print(f"Local rank: {local_rank}, World rank: {world_rank}")
+        
+            if local_rank == 0:
+                os.makedirs(output_dir, exist_ok=True)
+        
+                if progress_bar:
+                    train_params["callbacks"].append(AIGProgressBar(num_steps))
+        
+                if generate_every > 0:
+                    train_params["callbacks"].append(
+                        AIGSampleGenerator(generate_every, self.get_device())
+                    )
+        
+                if save_every > 0:
+                    train_params["callbacks"].append(
+                        AIGModelSaver(
+                            save_every,
+                            output_dir,
+                            petals,
                         )
                     )
-            train_params["callbacks"].append(
-                ModelPruning(
-                    apply_pruning=True,
-                    amount=prune,
-                    make_pruning_permanent=False,
-                    use_lottery_ticket_hypothesis=True,
-                    resample_parameters=True,
-                    pruning_fn="random_unstructured",
-                    use_global_unstructured=True,
-                    prune_on_train_epoch_end=False,
-                    parameters_to_prune=list(set(modules_to_prune)),
-                    verbose=1,  # 0 to disable, 1 to log overall sparsity, 2 to log per-layer sparsity
+        
+            time.sleep(3)
+        
+            self.prepare_datasets(hparams, local_data, streaming_data)
+        
+            params = self._get_params(self.model, hparams)
+        
+            opt = get_optimizer(params, hparams)
+            schedule = get_schedule(hparams, opt)
+        
+            if strategy is not None:
+                train_params["strategy"], schedule = get_strategy(
+                    strategy, params, hparams, train_params, schedule
                 )
+        
+            train_model = AIGTrainer(
+                self.model,
+                opt,
+                schedule,
+                self.static_len,
+                hparams,
+                self.tokenizer,
             )
-
-            print(f"Will prune {prune} of model neurons during training.")
-
-        if swa_learning_rate:
-            train_params["callbacks"].append(
-                StochasticWeightAveraging(swa_lrs=swa_learning_rate)
-            )
-
-        local_rank = int(os.environ.get("LOCAL_RANK", 0))
-        world_rank = int(os.environ.get("WORLD_RANK", 0))
-
-        print(f"Local rank: {local_rank}, World rank: {world_rank}")
-
-        if local_rank == 0:
-            os.makedirs(output_dir, exist_ok=True)
-
-            if progress_bar:
-                train_params["callbacks"].append(AIGProgressBar(num_steps))
-
-            if generate_every > 0:
-                train_params["callbacks"].append(
-                    AIGSampleGenerator(generate_every, self.get_device())
-                )
-
-            if save_every > 0:
-                train_params["callbacks"].append(
-                    AIGModelSaver(
-                        save_every,
-                        output_dir,
-                        petals,
+        
+            self.model.train()
+        
+            if verbose:
+                print(self.model)
+        
+                if hasattr(self.model, "print_trainable_parameters"):
+                    self.model.print_trainable_parameters()
+        
+                if self.static_len > 0:
+                    print(
+                        f"Training data:\n{colors.GREEN}{self.static_len}{colors.WHITE} static batches, {colors.GREEN}{self.static_len * block_size}{colors.WHITE} tokens"
                     )
+        
+            while self.static_len > 0 and train_params["val_check_interval"] > len(
+                self.total_train[0]
+            ):
+                train_params["val_check_interval"] = math.floor(
+                    len(self.total_train[0]) / 2
                 )
-
-        time.sleep(3)
-
-        self.prepare_datasets(hparams, local_data, streaming_data)
-
-        params = self._get_params(self.model, hparams)
-
-        opt = get_optimizer(params, hparams)
-        schedule = get_schedule(hparams, opt)
-
-        if strategy is not None:
-            train_params["strategy"], schedule = get_strategy(
-                strategy, params, hparams, train_params, schedule
+        
+            trainer = Trainer(**train_params)
+            trainer.fit(
+                train_model,
+                self.combined_train,
+                self.combined_val,
             )
-
-        # Wrap the model in a pytorch-lightning module
-        train_model = AIGTrainer(
-            self.model,
-            opt,
-            schedule,
-            self.static_len,
-            hparams,
-            self.tokenizer,
-        )
-
-        self.model.train()
-
-        if verbose:
-            print(self.model)
-
-            if hasattr(self.model, "print_trainable_parameters"):
-                self.model.print_trainable_parameters()
-
-            if self.static_len > 0:
-                print(
-                    f"Training data:\n{colors.GREEN}{self.static_len}{colors.WHITE} static batches, {colors.GREEN}{self.static_len * block_size}{colors.WHITE} tokens"
-                )
-
-        while self.static_len > 0 and train_params["val_check_interval"] > len(
-            self.total_train[0]
-        ):
-            train_params["val_check_interval"] = math.floor(
-                len(self.total_train[0]) / 2
-            )
-
-        trainer = Trainer(**train_params)
-        trainer.fit(
-            train_model,
-            self.combined_train,
-            self.combined_val,
-            ckpt_path=latest_checkpoint,
-        )
-
-        if save_every > 0 and not petals:
-            self.save(output_dir)
-
-        reset_seed()
-
-        return trainer.callback_metrics["train_loss"].item()
+        
+            if save_every > 0 and not petals:
+                self.save(output_dir)
+        
+            reset_seed()
+        
+            if "train_loss" not in trainer.callback_metrics:
+                print("train_loss not found in callback metrics")
+                return None
+            return trainer.callback_metrics["train_loss"].item()
 
     def save(self, target_folder: str = os.getcwd()):
         """Saves the model into the specified directory."""

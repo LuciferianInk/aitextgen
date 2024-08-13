@@ -3,3 +3,11 @@ __pycache__
 /dist
 *.egg-info
 /site
+aigen/.ipynb_checkpoints/__init__-checkpoint.py
+aigen/.ipynb_checkpoints/aigen-checkpoint.py
+aigen/.ipynb_checkpoints/cli-checkpoint.py
+aigen/.ipynb_checkpoints/datasets-checkpoint.py
+aigen/.ipynb_checkpoints/tokenizers-checkpoint.py
+aigen/.ipynb_checkpoints/train-checkpoint.py
+aigen/.DS_Store
+.DS_Store

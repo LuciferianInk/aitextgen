@@ -2,18 +2,13 @@ import csv
 import gzip
 import itertools
 import logging
-import math
 import os
 import random
 import re
-import sys
-import textwrap
 from pprint import pprint
-from typing import List
+from typing import List, Union
 
-import datasets
 import numpy as np
-import torch
 from datasets import load_dataset
 from lightning.pytorch.core.datamodule import LightningDataModule
 from pkg_resources import resource_filename
@@ -39,7 +34,7 @@ class StaticDataset(Dataset):
         merges_file: str = os.path.join(STATIC_PATH, "gpt2_merges.txt"),
         tokenizer: PreTrainedTokenizer = None,
         tokenizer_file: str = None,
-        texts: List[str] = None,
+        texts: List[Union[np.ndarray, List[int]]] = None,
         line_by_line: bool = False,
         from_cache: bool = False,
         cache_destination: str = "dataset_cache.tar.gz",
@@ -50,7 +45,7 @@ class StaticDataset(Dataset):
         tokenized_texts: bool = False,
         text_delim: str = "\n",
         bos_token: str = "<|void|>",
-        eos_token: str = "<|void|>",
+        eos_token: str = "###",
         unk_token: str = "<|void|>",
         pad_token: str = "<|void|>",
         **kwargs,
@@ -60,10 +55,12 @@ class StaticDataset(Dataset):
 
         # Special case; load tokenized texts immediately
         if tokenized_texts:
-            self.tokens = tokenized_texts
+            self.tokens = texts
+            self.tokenized_texts = texts
+            print(f"Tokenized texts length: {len(self.tokens)}")
             return
 
-        assert any([texts, file_path]), "texts or file_path must be specified."
+        assert any([texts, file_path]), "Either texts or file_path must be specified."
 
         # If a cache path is provided, load it.
         if from_cache:
@@ -83,15 +80,11 @@ class StaticDataset(Dataset):
             file_path
         ), f"{file_path} is not present in the current directory."
 
-        # if a file is specified, and it's line-delimited,
-        # the text must be processed line-by-line into a a single bulk file
         if line_by_line:
             text_delim = None
             self.line_by_line = True
             self.file_path = file_path
 
-        # if a file is specified, and it's not line-delimited,
-        # the texts must be parsed as a single bulk file.
         else:
             eos_token = ""
             self.file_path = file_path
@@ -124,6 +117,8 @@ class StaticDataset(Dataset):
 
         logger.info(f"Caching dataset to {cache_destination}")
 
+        print(f"Saving tokens to: {cache_destination}")
+        
         with open_func(cache_destination, "wb") as f:
             np.save(f, self.tokens)
 
@@ -148,24 +143,24 @@ class StaticDataset(Dataset):
         batch_size: int = 10000,
         block_size: int = 256,
         stride: int = 0,
-    ) -> List[int]:
+    ) -> np.ndarray:
         """
         Retrieve texts from a newline-delimited file.
         """
-
+        batch = None
         with open(file_path, "r", encoding="utf-8", newline=newline) as file:
             if file_path.endswith(".csv"):
                 # Strip the header
                 file.readline()
 
                 lines = csv.reader(file)
-                while True:
-                    content = [
-                        text[0] + eos_token
-                        for text in list(itertools.islice(lines, block_size))
-                    ]
-                    if not batch:
-                        break
+                content = [
+                    text[0] + eos_token
+                    for text in list(itertools.islice(lines, block_size))
+                ]
+                if not content:
+                    return np.empty((0, block_size), dtype=np.int64)
+
             else:
                 content = file.read()
 
@@ -276,7 +271,6 @@ class StreamingDataModule(LightningDataModule):
             pin_memory=self.params["pin_memory"],
             num_workers=1,
         )
-
 
 class HuggingfaceDataset(IterableDataset):
     def __init__(self, tokenizer, params, config, split="train"):
@@ -392,22 +386,17 @@ def merge_datasets(
     each dataset equal to the smallest dataset)
     in order to balance out the result dataset.
     """
+    assert isinstance(datasets, list) and len(datasets) > 1, "datasets must be a list of multiple StaticDatasets."
 
-    assert (
-        isinstance(datasets, list) and len(datasets) > 1
-    ), "datasets must be a list of multiple StaticDatasets."
-
-    len_smallest = min([len(dataset) for dataset in datasets])
+    len_smallest = min(len(dataset) for dataset in datasets)
     block_size = datasets[0].block_size
 
     tokenized_texts = []
 
     for dataset in datasets:
-        assert (
-            dataset.block_size == block_size
-        ), "The input datasets have different block sizes."
+        assert dataset.block_size == block_size, "The input datasets have different block sizes."
         if equalize:
-            tokenized_texts.extend(dataset.tokens[0:len_smallest])
+            tokenized_texts.extend(dataset.tokens[:len_smallest])
         else:
             tokenized_texts.extend(dataset.tokens)
 
