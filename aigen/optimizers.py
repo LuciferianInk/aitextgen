@@ -63,6 +63,15 @@ def get_optimizer(params, hparams):
             params,
             lr=hparams["learning_rate"],
         )
+    elif hparams["optimizer"] == "AdamG":
+        from pytorch_optimizer import AdamG
+
+        opt = AdamG(
+            params,
+            p=0.2,
+            q=0.24,
+            lr=1.0,
+        )
     elif hparams["optimizer"] in ["SignSGD", "Signum"]:
         from pytorch_optimizer import SignSGD
 
