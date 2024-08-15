@@ -375,8 +375,30 @@ class HuggingfaceDataset(IterableDataset):
                         yield batch
                         break
                     else:
-                        fake_token = 999999999
-                        yield np.array([fake_token] * block_size).astype("int64")
+                        yield create_fake_sequence(
+                            block_size,
+                            [self.tokenizer.bos_token_id, self.tokenizer.eos_token_id],
+                        )
+
+
+def create_fake_sequence(block_size, sequence):
+    # Calculate how many pairs of [333, 444] we need
+    num_pairs = block_size // 2
+
+    # Create the list with alternating 333 and 444
+    fake_list = sequence * num_pairs
+
+    # If block_size is odd, add one more element
+    if block_size % 2 != 0:
+        fake_list.append(sequence[0])
+
+    # Convert to NumPy array
+    fake_array = np.array(fake_list, dtype=np.int64)
+
+    # Ensure the array is exactly block_size long
+    fake_array = fake_array[:block_size]
+
+    return fake_array
 
 
 def merge_datasets(

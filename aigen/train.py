@@ -36,18 +36,23 @@ class AIGTrainer(LightningModule):
         )
         self.automatic_optimization = True
         self.train_tokens = 0
-        self.fake_token = 999999999
+        self.skip_sequence = [self.tokenizer.bos_token_id, self.tokenizer.eos_token_id]
         self.pbar = None
         self.save_hyperparameters(hparams)
 
     def forward(self, inputs):
         return self.model(**inputs)
 
+    def _is_skip_sequence(self, tensor):
+        return all(
+            tensor[i].item() == token for i, token in enumerate(self.skip_sequence)
+        )
+
     def training_step(self, batch, batch_idx):
         losses = []
 
         for sample in batch:
-            if sample[0][0] == self.fake_token:
+            if self._is_skip_sequence(sample[0]):
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
@@ -103,7 +108,7 @@ class AIGTrainer(LightningModule):
         losses = []
 
         for sample in batch:
-            if sample[0][0] == self.fake_token:
+            if self._is_skip_sequence(sample[0]):
                 continue
             outputs = self({"input_ids": sample, "labels": sample})
             losses.append(outputs[0])
