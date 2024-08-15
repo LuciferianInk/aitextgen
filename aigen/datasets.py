@@ -333,6 +333,9 @@ class HuggingfaceDataset(IterableDataset):
             text = ""
             items = list(self.config["schema"].items())
             for i, (k, v) in enumerate(items):
+                if len(document[k]) == 0:
+                    continue
+
                 for pattern in patterns:
                     identity = get_identity()
                     v = re.sub(pattern, identity, v)
