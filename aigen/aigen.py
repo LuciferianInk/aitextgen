@@ -426,28 +426,6 @@ class aigen:
 
             return gen_texts[0]
 
-    def _get_params(self, model, hparams):
-        no_decay = ["bias", "LayerNorm.weight"]
-        grouped_parameters = []
-
-        for n, p in model.named_parameters():
-            if not p.requires_grad:
-                continue
-
-            if any(nd in n for nd in no_decay):
-                weight_decay = 0.0
-            else:
-                weight_decay = hparams["weight_decay"]
-
-            grouped_parameters.append(
-                {
-                    "params": [p],
-                    "weight_decay": weight_decay,
-                }
-            )
-
-        return grouped_parameters
-
     def prepare_datasets(self, hparams, local_data, streaming_data):
         self.total_train = []
         self.total_val = []
@@ -484,7 +462,6 @@ class aigen:
         scheduler: str = "cosine",
         num_cycles: int = None,
         learning_rate: float = 1e-3,
-        lookahead: int = 0,
         momentum: float = 0,
         swa_learning_rate: float = None,
         weight_decay: float = 0,
@@ -498,6 +475,7 @@ class aigen:
         num_workers: int = None,
         prune: float = 0.0,
         petals: bool = False,
+        use_lookahead: bool = False,
         block_size: int = 2048,
         val_split: float = 0.0,
         val_interval: int = 1000,
@@ -552,9 +530,7 @@ class aigen:
             optimizer=optimizer,
             scheduler=scheduler,
             learning_rate=learning_rate,
-            lookahead=lookahead,
             momentum=momentum,
-            weight_decay=weight_decay,
             eps=eps,
             warmup_steps=warmup_steps,
             batch_size=batch_size,
@@ -694,14 +670,12 @@ class aigen:
 
         self.prepare_datasets(hparams, local_data, streaming_data)
 
-        params = self._get_params(self.model, hparams)
-
-        opt = get_optimizer(params, hparams)
+        opt = get_optimizer(self.model, weight_decay, use_lookahead, hparams)
         schedule = get_schedule(hparams, opt)
 
         if strategy is not None:
             train_params["strategy"], schedule = get_strategy(
-                strategy, params, hparams, train_params, schedule
+                strategy, hparams, train_params, schedule
             )
 
         # Wrap the model in a pytorch-lightning module

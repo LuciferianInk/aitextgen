@@ -1,111 +1,34 @@
-def get_optimizer(params, hparams):
-    if hparams["optimizer"] == "Lion":
-        from pytorch_optimizer import Lion
+import inspect
 
-        opt = Lion(
-            params,
-            lr=hparams["learning_rate"],
-            betas=(0.9, 0.99),
-            r=0.95,
-            use_gc=True,
-            adanorm=False,
-        )
-    elif hparams["optimizer"] == "AdaBelief":
-        from pytorch_optimizer import AdaBelief
+from pytorch_optimizer import Lookahead, create_optimizer, load_optimizer
 
-        opt = AdaBelief(
-            params,
-            lr=hparams["learning_rate"],
-            betas=(0.9, 0.999),
-            r=0.95,
-            rectify=True,
-        )
-    elif hparams["optimizer"] == "Prodigy":
-        from pytorch_optimizer import Prodigy
 
-        opt = Prodigy(
-            params,
-            lr=1.0,
-            safeguard_warmup=True,
-            bias_correction=True,
-        )
-    elif hparams["optimizer"] == "Ranger21":
-        from pytorch_optimizer import Ranger21
+def get_optimizer(model, weight_decay, use_lookahead, kwargs):
+    wd_ban_list = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
 
-        opt = Ranger21(
-            params,
-            lr=hparams["learning_rate"],
-            lookahead_merge_time=5,
-            num_iterations=1,
-        )
-    elif hparams["optimizer"] == "RMSProp":
-        from torch.optim import RMSprop
+    optimizer_class = load_optimizer(kwargs["optimizer"])
 
-        opt = RMSprop(
-            params,
-            lr=hparams["learning_rate"],
-            momentum=hparams.get("momentum", 0),
-            alpha=0.999,
-            maximize=False,
-            centered=False,
-        )
-    elif hparams["optimizer"] == "Adan":
-        from pytorch_optimizer import Adan
+    # Get the parameter names of the create_optimizer function
+    optimizer_params = inspect.signature(optimizer_class).parameters
 
-        opt = Adan(
-            params,
-            lr=hparams["learning_rate"],
-        )
-    elif hparams["optimizer"] == "Kate":
-        from pytorch_optimizer import Kate
+    # Filter kwargs to match constructor parameters
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in optimizer_params}
 
-        opt = Kate(
-            params,
-            lr=hparams["learning_rate"],
-        )
-    elif hparams["optimizer"] == "AdamG":
-        from pytorch_optimizer import AdamG
+    # If using lookahead, inspect its parameters and add them to filtered_kwargs
+    if use_lookahead:
+        lookahead_params = inspect.signature(Lookahead).parameters
+        lookahead_kwargs = {k: v for k, v in kwargs.items() if k in lookahead_params}
+        filtered_kwargs.update(lookahead_kwargs)
+        del filtered_kwargs["optimizer"]
 
-        opt = AdamG(
-            params,
-            p=0.2,
-            q=0.24,
-            lr=1.0,
-        )
-    elif hparams["optimizer"] in ["SignSGD", "Signum"]:
-        from pytorch_optimizer import SignSGD
+    print(filtered_kwargs)
 
-        opt = SignSGD(
-            params,
-            lr=hparams["learning_rate"],
-            momentum=hparams.get("momentum", 0.9),
-        )
-    else:
-        if hparams.get("deepspeed"):
-            from deepspeed.ops.adam import DeepSpeedCPUAdam
-
-            opt = DeepSpeedCPUAdam(
-                params,
-                lr=hparams["learning_rate"],
-                eps=hparams.get("eps", 1e-8),
-                adamw_mode=True,
-            )
-        else:
-            from torch.optim import AdamW
-
-            opt = AdamW(
-                params,
-                lr=hparams["learning_rate"],
-                eps=hparams.get("eps", 1e-8),
-            )
-
-    lookahead_steps = hparams.get("lookahead", 0)
-    if lookahead_steps > 0:
-        from pytorch_optimizer import Lookahead
-
-        optimizer = Lookahead(
-            opt, k=lookahead_steps, alpha=0.5, pullback_momentum="none"
-        )
-    else:
-        optimizer = opt
-    return optimizer
+    return create_optimizer(
+        model,
+        kwargs["optimizer"],
+        kwargs["learning_rate"],
+        weight_decay,
+        wd_ban_list,
+        use_lookahead,
+        **filtered_kwargs,
+    )

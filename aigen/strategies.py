@@ -13,7 +13,7 @@ from lightning.pytorch.callbacks import Callback
 from .utils import colors
 
 
-def get_strategy(name, params, hparams, train_params, schedule):
+def get_strategy(name, hparams, train_params, schedule):
     if name == "deepspeed":
         from lightning.pytorch.strategies import DeepSpeedStrategy
 
