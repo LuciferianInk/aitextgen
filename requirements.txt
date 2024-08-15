@@ -8,4 +8,4 @@ optuna>=3.6.1
 peft>=0.11.1
 pytorch_optimizer>=3.0.0
 torch
-transformers>=4.41.2
+transformers>=4.43.4
