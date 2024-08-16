@@ -6,6 +6,6 @@ lightning>=2.2.4
 optuna-integration>=3.6.0
 optuna>=3.6.1
 peft>=0.11.1
-pytorch_optimizer>=3.0.0
+pytorch_optimizer @ git+https://github.com/kozistr/pytorch_optimizer@main
 torch
 transformers>=4.43.4
