@@ -51,12 +51,17 @@ class AIGTrainer(LightningModule):
     def training_step(self, batch, batch_idx):
         losses = []
 
-        for sample in batch:
-            if self._is_skip_sequence(sample[0]):
-                continue
-            outputs = self({"input_ids": sample, "labels": sample})
+        if hasattr(batch, "ndim") and batch.ndim == 2:
+            outputs = self({"input_ids": batch, "labels": batch})
             losses.append(outputs[0])
             self.train_tokens += int(self.hparams["block_size"])
+        else:
+            for sample in batch:
+                if self._is_skip_sequence(sample[0]):
+                    continue
+                outputs = self({"input_ids": sample, "labels": sample})
+                losses.append(outputs[0])
+                self.train_tokens += int(self.hparams["block_size"])
 
         batch_size = len(losses)
         if batch_size == 0:
@@ -107,11 +112,21 @@ class AIGTrainer(LightningModule):
     def validation_step(self, batch, batch_idx):
         losses = []
 
-        for sample in batch:
-            if self._is_skip_sequence(sample[0]):
-                continue
-            outputs = self({"input_ids": sample, "labels": sample})
+        # this crashes horribly when we sanity check and batch.ndim == 2, so we skip it for now
+        if self.trainer.sanity_checking:
+            return
+
+        if hasattr(batch, "ndim") and batch.ndim == 2:
+            outputs = self({"input_ids": batch, "labels": batch})
             losses.append(outputs[0])
+            self.train_tokens += int(self.hparams["block_size"])
+        else:
+            for sample in batch:
+                if self._is_skip_sequence(sample[0]):
+                    continue
+                outputs = self({"input_ids": sample, "labels": sample})
+                losses.append(outputs[0])
+                self.train_tokens += int(self.hparams["block_size"])
 
         batch_size = len(losses)
         if batch_size == 0:
@@ -276,10 +291,8 @@ class AIGProgressBar(ProgressBar):
     def on_validation_start(self, trainer, lm):
         super().on_validation_start(trainer, lm)
 
-        if trainer.state.stage in ["sanity_check"]:
-            return
-
-        logging.warning("Calculating validation metrics...")
+        if trainer.state.stage not in ["sanity_check"]:
+            logging.warning("Calculating validation metrics...")
 
     def average_loss(self, current_loss, prev_avg_loss, smoothing):
         if prev_avg_loss is None:
