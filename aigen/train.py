@@ -158,7 +158,7 @@ class AIGProgressBar(ProgressBar):
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
-        self.get_converage = coverage
+        self.get_coverage = coverage
         self.blue = colors.BLUE
         self.red = colors.RED
         self.green = colors.GREEN
@@ -199,9 +199,10 @@ class AIGProgressBar(ProgressBar):
         current_loss = float(trainer.callback_metrics["train_loss"])
 
         current_epoch = trainer.current_epoch
-        if trainer.num_training_batches > 0:
-            # current_epoch += batch_idx / trainer.num_training_batches
-            current_epoch = self.get_converage(batch_idx)
+        # if trainer.num_training_batches > 0:
+        # current_epoch += batch_idx / trainer.num_training_batches
+        if self.get_coverage != None:
+            current_epoch = self.get_coverage(batch_idx)
 
         avg_loss = 0
         if not isnan(current_loss):
@@ -416,7 +417,7 @@ class AIGMetricsLogger(Callback):
 
     def __init__(self, coverage):
         super().__init__()
-        self.get_converage = coverage
+        self.get_coverage = coverage
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
@@ -425,9 +426,10 @@ class AIGMetricsLogger(Callback):
             return
 
         current_epoch = trainer.current_epoch
-        if trainer.num_training_batches > 0:
-            # current_epoch += batch_idx / trainer.num_training_batches
-            current_epoch = self.get_converage(batch_idx)
+        # if trainer.num_training_batches > 0:
+        # current_epoch += batch_idx / trainer.num_training_batches
+        if self.get_coverage != None:
+            current_epoch = self.get_coverage(batch_idx)
 
         step = trainer.callback_metrics.get("step", 0)
 
