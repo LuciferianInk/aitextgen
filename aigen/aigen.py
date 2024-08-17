@@ -427,35 +427,35 @@ class aigen:
             return gen_texts[0]
 
     def prepare_datasets(self, hparams, local_data, streaming_data):
-        self.total_train = []
-        self.total_val = []
+        total_train = []
+        total_val = []
 
         for dataset in local_data:
             module = LocalDataModule(
                 dataset["train"], dataset["val"], dataset["weights"], hparams
             )
-            self.total_train.append(module.train_dataloader())
-            self.total_val.append(module.val_dataloader())
-
-        self.static_len = sum(len(dataset) for dataset in self.total_train)
+            total_train.append(module.train_dataloader())
+            total_val.append(module.val_dataloader())
 
         for dataset in streaming_data:
             module = StreamingDataModule(self.tokenizer, hparams, dataset)
-            self.total_train.append(module.train_dataloader())
+            total_train.append(module.train_dataloader())
             if dataset.get("val_samples"):
-                self.total_val.append(module.val_dataloader())
+                total_val.append(module.val_dataloader())
 
-        self.combined_train = (
-            self.total_train[0]
-            if len(self.total_train) == 1
-            else CombinedLoader(self.total_train, mode="min_size")
+        combined_train = (
+            total_train[0]
+            if len(total_train) == 1
+            else CombinedLoader(total_train, mode="min_size")
         )
 
-        self.combined_val = (
-            self.total_val[0]
-            if len(self.total_val) == 1
-            else CombinedLoader(self.total_val, mode="min_size")
+        combined_val = (
+            total_val[0]
+            if len(total_val) == 1
+            else CombinedLoader(total_val, mode="max_size_cycle")
         )
+
+        return combined_train, combined_val
 
     def train(
         self,
@@ -677,7 +677,9 @@ class aigen:
 
         time.sleep(3)
 
-        self.prepare_datasets(hparams, local_data, streaming_data)
+        train_data, val_data = self.prepare_datasets(
+            hparams, local_data, streaming_data
+        )
 
         opt = get_optimizer(self.model, weight_decay, use_lookahead, hparams)
         schedule = get_schedule(hparams, opt)
@@ -691,7 +693,6 @@ class aigen:
             self.model,
             opt,
             schedule,
-            self.static_len,
             hparams,
             self.tokenizer,
         )
@@ -704,23 +705,11 @@ class aigen:
             if hasattr(self.model, "print_trainable_parameters"):
                 self.model.print_trainable_parameters()
 
-            if self.static_len > 0:
-                print(
-                    f"Training data:\n{colors.GREEN}{self.static_len}{colors.WHITE} static batches, {colors.GREEN}{self.static_len * block_size}{colors.WHITE} tokens"
-                )
-
-        while self.static_len > 0 and train_params["val_check_interval"] > len(
-            self.total_train[0]
-        ):
-            train_params["val_check_interval"] = math.floor(
-                len(self.total_train[0]) / 2
-            )
-
         trainer = Trainer(**train_params)
         trainer.fit(
             train_model,
-            self.combined_train,
-            self.combined_val,
+            train_data,
+            val_data,
             ckpt_path=latest_checkpoint,
         )
 

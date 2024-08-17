@@ -24,14 +24,13 @@ class AIGTrainer(LightningModule):
     A training module for AIGen.
     """
 
-    def __init__(self, model, optimizer, scheduler, train_len, hparams, tokenizer):
+    def __init__(self, model, optimizer, scheduler, hparams, tokenizer):
         super(AIGTrainer, self).__init__()
 
-        self.model, self.optimizer, self.scheduler, self.train_len, self.tokenizer = (
+        self.model, self.optimizer, self.scheduler, self.tokenizer = (
             model,
             optimizer,
             scheduler,
-            train_len,
             tokenizer,
         )
         self.automatic_optimization = True
@@ -215,8 +214,8 @@ class AIGProgressBar(ProgressBar):
         current_loss = float(trainer.callback_metrics["train_loss"])
 
         current_epoch = trainer.current_epoch
-        if lm.train_len > 0:
-            current_epoch += batch_idx / lm.train_len
+        if trainer.num_training_batches > 0:
+            current_epoch += batch_idx / trainer.num_training_batches
 
         avg_loss = 0
         if not isnan(current_loss):
@@ -409,7 +408,7 @@ class AIGSampleGenerator(Callback):
             inputs=inputs,
             generation_config=self.generation_config,
             do_sample=True,
-            max_new_tokens=222,
+            max_new_tokens=256,
             bos_token_id=lm.tokenizer.bos_token_id,
             eos_token_id=lm.tokenizer.eos_token_id,
             pad_token_id=lm.tokenizer.pad_token_id,
@@ -439,8 +438,8 @@ class AIGMetricsLogger(Callback):
             return
 
         current_epoch = trainer.current_epoch
-        if lm.train_len > 0:
-            current_epoch += batch_idx / lm.train_len
+        if trainer.num_training_batches > 0:
+            current_epoch += batch_idx / trainer.num_training_batches
 
         step = trainer.callback_metrics.get("step", 0)
 
