@@ -167,11 +167,12 @@ class AIGTrainer(LightningModule):
 class AIGProgressBar(ProgressBar):
     """A variant progress bar that works off of steps and prints periodically."""
 
-    def __init__(self):
+    def __init__(self, coverage):
         super().__init__()
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
+        self.coverage = coverage
         self.blue = colors.BLUE
         self.red = colors.RED
         self.green = colors.GREEN
@@ -213,7 +214,8 @@ class AIGProgressBar(ProgressBar):
 
         current_epoch = trainer.current_epoch
         if trainer.num_training_batches > 0:
-            current_epoch += batch_idx / trainer.num_training_batches
+            # current_epoch += batch_idx / trainer.num_training_batches
+            current_epoch = self.coverage[batch_idx]
 
         avg_loss = 0
         if not isnan(current_loss):
@@ -426,8 +428,9 @@ class AIGSampleGenerator(Callback):
 class AIGMetricsLogger(Callback):
     """Save metrics callback."""
 
-    def __init__(self):
+    def __init__(self, coverage):
         super().__init__()
+        self.coverage = coverage
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
         super().on_train_batch_end(trainer, lm, outputs, batch, batch_idx)
@@ -437,7 +440,8 @@ class AIGMetricsLogger(Callback):
 
         current_epoch = trainer.current_epoch
         if trainer.num_training_batches > 0:
-            current_epoch += batch_idx / trainer.num_training_batches
+            # current_epoch += batch_idx / trainer.num_training_batches
+            current_epoch = self.coverage[batch_idx]
 
         step = trainer.callback_metrics.get("step", 0)
 

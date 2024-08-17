@@ -12,9 +12,9 @@ import torch
 from lightning.fabric.utilities.seed import reset_seed, seed_everything
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
-    ModelCheckpoint,
-    ModelPruning,
-    StochasticWeightAveraging,
+  ModelCheckpoint,
+  ModelPruning,
+  StochasticWeightAveraging,
 )
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
@@ -22,14 +22,14 @@ from peft import PeftMixedModel, PeftModel
 from pkg_resources import resource_filename
 from torch.utils.data import DataLoader
 from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    GenerationConfig,
-    LogitsProcessor,
-    LogitsProcessorList,
-    LogitsWarper,
-    TopKLogitsWarper,
+  AutoConfig,
+  AutoModelForCausalLM,
+  AutoTokenizer,
+  GenerationConfig,
+  LogitsProcessor,
+  LogitsProcessorList,
+  LogitsWarper,
+  TopKLogitsWarper,
 )
 
 from .datasets import LocalDataModule, StaticDataset, StreamingDataModule
@@ -37,11 +37,11 @@ from .optimizers import get_optimizer
 from .schedulers import get_schedule
 from .strategies import get_strategy
 from .train import (
-    AIGMetricsLogger,
-    AIGModelSaver,
-    AIGProgressBar,
-    AIGSampleGenerator,
-    AIGTrainer,
+  AIGMetricsLogger,
+  AIGModelSaver,
+  AIGProgressBar,
+  AIGSampleGenerator,
+  AIGTrainer,
 )
 from .utils import colors, model_max_length
 
@@ -426,9 +426,10 @@ class aigen:
 
             return gen_texts[0]
 
-    def prepare_datasets(self, hparams, local_data, streaming_data):
+    def _prepare_datasets(self, hparams, local_data, streaming_data):
         total_train = []
         total_val = []
+        coverages = []
 
         for dataset in local_data:
             module = LocalDataModule(
@@ -436,6 +437,7 @@ class aigen:
             )
             total_train.append(module.train_dataloader())
             total_val.append(module.val_dataloader())
+            coverages.append(module.estimate_coverage())
 
         for dataset in streaming_data:
             module = StreamingDataModule(self.tokenizer, hparams, dataset)
@@ -455,7 +457,7 @@ class aigen:
             else CombinedLoader(total_val, mode="max_size_cycle")
         )
 
-        return combined_train, combined_val
+        return combined_train, combined_val, coverages
 
     def train(
         self,
@@ -567,7 +569,15 @@ class aigen:
             logger=loggers if loggers else False,
         )
 
-        train_params["callbacks"].append(AIGMetricsLogger())
+        coverage = None
+        train_data, val_data, coverages = self._prepare_datasets(
+            hparams, local_data, streaming_data
+        )
+
+        if len(coverages) > 0:
+            coverage = coverages[0]
+
+        train_params["callbacks"].append(AIGMetricsLogger(coverage))
 
         if checkpoint_every > 0:
             checkpoint_callback = ModelCheckpoint(
@@ -649,7 +659,7 @@ class aigen:
             os.makedirs(output_dir, exist_ok=True)
 
             if progress_bar:
-                train_params["callbacks"].append(AIGProgressBar())
+                train_params["callbacks"].append(AIGProgressBar(coverage))
 
             if generate_every > 0:
                 train_params["callbacks"].append(
@@ -664,12 +674,6 @@ class aigen:
                         petals,
                     )
                 )
-
-        time.sleep(3)
-
-        train_data, val_data = self.prepare_datasets(
-            hparams, local_data, streaming_data
-        )
 
         opt = get_optimizer(self.model, weight_decay, use_lookahead, hparams)
         schedule = get_schedule(hparams, opt)
