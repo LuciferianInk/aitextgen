@@ -81,15 +81,6 @@ def train_tokenizer(
         add_prefix_space=True, trim_offsets=True, use_regex=True
     )
 
-    # tokenizer.post_processor = processors.TemplateProcessing(
-    #     single="[CLS] $A [SEP]",
-    #     pair="[CLS] $A [SEP] $B:1 [SEP]:1",
-    #     special_tokens=[
-    #         ("[CLS]", tokenizer.token_to_id("[CLS]")),
-    #         ("[SEP]", tokenizer.token_to_id("[SEP]")),
-    #     ],
-    # )
-
     tokenizer.train(
         files=files,
         trainer=trainer,

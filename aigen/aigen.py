@@ -497,7 +497,6 @@ class aigen:
         resume: bool = False,
         verbose: bool = True,
         devices=None,
-        overfit: bool = False,
         callbacks=[],
         **kwargs,
     ) -> None:
@@ -562,9 +561,7 @@ class aigen:
             devices=devices,
             max_steps=num_steps,
             max_epochs=-1,
-            val_check_interval=(
-                1000 if overfit else val_interval * gradient_accumulation_steps
-            ),
+            val_check_interval=val_interval * gradient_accumulation_steps,
             reload_dataloaders_every_n_epochs=1,
             enable_checkpointing=True if checkpoint_every > 0 else False,
             precision="32-true",
@@ -574,7 +571,6 @@ class aigen:
             benchmark=True,
             callbacks=callbacks,
             logger=loggers if loggers else False,
-            overfit_batches=1000 if overfit else 0,
         )
 
         train_params["callbacks"].append(AIGMetricsLogger())
@@ -659,7 +655,7 @@ class aigen:
             os.makedirs(output_dir, exist_ok=True)
 
             if progress_bar:
-                train_params["callbacks"].append(AIGProgressBar(num_steps))
+                train_params["callbacks"].append(AIGProgressBar())
 
             if generate_every > 0:
                 train_params["callbacks"].append(

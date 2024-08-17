@@ -167,9 +167,8 @@ class AIGTrainer(LightningModule):
 class AIGProgressBar(ProgressBar):
     """A variant progress bar that works off of steps and prints periodically."""
 
-    def __init__(self, num_steps):
+    def __init__(self):
         super().__init__()
-        self.num_steps = num_steps
         self.last_step = 0
         self.prev_avg_loss = None
         self.smoothing = 0.01
@@ -193,8 +192,7 @@ class AIGProgressBar(ProgressBar):
     def on_train_start(self, trainer, lm):
         super().on_train_start(trainer, lm)
         trainer.pbar = tqdm(
-            # total=trainer.estimated_stepping_batches,
-            total=self.num_steps,
+            total=trainer.estimated_stepping_batches,
             smoothing=0,
             leave=True,
             dynamic_ncols=True,
