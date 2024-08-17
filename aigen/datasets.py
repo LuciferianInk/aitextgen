@@ -214,20 +214,15 @@ class LocalDataModule(LightningDataModule):
         self.train = train_data
         self.val = val_data
         self.weights = weights
+        self.np_weights = np.array(self.weights)
         self.config = hparams
 
-    def calculate_coverage(self, weights, num_draws):
-        probabilities = 1 - np.exp(-weights * num_draws / np.sum(weights))
+    def estimate_coverage(self, batch):
+        num_draws = batch * self.config["batch_size"]
+        probabilities = 1 - np.exp(
+            -self.np_weights * num_draws / np.sum(self.np_weights)
+        )
         return np.mean(probabilities)
-
-    def estimate_coverage(self):
-        weights = np.array(self.weights)
-        num_batches = len(self.weights)
-        coverages = [
-            self.calculate_coverage(weights, i * self.config["batch_size"])
-            for i in range(1, num_batches + 1)
-        ]
-        return coverages
 
     def train_dataloader(self):
         sampler = WeightedRandomSampler(

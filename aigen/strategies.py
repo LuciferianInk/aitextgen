@@ -40,14 +40,14 @@ def get_strategy(name, hparams, train_params, schedule):
         #     "/p2p/QmVQE44X5wPo5LNheJCBMVRUTRsceJNxVowjxerPUCCZmY",  # src.eco
         # ]
 
-        # initial_piers = hparams.get("initial_piers", []) + bootstrap_piers
-        initial_piers = hparams.get("initial_piers", [])
+        # initial_peers = hparams.get("initial_peers", []) + bootstrap_piers
+        initial_peers = hparams.get("initial_peers", [])
 
         delay = 1.0
-        for peer in initial_piers:
+        for peer in initial_peers:
             time.sleep(delay)
             delay *= 0.75
-            print(f"PIER-{initial_piers.index(peer)}: {peer}")
+            print(f"PIER-{initial_peers.index(peer)}: {peer}")
 
         class MaxStepCallback(Callback):
             def __init__(self, max_steps):
@@ -90,7 +90,7 @@ def get_strategy(name, hparams, train_params, schedule):
             identity_path=f"/data/identity.{pet}.key",
             batch_size=hparams["batch_size"],
             target_batch_size=hparams["target_batch_size"],
-            initial_peers=initial_piers,
+            initial_peers=initial_peers,
             use_ipfs=True,
             use_relay=True,
             use_auto_relay=True,
@@ -124,12 +124,12 @@ def get_strategy(name, hparams, train_params, schedule):
                 my_ids.append(match.group(1))
 
         print(
-            f"{colors.BLUE}ONE@SWARM:{colors.WHITE} To join this swarm, use the following `initial_piers`:"
+            f"{colors.BLUE}ONE@SWARM:{colors.WHITE} To join this swarm, use the following `initial_peers`:"
         )
 
         for peer in list(set(my_ids)):
             print(
-                f"{colors.GREEN}PIER-{len(initial_piers) + list(set(my_ids)).index(peer)}:{colors.WHITE} {peer}"
+                f"{colors.GREEN}PIER-{len(initial_peers) + list(set(my_ids)).index(peer)}:{colors.WHITE} {peer}"
             )
     else:
         strategy = name

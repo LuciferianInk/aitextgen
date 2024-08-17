@@ -437,7 +437,7 @@ class aigen:
             )
             total_train.append(module.train_dataloader())
             total_val.append(module.val_dataloader())
-            coverages.append(module.estimate_coverage())
+            coverages.append(module.estimate_coverage)
 
         for dataset in streaming_data:
             module = StreamingDataModule(self.tokenizer, hparams, dataset)
@@ -489,7 +489,7 @@ class aigen:
         block_size: int = 2048,
         val_split: float = 0.0,
         val_interval: int = 1000,
-        initial_piers: list = [],
+        initial_peers: list = [],
         target_batch_size: int = 8192,
         strategy: str = "auto",
         finetune: bool = False,
@@ -545,7 +545,7 @@ class aigen:
             petals=petals,
             val_split=val_split,
             block_size=block_size,
-            initial_piers=initial_piers,
+            initial_peers=initial_peers,
             target_batch_size=target_batch_size,
             accumulate_grad_batches=gradient_accumulation_steps,
             **kwargs,
@@ -699,10 +699,10 @@ class aigen:
             if hasattr(self.model, "print_trainable_parameters"):
                 self.model.print_trainable_parameters()
 
-        while len(train_data) > 0 and train_params["val_check_interval"] > len(
-            train_data
-        ):
-            train_params["val_check_interval"] = math.floor(len(train_data) / 2)
+        # while len(train_data) > 0 and train_params["val_check_interval"] > len(
+        #     train_data
+        # ):
+        #     train_params["val_check_interval"] = math.floor(len(train_data) / 2)
 
         trainer = Trainer(**train_params)
         trainer.fit(
