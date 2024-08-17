@@ -12,9 +12,9 @@ import torch
 from lightning.fabric.utilities.seed import reset_seed, seed_everything
 from lightning.pytorch.accelerators import TPUAccelerator
 from lightning.pytorch.callbacks import (
-  ModelCheckpoint,
-  ModelPruning,
-  StochasticWeightAveraging,
+    ModelCheckpoint,
+    ModelPruning,
+    StochasticWeightAveraging,
 )
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.utilities import CombinedLoader
@@ -22,14 +22,14 @@ from peft import PeftMixedModel, PeftModel
 from pkg_resources import resource_filename
 from torch.utils.data import DataLoader
 from transformers import (
-  AutoConfig,
-  AutoModelForCausalLM,
-  AutoTokenizer,
-  GenerationConfig,
-  LogitsProcessor,
-  LogitsProcessorList,
-  LogitsWarper,
-  TopKLogitsWarper,
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    GenerationConfig,
+    LogitsProcessor,
+    LogitsProcessorList,
+    LogitsWarper,
+    TopKLogitsWarper,
 )
 
 from .datasets import LocalDataModule, StaticDataset, StreamingDataModule
@@ -37,11 +37,11 @@ from .optimizers import get_optimizer
 from .schedulers import get_schedule
 from .strategies import get_strategy
 from .train import (
-  AIGMetricsLogger,
-  AIGModelSaver,
-  AIGProgressBar,
-  AIGSampleGenerator,
-  AIGTrainer,
+    AIGMetricsLogger,
+    AIGModelSaver,
+    AIGProgressBar,
+    AIGSampleGenerator,
+    AIGTrainer,
 )
 from .utils import colors, model_max_length
 
@@ -698,6 +698,11 @@ class aigen:
 
             if hasattr(self.model, "print_trainable_parameters"):
                 self.model.print_trainable_parameters()
+
+        while len(train_data) > 0 and train_params["val_check_interval"] > len(
+            train_data
+        ):
+            train_params["val_check_interval"] = math.floor(len(train_data) / 2)
 
         trainer = Trainer(**train_params)
         trainer.fit(
