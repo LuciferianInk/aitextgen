@@ -63,16 +63,16 @@ class AIGTrainer(LightningModule):
                 losses.append(outputs[0])
                 self.train_tokens += int(self.hparams["block_size"])
 
-        batch_size = len(losses)
-        if batch_size == 0:
+        current_batch_size = len(losses)
+        if current_batch_size == 0:
             return
 
-        loss = sum(losses) / batch_size
+        loss = sum(losses) / current_batch_size
 
         self.log(
             "train_loss",
             float(loss),
-            batch_size=batch_size,
+            batch_size=current_batch_size,
             on_step=True,
             on_epoch=False,
             sync_dist=True,
@@ -80,7 +80,7 @@ class AIGTrainer(LightningModule):
         self.log(
             "train_tokens",
             int(self.train_tokens),
-            batch_size=batch_size,
+            batch_size=current_batch_size,
             on_step=True,
             on_epoch=False,
             sync_dist=True,
@@ -119,25 +119,23 @@ class AIGTrainer(LightningModule):
         if hasattr(batch, "ndim") and batch.ndim == 2:
             outputs = self({"input_ids": batch, "labels": batch})
             losses.append(outputs[0])
-            self.train_tokens += int(self.hparams["block_size"])
         else:
             for sample in batch:
                 if self._is_skip_sequence(sample[0]):
                     continue
                 outputs = self({"input_ids": sample, "labels": sample})
                 losses.append(outputs[0])
-                self.train_tokens += int(self.hparams["block_size"])
 
-        batch_size = len(losses)
-        if batch_size == 0:
+        current_batch_size = len(losses)
+        if current_batch_size == 0:
             return
 
-        loss = sum(losses) / batch_size
+        loss = sum(losses) / current_batch_size
 
         self.log(
             "val_loss",
             float(loss),
-            batch_size=batch_size,
+            batch_size=current_batch_size,
             on_step=False,
             on_epoch=True,
             sync_dist=True,
@@ -145,7 +143,7 @@ class AIGTrainer(LightningModule):
         self.log(
             "val_ppl",
             float(torch.exp(loss)),
-            batch_size=batch_size,
+            batch_size=current_batch_size,
             on_step=False,
             on_epoch=True,
             sync_dist=True,
