@@ -224,7 +224,7 @@ class LocalDataModule(LightningDataModule):
             self.train,
             batch_size=self.config["batch_size"],
             pin_memory=self.config["pin_memory"],
-            num_workers=self.config["num_workers"],
+            num_workers=1,
             sampler=sampler,
         )
 
@@ -234,7 +234,7 @@ class LocalDataModule(LightningDataModule):
             shuffle=False,
             batch_size=self.config["batch_size"],
             pin_memory=self.config["pin_memory"],
-            num_workers=self.config["num_workers"],
+            num_workers=1,
         )
 
 

@@ -481,7 +481,6 @@ class aigen:
         generate_every: int = 0,
         loggers: List = None,
         batch_size: int = 1,
-        num_workers: int = None,
         prune: float = 0.0,
         petals: bool = False,
         use_lookahead: bool = False,
@@ -526,10 +525,6 @@ class aigen:
                 logging.error(e)
                 torch.cuda.set_device(0)
 
-        num_workers = (
-            num_workers if num_workers is not None else int(os.cpu_count() / 2)
-        )
-
         if gradient_checkpointing:
             self.model.gradient_checkpointing_enable({"use_reentrant": False})
             setattr(self.model.config, "use_cache", None if petals else False)
@@ -544,7 +539,6 @@ class aigen:
             batch_size=batch_size,
             num_steps=num_steps,
             pin_memory=is_gpu_used,
-            num_workers=num_workers,
             num_cycles=num_cycles,
             petals=petals,
             val_split=val_split,
