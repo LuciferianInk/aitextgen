@@ -53,32 +53,23 @@ class AIGTrainer(LightningModule):
         if hasattr(batch, "ndim") and batch.ndim == 2:
             outputs = self({"input_ids": batch, "labels": batch})
             losses.append(outputs[0])
-            self.train_tokens += int(self.hparams["block_size"])
         else:
             for sample in batch:
                 if self._is_skip_sequence(sample[0]):
                     continue
                 outputs = self({"input_ids": sample, "labels": sample})
                 losses.append(outputs[0])
-                self.train_tokens += int(self.hparams["block_size"])
 
         current_batch_size = len(losses)
         if current_batch_size == 0:
             return
 
+        self.train_tokens += self.hparams["block_size"] * len(losses)
+
         loss = sum(losses) / current_batch_size
 
-        self.log(
-            "train_loss",
-            float(loss),
-            batch_size=current_batch_size,
-            on_step=True,
-            on_epoch=False,
-            sync_dist=True,
-        )
-        self.log(
-            "train_tokens",
-            int(self.train_tokens),
+        self.log_dict(
+            {"train_loss": float(loss), "train_tokens": int(self.train_tokens)},
             batch_size=current_batch_size,
             on_step=True,
             on_epoch=False,
@@ -131,17 +122,11 @@ class AIGTrainer(LightningModule):
 
         loss = sum(losses) / current_batch_size
 
-        self.log(
-            "val_loss",
-            float(loss),
-            batch_size=current_batch_size,
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-        )
-        self.log(
-            "val_ppl",
-            float(torch.exp(loss)),
+        self.log_dict(
+            {
+                "val_loss": float(loss),
+                "val_ppl": float(torch.exp(loss)),
+            },
             batch_size=current_batch_size,
             on_step=False,
             on_epoch=True,
@@ -155,7 +140,8 @@ class AIGTrainer(LightningModule):
 
         if self.scheduler:
             return [self.optimizer], [self.scheduler()]
-        return [self.optimizer]
+        else:
+            return [self.optimizer]
 
     def on_save_checkpoint(self, checkpoint):
         checkpoint["train_tokens"] = self.train_tokens
