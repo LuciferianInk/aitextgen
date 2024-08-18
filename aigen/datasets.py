@@ -412,38 +412,3 @@ def create_fake_sequence(block_size, sequence):
     fake_array = fake_array[:block_size]
 
     return fake_array
-
-
-def merge_datasets(
-    datasets: List[StaticDataset], equalize: bool = True
-) -> StaticDataset:
-    """
-    Merges multiple StaticDatasets into a single StaticDataset.
-    This assumes that you are using the same tokenizer for all StaticDatasets.
-
-    :param datasets: A list of StaticDatasets.
-    :param equalize: Whether to take an equal amount of samples from all
-    input datasets (by taking random samples from
-    each dataset equal to the smallest dataset)
-    in order to balance out the result dataset.
-    """
-
-    assert (
-        isinstance(datasets, list) and len(datasets) > 1
-    ), "datasets must be a list of multiple StaticDatasets."
-
-    len_smallest = min([len(dataset) for dataset in datasets])
-    block_size = datasets[0].block_size
-
-    tokenized_texts = []
-
-    for dataset in datasets:
-        assert (
-            dataset.block_size == block_size
-        ), "The input datasets have different block sizes."
-        if equalize:
-            tokenized_texts.extend(dataset.tokens[0:len_smallest])
-        else:
-            tokenized_texts.extend(dataset.tokens)
-
-    return StaticDataset(tokenized_texts=tokenized_texts, block_size=block_size)
