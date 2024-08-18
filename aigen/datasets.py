@@ -232,7 +232,7 @@ class LocalDataModule(LightningDataModule):
             self.train,
             batch_size=self.config["batch_size"],
             pin_memory=self.config["pin_memory"],
-            num_workers=1,
+            num_workers=self.config["num_workers"],
             sampler=sampler,
         )
 
@@ -242,7 +242,7 @@ class LocalDataModule(LightningDataModule):
             shuffle=False,
             batch_size=self.config["batch_size"],
             pin_memory=self.config["pin_memory"],
-            num_workers=1,
+            num_workers=self.config["num_workers"],
         )
 
 
@@ -274,7 +274,7 @@ class StreamingDataModule(LightningDataModule):
             self.train_data,
             batch_size=self.params["batch_size"],
             pin_memory=self.params["pin_memory"],
-            num_workers=1,
+            num_workers=self.params["num_workers"],
         )
 
     def val_dataloader(self):
@@ -282,7 +282,7 @@ class StreamingDataModule(LightningDataModule):
             self.val_data,
             batch_size=self.params["batch_size"],
             pin_memory=self.params["pin_memory"],
-            num_workers=1,
+            num_workers=self.params["num_workers"],
         )
 
 
@@ -386,9 +386,11 @@ class HuggingfaceDataset(IterableDataset):
                         yield batch
                         break
                     else:
+                        # sequence = [self.tokenizer.bos_token_id, self.tokenizer.eos_token_id]
+                        sequence = [111, 222, 333]
                         yield create_fake_sequence(
                             block_size,
-                            [self.tokenizer.bos_token_id, self.tokenizer.eos_token_id],
+                            sequence,
                         )
 
 

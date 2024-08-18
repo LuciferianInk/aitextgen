@@ -35,7 +35,8 @@ class AIGTrainer(LightningModule):
         )
         self.automatic_optimization = True
         self.train_tokens = 0
-        self.skip_sequence = [self.tokenizer.bos_token_id, self.tokenizer.eos_token_id]
+        # self.skip_sequence = [self.tokenizer.bos_token_id, self.tokenizer.eos_token_id]
+        self.skip_sequence = [111, 222, 333]
         self.pbar = None
         self.save_hyperparameters(hparams)
 
