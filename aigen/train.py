@@ -409,7 +409,7 @@ class AIGSampleGenerator(Callback):
 
         lm.model.train()
 
-        trainer.pbar.write(f"{colors.blue}==>{colors.white}")
+        trainer.pbar.write(f"{colors.BLUE}==>{colors.WHITE}")
         trainer.pbar.write(output[0])
 
 
