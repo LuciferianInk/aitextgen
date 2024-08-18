@@ -6,6 +6,7 @@ import random
 import re
 import time
 import traceback
+import warnings
 from typing import List, Optional, Union
 
 import torch
@@ -48,6 +49,10 @@ from .utils import colors, model_max_length
 logging.getLogger("lightning.fabric").setLevel(logging.WARNING)
 logger = logging.getLogger("aigen")
 logger.setLevel(logging.INFO)
+
+warnings.filterwarnings(
+    "ignore", ".*Consider increasing the value of the `num_workers` argument*"
+)
 
 STATIC_PATH = resource_filename(__name__, "static")
 

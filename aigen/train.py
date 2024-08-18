@@ -358,8 +358,8 @@ class AIGSampleGenerator(Callback):
         self.generation_config = GenerationConfig(
             do_sample=True,
             min_length=22,
-            max_new_tokens=222,
-            temperature=0.7,
+            max_new_tokens=256,
+            temperature=0.9,
             eta_cutoff=0.002,
             penalty_alpha=0.6,
             top_k=4,
@@ -409,7 +409,7 @@ class AIGSampleGenerator(Callback):
 
         lm.model.train()
 
-        trainer.pbar.write("==>")
+        trainer.pbar.write(f"{colors.blue}==>{colors.white}")
         trainer.pbar.write(output[0])
 
 
