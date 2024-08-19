@@ -359,11 +359,11 @@ class AIGSampleGenerator(Callback):
             do_sample=True,
             min_length=32,
             max_new_tokens=256,
-            temperature=0.9,
+            temperature=0.7,
             eta_cutoff=0.002,
             penalty_alpha=0.6,
             top_k=4,
-            repetition_penalty=1.25,
+            repetition_penalty=1.2,
         )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
