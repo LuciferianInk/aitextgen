@@ -363,7 +363,7 @@ class AIGSampleGenerator(Callback):
             eta_cutoff=0.002,
             penalty_alpha=0.6,
             top_k=4,
-            repetition_penalty=1.2,
+            repetition_penalty=1.1,
         )
 
     def on_train_batch_end(self, trainer, lm, outputs, batch, batch_idx):
