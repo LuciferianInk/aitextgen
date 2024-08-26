@@ -1,4 +1,4 @@
-from pytorch_optimizer import Lookahead, create_optimizer, load_optimizer
+from pytorch_optimizer import create_optimizer
 
 
 def get_optimizer(model, weight_decay, use_lookahead, kwargs):
