@@ -326,8 +326,11 @@ class HuggingfaceDataset(IterableDataset):
             delimiter = "\t"
 
         patterns = self.config.get("patterns", [])
-
+        sample_rate = self.config.get("sample_rate", 1.0)
         val_samples = self.config.get("val_samples", 0)
+
+        if self.split != "train":
+            sample_rate = 1.0
 
         num_epochs = 1_000_000
         for epoch in range(num_epochs):
@@ -336,6 +339,11 @@ class HuggingfaceDataset(IterableDataset):
                 seed=random.randint(0, 2**31),
                 buffer_size=buffer_size,
             )
+
+            if self.split != "train":
+                if val_samples <= 0:
+                    break
+
             for document in shuffled:
                 if self.split != "train":
                     if val_samples <= 0:
@@ -385,7 +393,7 @@ class HuggingfaceDataset(IterableDataset):
                             val_samples -= 1
                             yield batch
                             break
-                        elif random.random() < self.config.get("sample_rate", 1.0):
+                        elif random.random() < sample_rate:
                             yield batch
                             break
                         else:
