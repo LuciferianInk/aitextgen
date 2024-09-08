@@ -332,7 +332,14 @@ class HuggingfaceDataset(IterableDataset):
         if self.split != "train":
             sample_rate = 1.0
 
+        sequence = [111, 222, 333]
+        fake_sequence = create_fake_sequence(
+            block_size,
+            sequence,
+        )
+
         num_epochs = 1_000_000
+        shuffled = None
         for epoch in range(num_epochs):
             self.dataset.set_epoch(epoch)
             shuffled = self.dataset.shuffle(
@@ -397,12 +404,7 @@ class HuggingfaceDataset(IterableDataset):
                             yield batch
                             break
                         else:
-                            # sequence = [self.tokenizer.bos_token_id, self.tokenizer.eos_token_id]
-                            sequence = [111, 222, 333]
-                            yield create_fake_sequence(
-                                block_size,
-                                sequence,
-                            )
+                            yield fake_sequence
 
 
 def create_fake_sequence(block_size, sequence):
