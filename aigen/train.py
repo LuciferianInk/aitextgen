@@ -57,7 +57,6 @@ class AIGTrainer(LightningModule):
         else:
             for sample in batch:
                 if self._is_skip_sequence(sample[0]):
-                    del sample[0]
                     continue
                 outputs = self({"input_ids": sample, "labels": sample})
                 losses.append(outputs[0])
