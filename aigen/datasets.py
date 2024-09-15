@@ -338,73 +338,73 @@ class HuggingfaceDataset(IterableDataset):
             sequence,
         )
 
-        num_epochs = 1_000_000
-        shuffled = None
-        for epoch in range(num_epochs):
-            self.dataset.set_epoch(epoch)
-            shuffled = self.dataset.shuffle(
-                seed=random.randint(0, 2**31),
-                buffer_size=buffer_size,
-            )
+        # num_epochs = 1_000_000
+        # shuffled = None
+        # for epoch in range(num_epochs):
+        #     self.dataset.set_epoch(epoch)
+        shuffled = self.dataset.shuffle(
+            seed=random.randint(0, 2**31),
+            buffer_size=buffer_size,
+        )
 
+        # if self.split != "train":
+        #     if val_samples <= 0:
+        #         break
+
+        for document in shuffled:
             if self.split != "train":
                 if val_samples <= 0:
                     break
 
-            for document in shuffled:
-                if self.split != "train":
-                    if val_samples <= 0:
-                        break
-
-                text = ""
-                items = list(self.config["schema"].items())
-                for i, (k, v) in enumerate(items):
-                    if len(document[k]) == 0:
-                        continue
-
-                    for pattern in patterns:
-                        identity = get_identity()
-                        v = re.sub(pattern, identity, v)
-
-                    text += v + document[k]
-
-                    if i < len(items) - 1:
-                        text += delimiter
-
-                text += self.tokenizer.eos_token
-
-                self.cached_text += text
-                if len(self.cached_text) < text_cache_size:
+            text = ""
+            items = list(self.config["schema"].items())
+            for i, (k, v) in enumerate(items):
+                if len(document[k]) == 0:
                     continue
 
-                if self.config.get("debug", False):
-                    print(self.cached_text[4096:])
+                for pattern in patterns:
+                    identity = get_identity()
+                    v = re.sub(pattern, identity, v)
 
-                tokens = self.tokenizer(
-                    text=self.cached_text,
-                    max_length=block_size,
-                    stride=64,
-                    padding=False,
-                    truncation=True,
-                    return_overflowing_tokens=True,
-                    return_tensors="np",
-                )["input_ids"]
+                text += v + document[k]
 
-                self.cached_text = ""
+                if i < len(items) - 1:
+                    text += delimiter
 
-                for batch in tokens:
-                    if len(batch) != block_size:
+            text += self.tokenizer.eos_token
+
+            self.cached_text += text
+            if len(self.cached_text) < text_cache_size:
+                continue
+
+            if self.config.get("debug", False):
+                print(self.cached_text[4096:])
+
+            tokens = self.tokenizer(
+                text=self.cached_text,
+                max_length=block_size,
+                stride=64,
+                padding=False,
+                truncation=True,
+                return_overflowing_tokens=True,
+                return_tensors="np",
+            )["input_ids"]
+
+            self.cached_text = ""
+
+            for batch in tokens:
+                if len(batch) != block_size:
+                    break
+                while True:
+                    if self.split != "train":
+                        val_samples -= 1
+                        yield batch
                         break
-                    while True:
-                        if self.split != "train":
-                            val_samples -= 1
-                            yield batch
-                            break
-                        elif random.random() < sample_rate:
-                            yield batch
-                            break
-                        else:
-                            yield fake_sequence
+                    elif random.random() < sample_rate:
+                        yield batch
+                        break
+                    else:
+                        yield fake_sequence
 
 
 def create_fake_sequence(block_size, sequence):

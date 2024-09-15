@@ -453,7 +453,7 @@ class aigen:
         combined_train = (
             total_train[0]
             if len(total_train) == 1
-            else CombinedLoader(total_train, mode="min_size")
+            else CombinedLoader(total_train, mode="max_size_cycle")
         )
 
         combined_val = (
