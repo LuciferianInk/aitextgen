@@ -393,6 +393,9 @@ class HuggingfaceDataset(IterableDataset):
             self.cached_text = ""
 
             for batch in tokens:
+                if self.split != "train":
+                    if val_samples <= 0:
+                        break
                 if len(batch) != block_size:
                     break
                 while True:
