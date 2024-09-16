@@ -320,7 +320,8 @@ class HuggingfaceDataset(IterableDataset):
         self.cached_text = ""
         self.block_size = self.params["block_size"]
         sequence = [111, 222, 333]
-        self.fake_sequence = create_fake_sequence(self.block_size, sequence)
+        # self.fake_sequence = create_fake_sequence(self.block_size, sequence)
+        self.fake_sequence_generator = FakeSequenceGenerator(self.block_size, sequence)
         self.tokens = []
         self.sample_rate = self.config.get("sample_rate", 1.0)
         self.val_samples = self.config.get("val_samples", 0)
@@ -342,7 +343,9 @@ class HuggingfaceDataset(IterableDataset):
             elif random.random() < self.sample_rate:
                 return batch
             else:
-                return self.fake_sequence
+                # return self.fake_sequence
+                with self.fake_sequence_generator.generate() as fake_sequence:
+                    return fake_sequence.clone()
 
         return self.__next__()  # If we've exhausted current_tokens, try again
 
@@ -395,25 +398,50 @@ class HuggingfaceDataset(IterableDataset):
         self.cached_text = ""
 
 
-def create_fake_sequence(block_size, sequence):
-    # Calculate how many pairs of elements we need
-    num_pairs = block_size // len(sequence)
+import contextlib
 
-    # Create the list with repeating sequence
-    fake_list = sequence * num_pairs
+import torch
 
-    # If block_size is not divisible by len(sequence), add remaining elements
-    remaining = block_size % len(sequence)
-    if remaining != 0:
-        fake_list.extend(sequence[:remaining])
 
-    # Convert to PyTorch tensor
-    fake_tensor = torch.tensor(fake_list, dtype=torch.long)
+class FakeSequenceGenerator:
+    def __init__(self, block_size, sequence):
+        self.block_size = block_size
+        self.sequence = torch.tensor(sequence, dtype=torch.long)
 
-    # Ensure the tensor is exactly block_size long
-    fake_tensor = fake_tensor[:block_size]
+    @contextlib.contextmanager
+    def generate(self):
+        repeated_sequence = self.sequence.repeat(
+            self.block_size // len(self.sequence) + 1
+        )
+        fake_tensor = repeated_sequence[: self.block_size]
+        try:
+            yield fake_tensor
+        finally:
+            del fake_tensor
+            del repeated_sequence
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
-    return fake_tensor
+
+# def create_fake_sequence(block_size, sequence):
+#     # Calculate how many pairs of elements we need
+#     num_pairs = block_size // len(sequence)
+
+#     # Create the list with repeating sequence
+#     fake_list = sequence * num_pairs
+
+#     # If block_size is not divisible by len(sequence), add remaining elements
+#     remaining = block_size % len(sequence)
+#     if remaining != 0:
+#         fake_list.extend(sequence[:remaining])
+
+#     # Convert to PyTorch tensor
+#     fake_tensor = torch.tensor(fake_list, dtype=torch.long)
+
+#     # Ensure the tensor is exactly block_size long
+#     fake_tensor = fake_tensor[:block_size]
+
+#     return fake_tensor
 
 
 # def create_fake_sequence(block_size, sequence):
