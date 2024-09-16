@@ -346,7 +346,6 @@ class HuggingfaceDataset(IterableDataset):
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
             buffer_size=buffer_size,
-            keep_in_memory=False,
         )
 
         # if self.split != "train":
