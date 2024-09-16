@@ -307,7 +307,7 @@ class HuggingfaceDataset(IterableDataset):
                 config["repo"],
                 split=self.split,
                 streaming=True,
-                cache_dir="/data/pile",
+                cache_dir="./data/pile",
                 trust_remote_code=True,
                 keep_in_memory=False,
                 **kwargs,
@@ -342,8 +342,7 @@ class HuggingfaceDataset(IterableDataset):
             elif random.random() < self.sample_rate:
                 return batch
             else:
-                # return self.fake_sequence
-                return batch
+                return self.fake_sequence
 
         return self.__next__()  # If we've exhausted current_tokens, try again
 
@@ -396,42 +395,42 @@ class HuggingfaceDataset(IterableDataset):
         self.cached_text = ""
 
 
-def create_fake_sequence(block_size, sequence):
-    # Calculate how many pairs of elements we need
-    num_pairs = block_size // len(sequence)
-
-    # Create the list with repeating sequence
-    fake_list = sequence * num_pairs
-
-    # If block_size is not divisible by len(sequence), add remaining elements
-    remaining = block_size % len(sequence)
-    if remaining != 0:
-        fake_list.extend(sequence[:remaining])
-
-    # Convert to PyTorch tensor
-    fake_tensor = torch.tensor(fake_list, dtype=torch.long)
-
-    # Ensure the tensor is exactly block_size long
-    fake_tensor = fake_tensor[:block_size]
-
-    return fake_tensor
-
-
 # def create_fake_sequence(block_size, sequence):
-#     # Calculate how many pairs of [333, 444] we need
-#     num_pairs = block_size // 2
+#     # Calculate how many pairs of elements we need
+#     num_pairs = block_size // len(sequence)
 
-#     # Create the list with alternating 333 and 444
+#     # Create the list with repeating sequence
 #     fake_list = sequence * num_pairs
 
-#     # If block_size is odd, add one more element
-#     if block_size % 2 != 0:
-#         fake_list.append(sequence[0])
+#     # If block_size is not divisible by len(sequence), add remaining elements
+#     remaining = block_size % len(sequence)
+#     if remaining != 0:
+#         fake_list.extend(sequence[:remaining])
 
-#     # Convert to NumPy array
-#     fake_array = np.array(fake_list, dtype=np.int64)
+#     # Convert to PyTorch tensor
+#     fake_tensor = torch.tensor(fake_list, dtype=torch.long)
 
-#     # Ensure the array is exactly block_size long
-#     fake_array = fake_array[:block_size]
+#     # Ensure the tensor is exactly block_size long
+#     fake_tensor = fake_tensor[:block_size]
 
-#     return fake_array
+#     return fake_tensor
+
+
+def create_fake_sequence(block_size, sequence):
+    # Calculate how many pairs of [333, 444] we need
+    num_pairs = block_size // 2
+
+    # Create the list with alternating 333 and 444
+    fake_list = sequence * num_pairs
+
+    # If block_size is odd, add one more element
+    if block_size % 2 != 0:
+        fake_list.append(sequence[0])
+
+    # Convert to NumPy array
+    fake_array = np.array(fake_list, dtype=np.int64)
+
+    # Ensure the array is exactly block_size long
+    fake_array = fake_array[:block_size]
+
+    return fake_array
