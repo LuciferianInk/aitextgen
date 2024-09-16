@@ -307,6 +307,7 @@ class HuggingfaceDataset(IterableDataset):
             streaming=True,
             cache_dir="/data/pile",
             trust_remote_code=True,
+            keep_in_memory=False,
             **kwargs,
         )
 
@@ -345,6 +346,7 @@ class HuggingfaceDataset(IterableDataset):
         shuffled = self.dataset.shuffle(
             seed=random.randint(0, 2**31),
             buffer_size=buffer_size,
+            keep_in_memory=False,
         )
 
         # if self.split != "train":
