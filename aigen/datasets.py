@@ -288,7 +288,6 @@ class StreamingDataModule(LightningDataModule):
 
 class HuggingfaceDataset(IterableDataset):
     def __init__(self, tokenizer, params, config, split="train"):
-
         assert config["schema"], "You must provide a schema."
 
         self.config = config
@@ -301,25 +300,54 @@ class HuggingfaceDataset(IterableDataset):
                 if k == "subset":
                     k = "name"
                 kwargs[k] = v
-        self.dataset = load_dataset(
-            config["repo"],
-            split=self.split,
-            streaming=True,
-            cache_dir="/data/pile",
-            trust_remote_code=True,
-            keep_in_memory=False,
-            **kwargs,
+
+        self.buffer_size = self.config.get("buffer_size", 10_000)
+        self.dataset = iter(
+            load_dataset(
+                config["repo"],
+                split=self.split,
+                streaming=True,
+                cache_dir="/data/pile",
+                trust_remote_code=True,
+                keep_in_memory=False,
+                **kwargs,
+            ).shuffle(
+                seed=random.randint(0, 2**31),
+                buffer_size=self.buffer_size,
+            )
         )
 
         self.cached_text = ""
+        self.block_size = self.params["block_size"]
+        sequence = [111, 222, 333]
+        self.fake_sequence = create_fake_sequence(self.block_size, sequence)
+        self.tokens = []
+        self.sample_rate = self.config.get("sample_rate", 1.0)
+        self.val_samples = self.config.get("val_samples", 0)
 
     def __iter__(self):
+        return self
 
-        buffer_size = self.config.get("buffer_size", 10_000)
-        text_cache_size = 10 * buffer_size
+    def __next__(self):
+        self._fill_cache()
 
-        block_size = self.params["block_size"]
+        for batch in self.tokens:
+            if len(batch) != self.block_size:
+                continue
+            if self.split != "train":
+                self.val_samples -= 1
+                if self.val_samples <= 0:
+                    raise StopIteration
+                return batch
+            elif random.random() < self.sample_rate:
+                return batch
+            else:
+                return self.fake_sequence
 
+        return self.__next__()  # If we've exhausted current_tokens, try again
+
+    def _fill_cache(self):
+        text_cache_size = 10 * self.buffer_size
         delimiter = self.config.get("delimiter", "\n")
         if delimiter == "\\n":
             delimiter = "\n"
@@ -327,35 +355,12 @@ class HuggingfaceDataset(IterableDataset):
             delimiter = "\t"
 
         patterns = self.config.get("patterns", [])
-        sample_rate = self.config.get("sample_rate", 1.0)
-        val_samples = self.config.get("val_samples", 0)
 
-        if self.split != "train":
-            sample_rate = 1.0
-
-        sequence = [111, 222, 333]
-        fake_sequence = create_fake_sequence(
-            block_size,
-            sequence,
-        )
-
-        # num_epochs = 1_000_000
-        # shuffled = None
-        # for epoch in range(num_epochs):
-        #     self.dataset.set_epoch(epoch)
-        shuffled = self.dataset.shuffle(
-            seed=random.randint(0, 2**31),
-            buffer_size=buffer_size,
-        )
-
-        # if self.split != "train":
-        #     if val_samples <= 0:
-        #         break
-
-        for document in shuffled:
-            if self.split != "train":
-                if val_samples <= 0:
-                    break
+        while len(self.cached_text) < text_cache_size:
+            try:
+                document = next(self.dataset)
+            except StopIteration:
+                raise StopIteration
 
             text = ""
             items = list(self.config["schema"].items())
@@ -372,43 +377,22 @@ class HuggingfaceDataset(IterableDataset):
                 if i < len(items) - 1:
                     text += delimiter
 
-            text += self.tokenizer.eos_token
+            self.cached_text += text + self.tokenizer.eos_token
 
-            self.cached_text += text
-            if len(self.cached_text) < text_cache_size:
-                continue
+        if self.config.get("debug", False):
+            print(self.cached_text[:4096])
 
-            if self.config.get("debug", False):
-                print(self.cached_text[4096:])
+        self.tokens = self.tokenizer(
+            text=self.cached_text,
+            max_length=self.block_size,
+            stride=64,
+            padding=True,
+            truncation=True,
+            return_overflowing_tokens=True,
+            return_tensors="pt",
+        )["input_ids"]
 
-            tokens = self.tokenizer(
-                text=self.cached_text,
-                max_length=block_size,
-                stride=64,
-                padding=False,
-                truncation=True,
-                return_overflowing_tokens=True,
-                return_tensors="np",
-            )["input_ids"]
-
-            self.cached_text = ""
-
-            for batch in tokens:
-                if self.split != "train":
-                    if val_samples <= 0:
-                        break
-                if len(batch) != block_size:
-                    break
-                while True:
-                    if self.split != "train":
-                        val_samples -= 1
-                        yield batch
-                        break
-                    elif random.random() < sample_rate:
-                        yield batch
-                        break
-                    else:
-                        yield fake_sequence
+        self.cached_text = ""
 
 
 def create_fake_sequence(block_size, sequence):

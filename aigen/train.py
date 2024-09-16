@@ -51,7 +51,12 @@ class AIGTrainer(LightningModule):
     def training_step(self, batch, batch_idx):
         losses = []
 
-        if hasattr(batch, "ndim") and batch.ndim == 2:
+        if (
+            hasattr(batch, "ndim")
+            and batch.ndim == 2
+            or hasattr(batch, "dim")
+            and batch.dim() == 2
+        ):
             outputs = self({"input_ids": batch, "labels": batch})
             losses.append(outputs[0])
         else:
@@ -107,7 +112,12 @@ class AIGTrainer(LightningModule):
         if self.trainer.sanity_checking:
             return
 
-        if hasattr(batch, "ndim") and batch.ndim == 2:
+        if (
+            hasattr(batch, "ndim")
+            and batch.ndim == 2
+            or hasattr(batch, "dim")
+            and batch.dim() == 2
+        ):
             outputs = self({"input_ids": batch, "labels": batch})
             losses.append(outputs[0])
         else:
