@@ -389,7 +389,7 @@ class HuggingfaceDataset(IterableDataset):
             padding=True,
             truncation=True,
             return_overflowing_tokens=True,
-            return_tensors="pt",
+            return_tensors="np",
         )["input_ids"]
 
         self.cached_text = ""
