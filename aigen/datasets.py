@@ -288,7 +288,7 @@ class StreamingDataModule(LightningDataModule):
 
 class HuggingfaceDataset(IterableDataset):
     def __init__(self, tokenizer, params, config, split="train"):
-        assert config["schema"], "You must provide a schema."
+        assert config["schemas"], "You must provide a schema."
 
         self.config = config
         self.tokenizer = tokenizer
@@ -363,7 +363,8 @@ class HuggingfaceDataset(IterableDataset):
                 raise StopIteration
 
             text = ""
-            items = list(self.config["schema"].items())
+            schema = random.choice(self.config["schemas"])
+            items = list(schema.items())
             for i, (k, v) in enumerate(items):
                 if len(document[k]) == 0:
                     continue
