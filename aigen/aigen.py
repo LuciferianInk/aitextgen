@@ -88,7 +88,7 @@ class aigen:
         self.petals = petals
 
         # Enable tensor cores
-        torch.set_float32_matmul_precision("medium")
+        # torch.set_float32_matmul_precision("medium")
 
         qargs = dict(torch_dtype=torch.float32)
 
